@@ -8,6 +8,8 @@ struct PaneView: View {
         VStack(spacing: 0) {
             BreadcrumbView(pane: pane)
             Divider()
+            FilterBarView(pane: pane)
+            Divider()
             table
             Divider()
             statusBar
@@ -16,7 +18,11 @@ struct PaneView: View {
 
     private var statusBar: some View {
         HStack {
-            Text("\(pane.visibleEntries.count) items")
+            if pane.filter.isActive {
+                Text("\(pane.visibleEntries.count) of \(pane.totalCount) items")
+            } else {
+                Text("\(pane.visibleEntries.count) items")
+            }
             if !pane.selection.isEmpty {
                 Text("· \(pane.selection.count) selected")
             }
@@ -74,8 +80,13 @@ struct PaneView: View {
                     systemImage: "exclamationmark.triangle",
                     description: Text(message))
             } else if pane.hasLoadedOnce && pane.visibleEntries.isEmpty {
-                ContentUnavailableView(
-                    "Empty Folder", systemImage: "folder")
+                if pane.filter.isActive {
+                    ContentUnavailableView(
+                        "No Matches", systemImage: "line.3.horizontal.decrease.circle",
+                        description: Text("No items match the current filters."))
+                } else {
+                    ContentUnavailableView("Empty Folder", systemImage: "folder")
+                }
             }
         }
     }
