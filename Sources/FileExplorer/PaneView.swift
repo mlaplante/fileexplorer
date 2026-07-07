@@ -11,10 +11,21 @@ struct PaneView: View {
             Divider()
             FilterBarView(pane: pane)
             Divider()
-            if pane.viewMode == .icons {
-                ThumbnailGridView(pane: pane) { open($0) }
-            } else {
-                table
+            Group {
+                if pane.viewMode == .icons {
+                    ThumbnailGridView(pane: pane) { open($0) }
+                } else {
+                    table
+                }
+            }
+            .onChange(of: pane.selection) { _, _ in
+                if QuickLookController.shared.isVisible {
+                    QuickLookController.shared.refresh(from: pane)
+                }
+            }
+            .onKeyPress(.space) {
+                QuickLookController.shared.toggle(for: pane)
+                return .handled
             }
             Divider()
             statusBar
@@ -106,15 +117,6 @@ struct PaneView: View {
                     ContentUnavailableView("Empty Folder", systemImage: "folder")
                 }
             }
-        }
-        .onChange(of: pane.selection) { _, _ in
-            if QuickLookController.shared.isVisible {
-                QuickLookController.shared.refresh(from: pane)
-            }
-        }
-        .onKeyPress(.space) {
-            QuickLookController.shared.toggle(for: pane)
-            return .handled
         }
     }
 

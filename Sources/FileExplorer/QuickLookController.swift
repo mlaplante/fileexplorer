@@ -23,10 +23,7 @@ final class QuickLookController: NSObject, QLPreviewPanelDataSource,
         panel.delegate = self
         panel.reloadData()
         panel.makeKeyAndOrderFront(nil)
-        if let selected = pane.selection.first,
-           let index = urls.firstIndex(of: selected) {
-            panel.currentPreviewItemIndex = index
-        }
+        refresh(from: pane)
     }
 
     /// Re-syncs items + current index from the pane; call on selection change

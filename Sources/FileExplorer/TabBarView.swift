@@ -60,6 +60,11 @@ struct TabContentView: View {
             Divider()
             PaneAreaView(tab: session.activeTab)
         }
+        .onChange(of: session.activeTabIndex) { _, _ in
+            if QuickLookController.shared.isVisible {
+                QuickLookController.shared.refresh(from: session.activePane)
+            }
+        }
     }
 }
 
@@ -68,13 +73,20 @@ struct PaneAreaView: View {
     @Bindable var tab: TabState
 
     var body: some View {
-        if tab.isDual {
-            HSplitView {
+        Group {
+            if tab.isDual {
+                HSplitView {
+                    pane(at: 0)
+                    pane(at: 1)
+                }
+            } else {
                 pane(at: 0)
-                pane(at: 1)
             }
-        } else {
-            pane(at: 0)
+        }
+        .onChange(of: tab.activePaneIndex) { _, _ in
+            if QuickLookController.shared.isVisible {
+                QuickLookController.shared.refresh(from: tab.activePane)
+            }
         }
     }
 
