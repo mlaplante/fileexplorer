@@ -27,7 +27,7 @@
 - Create: `Sources/FileExplorerTests/TabStateTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/TabStateTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/TabStateTests.swift`**
 
 ```swift
 import Foundation
@@ -94,12 +94,12 @@ func tabStateTests() async {
 
 Add `await tabStateTests()` to `main.swift` after `await paneFilterTests()`.
 
-- [ ] **Step 2: Run tests to verify red**
+- [x] **Step 2: Run tests to verify red**
 
 Run: `swift run FileExplorerTests`
 Expected: build FAILS — "cannot find 'TabState' in scope" and `PaneState` has no `startIfNeeded`.
 
-- [ ] **Step 3: Add to `Sources/FileExplorerCore/PaneState.swift`** (near `start()`)
+- [x] **Step 3: Add to `Sources/FileExplorerCore/PaneState.swift`** (near `start()`)
 
 ```swift
     private var started = false
@@ -114,7 +114,7 @@ Expected: build FAILS — "cannot find 'TabState' in scope" and `PaneState` has 
     }
 ```
 
-- [ ] **Step 4: Create `Sources/FileExplorerCore/TabState.swift`**
+- [x] **Step 4: Create `Sources/FileExplorerCore/TabState.swift`**
 
 ```swift
 import Foundation
@@ -156,11 +156,11 @@ public final class TabState: Identifiable {
 }
 ```
 
-- [ ] **Step 5: Run tests to verify green**
+- [x] **Step 5: Run tests to verify green**
 
 Run: `swift run FileExplorerTests` → PASS, exit 0 (99 + ~14 new ≈ 113 — recount honestly). The `startIfNeeded` test involves a real watcher + async load; run twice for stability.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
@@ -176,7 +176,7 @@ git commit -m "feat: TabState with dual-pane toggle and PaneState.startIfNeeded"
 - Create: `Sources/FileExplorerTests/SessionStateTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/SessionStateTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/SessionStateTests.swift`**
 
 ```swift
 import Foundation
@@ -235,11 +235,11 @@ func sessionStateTests() async {
 
 Add `await sessionStateTests()` to `main.swift` after `await tabStateTests()`.
 
-- [ ] **Step 2: Run tests to verify red**
+- [x] **Step 2: Run tests to verify red**
 
 Run: `swift run FileExplorerTests` → build FAILS with "cannot find 'SessionState' in scope".
 
-- [ ] **Step 3: Create `Sources/FileExplorerCore/SessionState.swift`**
+- [x] **Step 3: Create `Sources/FileExplorerCore/SessionState.swift`**
 
 ```swift
 import Foundation
@@ -286,11 +286,11 @@ public final class SessionState {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify green**
+- [x] **Step 4: Run tests to verify green**
 
 Run: `swift run FileExplorerTests` → PASS (≈124 — recount honestly), exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
@@ -310,7 +310,7 @@ git commit -m "feat: SessionState tab collection"
 
 UI glue — no unit tests. NO `@State`.
 
-- [ ] **Step 1: Create `Sources/FileExplorer/TabBarView.swift`**
+- [x] **Step 1: Create `Sources/FileExplorer/TabBarView.swift`**
 
 ```swift
 import SwiftUI
@@ -365,7 +365,7 @@ struct TabBarView: View {
 }
 ```
 
-- [ ] **Step 2: Delete `Sources/FileExplorer/AppState.swift`**, then rewrite `Sources/FileExplorer/FileExplorerApp.swift`:
+- [x] **Step 2: Delete `Sources/FileExplorer/AppState.swift`**, then rewrite `Sources/FileExplorer/FileExplorerApp.swift`:
 
 ```swift
 import SwiftUI
@@ -468,7 +468,7 @@ struct FileExplorerApp: App {
 }
 ```
 
-- [ ] **Step 3: Create the tab-content container.** Add to the BOTTOM of `Sources/FileExplorer/TabBarView.swift` (same file keeps tab UI together):
+- [x] **Step 3: Create the tab-content container.** Add to the BOTTOM of `Sources/FileExplorer/TabBarView.swift` (same file keeps tab UI together):
 
 ```swift
 /// Renders the tab bar plus only the ACTIVE tab's pane(s); inactive tabs keep
@@ -520,7 +520,7 @@ struct PaneAreaView: View {
 }
 ```
 
-- [ ] **Step 4: Retarget `Sources/FileExplorer/SidebarView.swift` to the session.** Change the property and the row action:
+- [x] **Step 4: Retarget `Sources/FileExplorer/SidebarView.swift` to the session.** Change the property and the row action:
 
 ```swift
     @Bindable var session: SessionState
@@ -534,15 +534,15 @@ and in `row(_:)`:
 
 (Everything else in the file unchanged.)
 
-- [ ] **Step 5: Remove the startup responsibilities PaneView doesn't own.** In `Sources/FileExplorer/PaneView.swift` no changes are strictly required, but VERIFY it still compiles against the new wiring (it takes `pane: PaneState` and is now created per active pane by `PaneAreaView`).
+- [x] **Step 5: Remove the startup responsibilities PaneView doesn't own.** In `Sources/FileExplorer/PaneView.swift` no changes are strictly required, but VERIFY it still compiles against the new wiring (it takes `pane: PaneState` and is now created per active pane by `PaneAreaView`).
 
-- [ ] **Step 6: Build and verify**
+- [x] **Step 6: Build and verify**
 
 1. `swift build` → clean; `grep -rn "@State" Sources/` → empty; `grep -rn "AppState" Sources/` → empty.
 2. `swift run FileExplorerTests` → PASS (same count as Task 2 end), exit 0.
 3. Launch check: app runs >5 s, kill. (Interactive tab behavior deferred to walkthrough.)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A
@@ -553,7 +553,20 @@ git commit -m "feat: in-window tabs and dual-pane layout targeting the active pa
 
 ### Task 4: Final milestone verification
 
-- [ ] **Step 1:** `swift run FileExplorerTests` → PASS, exit 0, twice.
-- [ ] **Step 2:** `./Scripts/bundle.sh && open build/FileExplorer.app`; after 15 s, `ps -o %cpu,rss` → ~0% CPU, stable RSS; **also toggle nothing — just idle** (regression guard). Kill.
-- [ ] **Step 3:** Note walkthrough items: ⌘T/⌘W/⌘1–9, tab chips select/close, tab state survives switching away and back (folder, filters, selection), ⇧⌘D dual pane, click-to-activate highlight, commands/sidebar hit the active pane, per-pane filters independent.
-- [ ] **Step 4:** Fix anything real; commit (`fix: … (milestone 3 verification)`).
+- [x] **Step 1:** `swift run FileExplorerTests` → PASS, exit 0, twice.
+- [x] **Step 2:** `./Scripts/bundle.sh && open build/FileExplorer.app`; after 15 s, `ps -o %cpu,rss` → ~0% CPU, stable RSS; **also toggle nothing — just idle** (regression guard). Kill.
+- [x] **Step 3:** Note walkthrough items: ⌘T/⌘W/⌘1–9, tab chips select/close, tab state survives switching away and back (folder, filters, selection), ⇧⌘D dual pane, click-to-activate highlight, commands/sidebar hit the active pane, per-pane filters independent.
+- [x] **Step 4:** Fix anything real; commit (`fix: … (milestone 3 verification)`).
+
+---
+
+## Completion Notes (2026-07-07)
+
+All 4 tasks implemented, reviewed, and verified. Final: `swift run FileExplorerTests` → PASS (129 assertions); idle app 0.0% CPU, ~122 MB stable.
+
+Post-review fixes folded in before merge:
+- `WindowGroup` → `Window` (single-instance scene): the app has ONE shared `SessionState`, so a second window via ⌘N would have mirrored the same tabs. `Window` removes New Window entirely. If multi-window is ever wanted, each window needs its own `SessionState`.
+- Dead `PaneState.start()` deleted (`startIfNeeded()` is the only entry point now).
+- Active-pane tint bar renders only in dual mode.
+
+Walkthrough items for the human: ⌘T/⌘W/⌘1–9; tab chips select/close (X on chip shouldn't also select); tab state surviving switch-away-and-back (folder, filters, selection); ⇧⌘D dual pane; click-to-activate highlight; commands/sidebar hitting the active pane; **⌘W at one tab** (should no-op, verify the system Close Window doesn't fire); window title following the active pane.
