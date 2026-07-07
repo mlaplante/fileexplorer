@@ -13,6 +13,7 @@ await tabStateTests()
 await sessionStateTests()
 await recentsTests()
 await scannerTests()
+await paletteModelTests()
 await fuzzyMatcherTests()
 
 finish()

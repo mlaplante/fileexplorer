@@ -1,15 +1,37 @@
 import Foundation
 
+/// Pre-lowercased candidate for hot ranking paths (palette re-ranks per
+/// keystroke over up to 50k items; preparing once avoids re-allocating
+/// character arrays on every keystroke).
+public struct FuzzyCandidate: Sendable {
+    let lower: [Character]
+    let original: [Character]
+
+    public init(_ string: String) {
+        original = Array(string)
+        lower = Array(string.lowercased())
+    }
+}
+
 /// Shared fuzzy scorer for the ⌘G/⌘P/⇧⌘A palettes.
 public enum FuzzyMatcher {
     /// Case-insensitive subsequence score; nil when `query` is not a
     /// subsequence of `candidate`. Bonuses: candidate prefix, word/camelCase
     /// starts, consecutive runs. Mild penalty for long candidates.
     public static func score(query: String, candidate: String) -> Int? {
-        if query.isEmpty { return 0 }
-        let q = Array(query.lowercased())
-        let lower = Array(candidate.lowercased())
-        let original = Array(candidate)
+        score(queryLowercased: Array(query.lowercased()),
+              candidate: FuzzyCandidate(candidate))
+    }
+
+    /// Same scoring algorithm as `score(query:candidate:)`, but takes a
+    /// pre-lowercased query and a prepared `FuzzyCandidate` to avoid
+    /// re-lowercasing the candidate on every call (hot path for re-ranking
+    /// large item lists per keystroke).
+    public static func score(queryLowercased q: [Character],
+                             candidate: FuzzyCandidate) -> Int? {
+        if q.isEmpty { return 0 }
+        let lower = candidate.lower
+        let original = candidate.original
         var qi = 0
         var total = 0
         var streak = 0
