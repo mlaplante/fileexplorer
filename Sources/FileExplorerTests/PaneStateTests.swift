@@ -36,6 +36,34 @@ func paneStateTests() async {
                     "goUp reaches parent")
     }
 
+    await test("PaneState last reload wins under overlap") {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try Data().write(to: dir.appendingPathComponent("v.txt"))
+        try Data().write(to: dir.appendingPathComponent(".h"))
+
+        let pane = PaneState(url: dir)
+        // Overlapping reloads: fire one without awaiting, then start a
+        // second (awaited) one with a different showHidden. `Task { }` only
+        // enqueues -- it doesn't run until this (MainActor) task suspends --
+        // so without a yield, `earlier`'s body wouldn't even read
+        // `showHidden` until after we'd already flipped it below, making the
+        // two loads indistinguishable and the test pass trivially either
+        // way. The explicit `Task.yield()` lets `earlier`'s prefix
+        // (reloadID bump + showHidden read) run first, while showHidden is
+        // still false, so it captures the *lower* reloadID and a stale
+        // (hidden-excluded) snapshot -- genuinely racing the final reload
+        // below rather than duplicating it.
+        pane.showHidden = false
+        let earlier = Task { await pane.reload() }
+        await Task.yield()
+        pane.showHidden = true
+        await pane.reload()
+        _ = await earlier.value
+        expectEqual(pane.entries.count, 2,
+                    "state reflects the most recent reload request, not whichever finishes last")
+    }
+
     await test("PaneState surfaces load errors") {
         let pane = PaneState(url: URL(fileURLWithPath: "/nonexistent-\(UUID().uuidString)"))
         await pane.reload()

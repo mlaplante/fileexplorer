@@ -8,6 +8,8 @@ public final class PaneState {
     public var entries: [FileEntry] = [] {
         didSet { applySort() }
     }
+    /// Note: cleared on navigation, but a watcher-triggered reload keeps the
+    /// existing selection even if some selected files no longer exist.
     public var selection = Set<URL>()
     public var sortOrder: [KeyPathComparator<FileEntry>] = [
         KeyPathComparator(\FileEntry.name, comparator: .localizedStandard)
@@ -23,6 +25,7 @@ public final class PaneState {
     public private(set) var visibleEntries: [FileEntry] = []
 
     private let watcher = DirectoryWatcher()
+    private var reloadID = 0
 
     public var currentURL: URL { history.current }
     public var canGoBack: Bool { history.canGoBack }
@@ -61,15 +64,19 @@ public final class PaneState {
     }
 
     public func reload() async {
+        reloadID += 1
+        let myID = reloadID
         let url = currentURL
         let includeHidden = showHidden
         do {
             let loaded = try await Task.detached(priority: .userInitiated) {
                 try DirectoryLoader.load(url, includeHidden: includeHidden)
             }.value
+            guard myID == reloadID else { return }
             entries = loaded
             errorMessage = nil
         } catch {
+            guard myID == reloadID else { return }
             entries = []
             errorMessage = error.localizedDescription
         }
