@@ -762,13 +762,22 @@ import Observation
 @Observable
 public final class PaneState {
     public private(set) var history: NavigationHistory
-    public var entries: [FileEntry] = []
+    public var entries: [FileEntry] = [] {
+        didSet { applySort() }
+    }
     public var selection = Set<URL>()
     public var sortOrder: [KeyPathComparator<FileEntry>] = [
         KeyPathComparator(\FileEntry.name, comparator: .localizedStandard)
-    ]
+    ] {
+        didSet { applySort() }
+    }
     public var showHidden = false
     public var errorMessage: String?
+
+    /// Sorted snapshot of `entries`. Stored rather than computed so SwiftUI
+    /// body evaluations don't re-sort large directories; refreshed only when
+    /// `entries` or `sortOrder` changes.
+    public private(set) var visibleEntries: [FileEntry] = []
 
     private let watcher = DirectoryWatcher()
 
@@ -777,12 +786,10 @@ public final class PaneState {
     public var canGoForward: Bool { history.canGoForward }
     public var canGoUp: Bool { currentURL.path != "/" }
 
-    public var visibleEntries: [FileEntry] {
-        FileSorter.sort(entries, using: sortOrder)
-    }
-
     public init(url: URL) {
-        history = NavigationHistory(current: url)
+        // Standardize so NavigationHistory's exact-URL-equality no-op check
+        // works for equivalent paths (trailing slash, "." components).
+        history = NavigationHistory(current: url.standardizedFileURL)
     }
 
     /// Call once from the UI to begin watching; tests skip this.
@@ -791,8 +798,12 @@ public final class PaneState {
     }
 
     public func navigate(to url: URL) async {
-        history.navigate(to: url)
+        history.navigate(to: url.standardizedFileURL)
         await afterNavigation()
+    }
+
+    private func applySort() {
+        visibleEntries = FileSorter.sort(entries, using: sortOrder)
     }
 
     public func goBack() async {
