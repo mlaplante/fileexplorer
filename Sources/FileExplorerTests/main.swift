@@ -18,6 +18,7 @@ await previewRendererTests()
 await hoverPreviewModelTests()
 await fileOperationTests()
 await undoTests()
+await renamePlanTests()
 await fuzzyMatcherTests()
 
 finish()

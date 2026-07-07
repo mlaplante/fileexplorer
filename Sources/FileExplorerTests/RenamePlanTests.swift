@@ -1,0 +1,64 @@
+import Foundation
+import FileExplorerCore
+
+@MainActor
+func renamePlanTests() async {
+    func url(_ name: String) -> URL { URL(fileURLWithPath: "/t/\(name)") }
+
+    await test("find/replace, prefix, suffix operate on the basename only") {
+        var rules = RenameRules()
+        rules.find = "IMG"
+        rules.replace = "Photo"
+        rules.prefix = "2026-"
+        rules.suffix = "-web"
+        let items = RenamePlan.plan(urls: [url("IMG_001.jpg")], rules: rules,
+                                    existingNames: [])
+        expectEqual(items[0].newName, "2026-Photo_001-web.jpg",
+                    "basename transformed, extension preserved")
+        expect(items[0].conflict == nil, "no conflict")
+    }
+
+    await test("numbering appends padded sequence after other rules") {
+        var rules = RenameRules()
+        rules.numbering = true
+        rules.numberStart = 9
+        rules.numberPadding = 3
+        let items = RenamePlan.plan(urls: [url("a.png"), url("b.png")],
+                                    rules: rules, existingNames: [])
+        expectEqual(items.map(\.newName), ["a-009.png", "b-010.png"],
+                    "padded, sequential, before extension")
+    }
+
+    await test("conflicts: duplicate targets, existing files, invalid names") {
+        var rules = RenameRules()
+        rules.find = "x"
+        rules.replace = "same"
+        let dupes = RenamePlan.plan(urls: [url("x1.txt"), url("x1.txt")],
+                                    rules: rules, existingNames: [])
+        // identical sources → identical targets → both flagged duplicate
+        expect(dupes.allSatisfy { $0.conflict == .duplicateTarget },
+               "duplicate targets flagged")
+
+        var clash = RenameRules()
+        clash.prefix = "new-"
+        let existing = RenamePlan.plan(urls: [url("file.txt")], rules: clash,
+                                       existingNames: ["new-file.txt"])
+        expectEqual(existing[0].conflict, .existingFile, "existing name flagged")
+
+        var bad = RenameRules()
+        bad.replace = "a/b"
+        bad.find = "file"
+        let invalid = RenamePlan.plan(urls: [url("file.txt")], rules: bad,
+                                      existingNames: [])
+        expectEqual(invalid[0].conflict, .invalidName, "slash flagged invalid")
+    }
+
+    await test("unchanged names are marked so apply can skip them") {
+        let rules = RenameRules()   // no-op rules
+        let items = RenamePlan.plan(urls: [url("keep.txt")], rules: rules,
+                                    existingNames: ["keep.txt"])
+        expectEqual(items[0].newName, "keep.txt", "name unchanged")
+        expectEqual(items[0].conflict, .unchanged,
+                    "unchanged flagged (not existingFile, even though it exists)")
+    }
+}
