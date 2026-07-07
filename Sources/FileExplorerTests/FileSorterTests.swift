@@ -32,4 +32,13 @@ func fileSorterTests() async {
             foldersFirst: false)
         expectEqual(sorted.map(\.name), ["a", "b"], "pure name order")
     }
+
+    await test("FileSorter preserves comparator order within each group") {
+        let items = [entry("Banana", dir: true), entry("z.txt"),
+                     entry("Apple", dir: true), entry("a.txt")]
+        let sorted = FileSorter.sort(items,
+            using: [KeyPathComparator(\FileEntry.name, comparator: .localizedStandard)])
+        expectEqual(sorted.map(\.name), ["Apple", "Banana", "a.txt", "z.txt"],
+                    "folders sorted among themselves, then files sorted")
+    }
 }
