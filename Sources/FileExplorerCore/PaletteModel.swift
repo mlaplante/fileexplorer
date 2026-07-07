@@ -30,6 +30,10 @@ public final class PaletteModel {
     public private(set) var mode: Mode = .folders
     public private(set) var isPresented = false
     public private(set) var presentToken = 0
+    /// The pane the palette was opened for; folder/file confirms must target
+    /// this pane even if the active pane changes while the palette is open.
+    /// Weak: a pane can be closed (tab close / dual-pane collapse) mid-flight.
+    public weak var targetPane: PaneState?
     public private(set) var isLoading = false
     public var query = "" {
         didSet { rerank() }
@@ -56,6 +60,7 @@ public final class PaletteModel {
     public func dismiss() {
         isPresented = false
         isLoading = false
+        targetPane = nil
     }
 
     /// Providers pass the token captured at present time; without it (UI

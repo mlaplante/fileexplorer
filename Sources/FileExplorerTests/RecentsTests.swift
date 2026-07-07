@@ -49,4 +49,41 @@ func recentsTests() async {
         expectEqual(session.recentFolders.first?.lastPathComponent, "d34",
                     "newest kept")
     }
+
+    await test("boundary back/forward do not re-record recents") {
+        // NOTE on arithmetic: recordRecent() dedupes by removing any existing
+        // entry for a URL before reinserting it at the front, so re-recording
+        // the *current* URL (which is always already front-of-list right
+        // after a real navigation) is a no-op for both count and order --
+        // whether or not the boundary call fires onNavigated at all. That
+        // makes recentFolders.count unable to distinguish "boundary re-fired
+        // onNavigated" from "boundary correctly no-op'd" in this scenario;
+        // count stays equal to the snapshot either way (confirmed empirically
+        // both with and without the PaneState guard). The real regression
+        // coverage for this fix is the onNavigated call-count assertions in
+        // "PaneState boundary goBack/goForward do not fire onNavigated"
+        // (PaneStateTests.swift), which does discriminate buggy vs. fixed.
+        // This test still documents and locks in the correct recents-level
+        // semantics: boundary calls never grow or reorder the recents list.
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let sub = dir.appendingPathComponent("sub")
+        try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: false)
+
+        let session = SessionState(url: dir)
+        await session.activePane.navigate(to: sub)
+        await session.activePane.goBack()
+        let snapshot = session.recentFolders
+        await session.activePane.goBack()      // boundary no-op
+        expectEqual(session.recentFolders, snapshot,
+                    "boundary goBack leaves recents unchanged")
+
+        await session.activePane.goForward()
+        let afterForward = session.recentFolders
+        expectEqual(afterForward.count, snapshot.count,
+                    "real goForward re-records the current entry, not a new one")
+        await session.activePane.goForward()   // boundary no-op
+        expectEqual(session.recentFolders, afterForward,
+                    "boundary goForward leaves recents unchanged")
+    }
 }

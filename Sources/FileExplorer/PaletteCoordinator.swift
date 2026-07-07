@@ -7,9 +7,11 @@ import FileExplorerCore
 enum PaletteCoordinator {
     static func openFolders(_ palette: PaletteModel, session: SessionState) {
         palette.present(mode: .folders)
+        let pane = session.activePane
+        palette.targetPane = pane
         let token = palette.presentToken
-        let current = session.activePane.currentURL
-        let favorites = standardFavorites()
+        let current = pane.currentURL
+        let favorites = StandardPlaces.favorites().map(\.url)
         let recents = session.recentFolders
         Task.detached(priority: .userInitiated) {
             let scanned = FolderScanner.subfolders(of: current)
@@ -21,8 +23,10 @@ enum PaletteCoordinator {
 
     static func openFiles(_ palette: PaletteModel, session: SessionState) {
         palette.present(mode: .files)
+        let pane = session.activePane
+        palette.targetPane = pane
         let token = palette.presentToken
-        let current = session.activePane.currentURL
+        let current = pane.currentURL
         Task.detached(priority: .userInitiated) {
             let files = FileSearcher.files(under: current)
             let items = files.map {
@@ -42,19 +46,26 @@ enum PaletteCoordinator {
 
     static func confirm(_ item: PaletteItem, palette: PaletteModel,
                         session: SessionState) {
+        // Capture the mode and the palette's opening-time pane before
+        // dismiss() clears targetPane — folder/file confirms must land on
+        // the pane the palette was opened for, not whatever pane is active
+        // now (the user may have switched panes via keyboard while open).
+        let mode = palette.mode
+        let pane = palette.targetPane ?? session.activePane
         palette.dismiss()
-        switch palette.mode {
+        switch mode {
         case .folders:
             let url = URL(fileURLWithPath: item.id)
-            Task { await session.activePane.navigate(to: url) }
+            Task { await pane.navigate(to: url) }
         case .files:
             let url = URL(fileURLWithPath: item.id)
             Task {
-                let pane = session.activePane
                 await pane.navigate(to: url.deletingLastPathComponent())
                 pane.selection = [url.standardizedFileURL]
             }
         case .commands:
+            // Commands intentionally target whatever pane is active at
+            // confirm time (e.g. "Toggle Dual Pane" acts on the current tab).
             commands(for: session).first { $0.id == item.id }?.action()
         }
     }
@@ -104,21 +115,6 @@ enum PaletteCoordinator {
                     [session.activePane.currentURL])
             },
         ]
-    }
-
-    private nonisolated static func standardFavorites() -> [URL] {
-        let fm = FileManager.default
-        var urls = [fm.homeDirectoryForCurrentUser]
-        let dirs: [FileManager.SearchPathDirectory] =
-            [.desktopDirectory, .documentDirectory, .downloadsDirectory,
-             .picturesDirectory]
-        for dir in dirs {
-            if let url = fm.urls(for: dir, in: .userDomainMask).first,
-               fm.fileExists(atPath: url.path) {
-                urls.append(url)
-            }
-        }
-        return urls
     }
 
     private nonisolated static func dedupe(_ urls: [URL]) -> [URL] {

@@ -59,6 +59,27 @@ func paletteModelTests() async {
         expectEqual(palette.results.count, 50, "cap applied")
     }
 
+    await test("PaletteModel targetPane is weak and cleared on dismiss") {
+        let palette = PaletteModel()
+        var pane: PaneState? = PaneState(url: URL(fileURLWithPath: "/tmp"))
+        palette.present(mode: .folders)
+        palette.targetPane = pane
+        expect(palette.targetPane === pane, "target pane held")
+        pane = nil
+        expect(palette.targetPane == nil, "weak reference does not retain the pane")
+        palette.targetPane = PaneState(url: URL(fileURLWithPath: "/tmp"))
+        palette.dismiss()
+        expect(palette.targetPane == nil, "dismiss clears target pane")
+    }
+
+    await test("StandardPlaces starts at Home and only lists existing folders") {
+        let places = StandardPlaces.favorites()
+        expectEqual(places.first?.name, "Home", "home first")
+        expect(places.allSatisfy {
+            FileManager.default.fileExists(atPath: $0.url.path)
+        }, "every place exists")
+    }
+
     await test("FuzzyCandidate prepared scoring matches string scoring") {
         let candidates = ["Documents", "MyDocs", "dry-oak-cabin", "notes.txt", ""]
         for candidate in candidates {

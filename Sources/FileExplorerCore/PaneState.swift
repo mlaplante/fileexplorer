@@ -81,11 +81,13 @@ public final class PaneState {
     }
 
     public func goBack() async {
+        guard canGoBack else { return }
         history.goBack()
         await afterNavigation()
     }
 
     public func goForward() async {
+        guard canGoForward else { return }
         history.goForward()
         await afterNavigation()
     }

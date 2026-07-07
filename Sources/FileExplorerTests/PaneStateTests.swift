@@ -99,6 +99,32 @@ func paneStateTests() async {
         expect(!pane.selection.isEmpty, "selection preserved on same-URL navigate")
     }
 
+    await test("PaneState boundary goBack/goForward do not fire onNavigated") {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let sub = dir.appendingPathComponent("sub")
+        try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: false)
+
+        let pane = PaneState(url: dir)
+        var navigations = 0
+        pane.onNavigated = { _ in navigations += 1 }
+
+        await pane.navigate(to: sub)
+        expectEqual(navigations, 1, "real navigate fires onNavigated")
+
+        await pane.goBack()
+        expectEqual(navigations, 2, "real goBack fires onNavigated")
+
+        await pane.goBack()   // already at history start: boundary no-op
+        expectEqual(navigations, 2, "boundary goBack does not re-fire onNavigated")
+
+        await pane.goForward()
+        expectEqual(navigations, 3, "real goForward fires onNavigated")
+
+        await pane.goForward()   // already at history end: boundary no-op
+        expectEqual(navigations, 3, "boundary goForward does not re-fire onNavigated")
+    }
+
     await test("PaneState falls back to nearest existing ancestor when folder vanishes") {
         let dir = try makeTempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
