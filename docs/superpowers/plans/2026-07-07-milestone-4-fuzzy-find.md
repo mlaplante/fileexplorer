@@ -26,7 +26,7 @@
 - Create: `Sources/FileExplorerTests/FuzzyMatcherTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/FuzzyMatcherTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/FuzzyMatcherTests.swift`**
 
 ```swift
 import Foundation
@@ -75,9 +75,9 @@ func fuzzyMatcherTests() async {
 
 Add `await fuzzyMatcherTests()` to `main.swift` after `await sessionStateTests()`.
 
-- [ ] **Step 2: Verify red** — `swift run FileExplorerTests` → "cannot find 'FuzzyMatcher' in scope".
+- [x] **Step 2: Verify red** — `swift run FileExplorerTests` → "cannot find 'FuzzyMatcher' in scope".
 
-- [ ] **Step 3: Implement — `Sources/FileExplorerCore/FuzzyMatcher.swift`**
+- [x] **Step 3: Implement — `Sources/FileExplorerCore/FuzzyMatcher.swift`**
 
 ```swift
 import Foundation
@@ -130,9 +130,9 @@ public enum FuzzyMatcher {
 }
 ```
 
-- [ ] **Step 4: Verify green** — PASS (~144, recount honestly). If an ordering assertion fails, adjust the BONUS WEIGHTS (not the tests' intent) and report what you changed.
+- [x] **Step 4: Verify green** — PASS (~144, recount honestly). If an ordering assertion fails, adjust the BONUS WEIGHTS (not the tests' intent) and report what you changed.
 
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat: FuzzyMatcher subsequence scorer and ranker"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat: FuzzyMatcher subsequence scorer and ranker"`
 
 ---
 
@@ -145,7 +145,7 @@ public enum FuzzyMatcher {
 - Create: `Sources/FileExplorerTests/RecentsTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/RecentsTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/RecentsTests.swift`**
 
 ```swift
 import Foundation
@@ -204,9 +204,9 @@ func recentsTests() async {
 
 Add `await recentsTests()` to `main.swift` after `await sessionStateTests()` (keep `fuzzyMatcherTests` wherever Task 1 put it — order of suites doesn't matter, just don't remove any).
 
-- [ ] **Step 2: Verify red** — `SessionState` has no `recentFolders`.
+- [x] **Step 2: Verify red** — `SessionState` has no `recentFolders`.
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 
 `PaneState.swift` — add near the top of the class:
 
@@ -281,9 +281,9 @@ change `init` and `newTab()` to create hooked tabs:
 
 (Note: `tabs = []` then reassign is needed because `makeTab` references `self`. If the compiler objects, initialize with a plain `TabState(url: url)` and set `tabs[0]` panes' hook afterward — report whichever you needed.)
 
-- [ ] **Step 4: Verify green** — PASS (~152, recount honestly), run twice.
+- [x] **Step 4: Verify green** — PASS (~152, recount honestly), run twice.
 
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat: record recent folders across tabs and panes"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat: record recent folders across tabs and panes"`
 
 ---
 
@@ -295,7 +295,7 @@ change `init` and `newTab()` to create hooked tabs:
 - Create: `Sources/FileExplorerTests/ScannerTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/ScannerTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/ScannerTests.swift`**
 
 ```swift
 import Foundation
@@ -360,9 +360,9 @@ func scannerTests() async {
 
 Add `await scannerTests()` to `main.swift` after `await recentsTests()`.
 
-- [ ] **Step 2: Verify red** — "cannot find 'FolderScanner' in scope".
+- [x] **Step 2: Verify red** — "cannot find 'FolderScanner' in scope".
 
-- [ ] **Step 3: Implement — `Sources/FileExplorerCore/FolderScanner.swift`**
+- [x] **Step 3: Implement — `Sources/FileExplorerCore/FolderScanner.swift`**
 
 ```swift
 import Foundation
@@ -421,9 +421,9 @@ public enum FileSearcher {
 }
 ```
 
-- [ ] **Step 4: Verify green** — PASS (~163, recount honestly).
+- [x] **Step 4: Verify green** — PASS (~163, recount honestly).
 
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat: bounded folder scanner and recursive file searcher"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat: bounded folder scanner and recursive file searcher"`
 
 ---
 
@@ -434,7 +434,7 @@ public enum FileSearcher {
 - Create: `Sources/FileExplorerTests/PaletteModelTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/PaletteModelTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/PaletteModelTests.swift`**
 
 ```swift
 import Foundation
@@ -502,9 +502,9 @@ func paletteModelTests() async {
 
 Add `await paletteModelTests()` to `main.swift` after `await scannerTests()`.
 
-- [ ] **Step 2: Verify red** — "cannot find 'PaletteItem'/'PaletteModel' in scope".
+- [x] **Step 2: Verify red** — "cannot find 'PaletteItem'/'PaletteModel' in scope".
 
-- [ ] **Step 3: Implement — `Sources/FileExplorerCore/PaletteModel.swift`**
+- [x] **Step 3: Implement — `Sources/FileExplorerCore/PaletteModel.swift`**
 
 ```swift
 import Foundation
@@ -593,9 +593,9 @@ public final class PaletteModel {
 }
 ```
 
-- [ ] **Step 4: Verify green** — PASS (~178, recount honestly).
+- [x] **Step 4: Verify green** — PASS (~178, recount honestly).
 
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat: PaletteModel with fuzzy-ranked results and stale-load token"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat: PaletteModel with fuzzy-ranked results and stale-load token"`
 
 ---
 
@@ -609,7 +609,7 @@ public final class PaletteModel {
 
 UI glue — no unit tests. NO `@State`/`@FocusState`.
 
-- [ ] **Step 1: Create `Sources/FileExplorer/PaletteTextField.swift`**
+- [x] **Step 1: Create `Sources/FileExplorer/PaletteTextField.swift`**
 
 ```swift
 import SwiftUI
@@ -685,7 +685,7 @@ struct PaletteTextField: NSViewRepresentable {
 }
 ```
 
-- [ ] **Step 2: Create `Sources/FileExplorer/PaletteOverlayView.swift`**
+- [x] **Step 2: Create `Sources/FileExplorer/PaletteOverlayView.swift`**
 
 ```swift
 import SwiftUI
@@ -762,7 +762,7 @@ struct PaletteOverlayView: View {
 }
 ```
 
-- [ ] **Step 3: Create `Sources/FileExplorer/PaletteCoordinator.swift`** — providers + confirm actions + command registry:
+- [x] **Step 3: Create `Sources/FileExplorer/PaletteCoordinator.swift`** — providers + confirm actions + command registry:
 
 ```swift
 import Foundation
@@ -905,7 +905,7 @@ enum PaletteCoordinator {
 }
 ```
 
-- [ ] **Step 4: Wire into `Sources/FileExplorer/FileExplorerApp.swift`.**
+- [x] **Step 4: Wire into `Sources/FileExplorer/FileExplorerApp.swift`.**
 
 Add a palette to the app struct (after `session`):
 
@@ -962,15 +962,31 @@ and add after the `CommandGroup(after: .toolbar)` block:
             }
 ```
 
-- [ ] **Step 5: Verify** — `swift build` clean; `grep -rn "@State\|@FocusState" Sources/` empty; `swift run FileExplorerTests` PASS (same count as Task 4 end); launch check >5 s.
+- [x] **Step 5: Verify** — `swift build` clean; `grep -rn "@State\|@FocusState" Sources/` empty; `swift run FileExplorerTests` PASS (same count as Task 4 end); launch check >5 s.
 
-- [ ] **Step 6: Commit** — `git add -A && git commit -m "feat: fuzzy palette UI for go-to-folder, find-file, and commands"`
+- [x] **Step 6: Commit** — `git add -A && git commit -m "feat: fuzzy palette UI for go-to-folder, find-file, and commands"`
 
 ---
 
 ### Task 6: Final milestone verification
 
-- [ ] **Step 1:** `swift run FileExplorerTests` → PASS ×2.
-- [ ] **Step 2:** `./Scripts/bundle.sh && open build/FileExplorer.app`; idle check (~0% CPU, stable RSS) after 15 s; kill.
-- [ ] **Step 3:** Walkthrough notes for the human: ⌘G/⌘P/⇧⌘A open the palette with focus in the field; typing ranks; ↑↓/Enter/Esc; folder jump navigates; file confirm navigates + selects; commands execute; loading spinner during big scans; palette over dual panes targets the active one.
-- [ ] **Step 4:** Fix anything real; commit (`fix: … (milestone 4 verification)`).
+- [x] **Step 1:** `swift run FileExplorerTests` → PASS ×2.
+- [x] **Step 2:** `./Scripts/bundle.sh && open build/FileExplorer.app`; idle check (~0% CPU, stable RSS) after 15 s; kill.
+- [x] **Step 3:** Walkthrough notes for the human: ⌘G/⌘P/⇧⌘A open the palette with focus in the field; typing ranks; ↑↓/Enter/Esc; folder jump navigates; file confirm navigates + selects; commands execute; loading spinner during big scans; palette over dual panes targets the active one.
+- [x] **Step 4:** Fix anything real; commit (`fix: … (milestone 4 verification)`).
+
+---
+
+## Completion Notes (2026-07-07)
+
+All 6 tasks implemented, reviewed, and verified. Final: `swift run FileExplorerTests` → PASS (190 assertions); idle app 0.0% CPU, ~121 MB stable.
+
+Deviations/additions beyond the plan text:
+- `FuzzyMatcher.rank` rewritten as an imperative loop (Swift 6 type-checker timed out on the chained expression); semantics identical.
+- **Perf fix (review finding):** `FuzzyCandidate` prepared-candidate fast path — ranking 50k titles was ~110 ms/keystroke due to per-call lowercasing; PaletteModel now prepares once per `setItems` and reranks via `score(queryLowercased:candidate:)`.
+- Four `PaletteCoordinator` helpers marked `nonisolated` (called from `Task.detached`).
+- **Pane-drift fix (final review):** palette captures `targetPane` (weak, cleared on dismiss) at open time; ⌘G/⌘P confirms target that pane even if tabs/panes change while open. ⇧⌘A commands intentionally act on the live active pane.
+- `StandardPlaces` (Core) now the single source of favorites for both the sidebar and ⌘G (was duplicated).
+- Boundary `goBack`/`goForward` are full no-ops (guarded) — no spurious `onNavigated`/recents.
+
+Walkthrough items for the human: ⌘G/⌘P/⇧⌘A open with focus in the field; typing ranks; ↑↓/Enter/Esc; folder jump; file confirm navigates + selects; commands run; **⌘P vs the system Print binding**; toolbar remains clickable while palette is open (dim layer doesn't cover NSToolbar — confirm acceptable); loading spinner on big scans.
