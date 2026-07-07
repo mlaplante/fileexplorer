@@ -5,6 +5,30 @@ struct PaneView: View {
     @Bindable var pane: PaneState
 
     var body: some View {
+        VStack(spacing: 0) {
+            BreadcrumbView(pane: pane)
+            Divider()
+            table
+            Divider()
+            statusBar
+        }
+    }
+
+    private var statusBar: some View {
+        HStack {
+            Text("\(pane.visibleEntries.count) items")
+            if !pane.selection.isEmpty {
+                Text("· \(pane.selection.count) selected")
+            }
+            Spacer()
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 8)
+        .frame(height: 22)
+    }
+
+    private var table: some View {
         Table(pane.visibleEntries, selection: $pane.selection,
               sortOrder: $pane.sortOrder) {
             TableColumn("Name", value: \.name) { entry in
