@@ -5,6 +5,7 @@ import Foundation
 @MainActor
 public enum UndoRecorder {
     public static func recordMove(_ moves: [(from: URL, to: URL)],
+                                  actionName: String = "Move",
                                   on undoManager: UndoManager,
                                   pane: PaneState) {
         guard !moves.isEmpty else { return }
@@ -21,14 +22,16 @@ public enum UndoRecorder {
                 }
                 UndoRecorder.recordMove(
                     moves.map { (from: $0.to, to: $0.from) },
+                    actionName: actionName,
                     on: undoManager, pane: pane)
                 Task { await pane.reload() }
             }
         }
-        undoManager.setActionName("Move")
+        undoManager.setActionName(actionName)
     }
 
     public static func recordTrash(_ trashes: [(original: URL, trashed: URL)],
+                                   actionName: String = "Move to Trash",
                                    on undoManager: UndoManager,
                                    pane: PaneState) {
         guard !trashes.isEmpty else { return }
@@ -45,14 +48,17 @@ public enum UndoRecorder {
                         restored.append((from: item.original, to: back))
                     }
                 }
-                // Redo of a restore = trash again.
+                // Redo of a restore = trash again, under the same action
+                // name this trash was originally recorded under (so e.g.
+                // undoing "New Folder" and redoing shows "Redo New Folder",
+                // not "Redo Move to Trash").
                 UndoRecorder.recordCreation(restored.map(\.to),
-                                            actionName: "Move to Trash",
+                                            actionName: actionName,
                                             on: undoManager, pane: pane)
                 Task { await pane.reload() }
             }
         }
-        undoManager.setActionName("Move to Trash")
+        undoManager.setActionName(actionName)
     }
 
     /// Undo for created items (copies, new folders): trash them.
@@ -75,6 +81,7 @@ public enum UndoRecorder {
                 }
                 UndoRecorder.recordTrash(
                     trashed.map { (original: $0.0, trashed: $0.1) },
+                    actionName: actionName,
                     on: undoManager, pane: pane)
                 Task { await pane.reload() }
             }

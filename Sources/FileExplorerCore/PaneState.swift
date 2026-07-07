@@ -205,8 +205,8 @@ public final class PaneState {
         case .success(let newURL):
             if let undoManager {
                 UndoRecorder.recordMove([(from: url, to: newURL)],
+                                        actionName: "Rename",
                                         on: undoManager, pane: self)
-                undoManager.setActionName("Rename")
             }
             opErrorMessage = nil
             selection = [newURL.standardizedFileURL]

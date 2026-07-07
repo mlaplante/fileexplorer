@@ -73,4 +73,30 @@ func undoTests() async {
                     "an all-failure operation registers no undo")
         expect(pane.opErrorMessage != nil, "failure surfaced to opErrorMessage")
     }
+
+    await test("undoing New Folder / Rename leaves the correct Redo action name") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let undoManager = UndoManager()
+        let pane = PaneState(url: dir)
+        pane.undoManager = undoManager
+        await pane.reload()
+
+        await pane.createNewFolder()
+        expectEqual(undoManager.undoActionName, "New Folder", "undo labeled New Folder")
+        undoManager.undo()
+        try await Task.sleep(for: .milliseconds(400))
+        expectEqual(undoManager.redoActionName, "New Folder",
+                    "redo after undoing New Folder is still New Folder, not Move to Trash")
+
+        let target = dir.appendingPathComponent("m.txt")
+        try Data().write(to: target)
+        await pane.reload()
+        await pane.renameSelected(target, to: "renamed.txt")
+        expectEqual(undoManager.undoActionName, "Rename", "undo labeled Rename")
+        undoManager.undo()
+        try await Task.sleep(for: .milliseconds(400))
+        expectEqual(undoManager.redoActionName, "Rename",
+                    "redo after undoing Rename is still Rename, not Move")
+    }
 }
