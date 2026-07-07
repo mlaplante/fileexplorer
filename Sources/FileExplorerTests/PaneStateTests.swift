@@ -13,7 +13,9 @@ func paneStateTests() async {
         try Data().write(to: sub.appendingPathComponent("inner.txt"))
 
         let pane = PaneState(url: dir)
+        expect(!pane.hasLoadedOnce, "hasLoadedOnce starts false")
         await pane.reload()
+        expect(pane.hasLoadedOnce, "hasLoadedOnce set after first reload")
         expectEqual(pane.entries.count, 2, "loads visible entries")
         expectEqual(pane.currentURL, dir.standardizedFileURL, "currentURL is start dir")
 

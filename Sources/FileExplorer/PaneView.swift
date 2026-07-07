@@ -49,7 +49,7 @@ struct PaneView: View {
                     "Can't Read Folder",
                     systemImage: "exclamationmark.triangle",
                     description: Text(message))
-            } else if pane.visibleEntries.isEmpty {
+            } else if pane.hasLoadedOnce && pane.visibleEntries.isEmpty {
                 ContentUnavailableView(
                     "Empty Folder", systemImage: "folder")
             }

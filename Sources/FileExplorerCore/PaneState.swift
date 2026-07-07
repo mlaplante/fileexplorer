@@ -18,6 +18,9 @@ public final class PaneState {
     }
     public var showHidden = false
     public var errorMessage: String?
+    /// False until the first reload attempt finishes; lets the UI avoid
+    /// flashing an "empty" state while the initial load is in flight.
+    public private(set) var hasLoadedOnce = false
 
     /// Sorted snapshot of `entries`. Stored rather than computed so SwiftUI
     /// body evaluations don't re-sort large directories; refreshed only when
@@ -75,10 +78,12 @@ public final class PaneState {
             guard myID == reloadID else { return }
             entries = loaded
             errorMessage = nil
+            hasLoadedOnce = true
         } catch {
             guard myID == reloadID else { return }
             entries = []
             errorMessage = error.localizedDescription
+            hasLoadedOnce = true
         }
     }
 
