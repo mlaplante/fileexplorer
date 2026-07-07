@@ -10,7 +10,8 @@
 - **Architecture:** Pure SwiftUI (approach A). AppKit bridges only where SwiftUI cannot do the job: `QLPreviewPanel` (Quick Look) and low-level key handling. If very large directories (100k+ entries) ever stutter, retrofit an `NSTableView` wrapper for the list view only.
 - **Scope:** Faithful clone of WhimFiles features; no additions in v1.
 - **Distribution:** Local build only — no App Store, no sandbox. The app requires Full Disk Access, granted once in System Settings.
-- **Project format:** `FileExplorer.xcodeproj`, buildable headlessly with `xcodebuild`.
+- **Project format:** Swift Package (SPM) — this machine has Command Line Tools only (no Xcode, so no `xcodebuild`; verified 2026-07-07). `swift build` compiles SwiftUI fine; a `Scripts/bundle.sh` assembles `FileExplorer.app` with an ad-hoc codesign.
+- **Testing runtime:** CLT ships neither XCTest nor Swift Testing runtimes (verified — `swift test` fails at dlopen). Tests are a plain executable target (`swift run FileExplorerTests`) with a minimal assert harness that exits non-zero on failure. Core logic is pure functions, so this covers what matters.
 
 ## Feature Set (from WhimFiles)
 
@@ -73,7 +74,7 @@
 
 ## Testing
 
-- **Unit tests (XCTest):** `FilterEngine`, `FuzzyMatcher`, `RenamePlan` (pure logic); `FileOperationService` and undo against temp directories; `DirectoryLoader` attribute correctness.
+- **Unit tests (executable harness, `swift run FileExplorerTests`):** `FilterEngine`, `FuzzyMatcher`, `RenamePlan` (pure logic); `FileOperationService` and undo against temp directories; `DirectoryLoader` attribute correctness.
 - **Manual verification:** run the app after each build-order milestone and exercise the new feature end-to-end.
 
 ## Build Order
