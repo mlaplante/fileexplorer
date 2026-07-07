@@ -15,6 +15,7 @@ await recentsTests()
 await scannerTests()
 await paletteModelTests()
 await previewRendererTests()
+await hoverPreviewModelTests()
 await fuzzyMatcherTests()
 
 finish()
