@@ -16,30 +16,35 @@ struct FileExplorerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            PaneView(pane: appState.pane)
-                .frame(minWidth: 600, minHeight: 400)
-                .navigationTitle(appState.pane.currentURL.lastPathComponent)
-                .toolbar {
-                    ToolbarItemGroup(placement: .navigation) {
-                        Button {
-                            Task { await appState.pane.goBack() }
-                        } label: { Image(systemName: "chevron.left") }
-                        .disabled(!appState.pane.canGoBack)
-                        .help("Back")
+            NavigationSplitView {
+                SidebarView(pane: appState.pane)
+                    .navigationSplitViewColumnWidth(min: 160, ideal: 200)
+            } detail: {
+                PaneView(pane: appState.pane)
+                    .navigationTitle(appState.pane.currentURL.lastPathComponent)
+                    .toolbar {
+                        ToolbarItemGroup(placement: .navigation) {
+                            Button {
+                                Task { await appState.pane.goBack() }
+                            } label: { Image(systemName: "chevron.left") }
+                            .disabled(!appState.pane.canGoBack)
+                            .help("Back")
 
-                        Button {
-                            Task { await appState.pane.goForward() }
-                        } label: { Image(systemName: "chevron.right") }
-                        .disabled(!appState.pane.canGoForward)
-                        .help("Forward")
+                            Button {
+                                Task { await appState.pane.goForward() }
+                            } label: { Image(systemName: "chevron.right") }
+                            .disabled(!appState.pane.canGoForward)
+                            .help("Forward")
 
-                        Button {
-                            Task { await appState.pane.goUp() }
-                        } label: { Image(systemName: "chevron.up") }
-                        .disabled(!appState.pane.canGoUp)
-                        .help("Enclosing Folder")
+                            Button {
+                                Task { await appState.pane.goUp() }
+                            } label: { Image(systemName: "chevron.up") }
+                            .disabled(!appState.pane.canGoUp)
+                            .help("Enclosing Folder")
+                        }
                     }
-                }
+            }
+            .frame(minWidth: 760, minHeight: 400)
         }
         .commands {
             CommandMenu("Go") {
