@@ -10,5 +10,6 @@ await filterPresetsTests()
 await filterEngineTests()
 await paneFilterTests()
 await tabStateTests()
+await sessionStateTests()
 
 finish()
