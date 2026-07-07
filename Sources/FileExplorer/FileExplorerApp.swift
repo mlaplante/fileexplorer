@@ -66,6 +66,15 @@ struct FileExplorerApp: App {
                 }
                 .keyboardShortcut("h", modifiers: [.command, .shift])
             }
+            CommandGroup(after: .toolbar) {
+                Toggle("Show Hidden Files", isOn: Binding(
+                    get: { appState.pane.showHidden },
+                    set: { newValue in
+                        appState.pane.showHidden = newValue
+                        Task { await appState.pane.reload() }
+                    }))
+                    .keyboardShortcut(".", modifiers: [.command, .shift])
+            }
         }
     }
 }
