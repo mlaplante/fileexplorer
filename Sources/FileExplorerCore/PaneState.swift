@@ -305,6 +305,7 @@ public final class PaneState {
         let result = await Task.detached(priority: .userInitiated) {
             Zipper.compress(urls, in: destination)
         }.value
+        await reload()
         switch result {
         case .success(let archive):
             if let undoManager {
@@ -312,11 +313,9 @@ public final class PaneState {
                                             on: undoManager, pane: self)
             }
             opErrorMessage = nil
-            await reload()
             selection = [archive.standardizedFileURL]
         case .failure(let error):
             opErrorMessage = error.message
-            await reload()
         }
     }
 

@@ -7,6 +7,7 @@ struct FileExplorerApp: App {
         url: FileManager.default.homeDirectoryForCurrentUser)
     private let palette = PaletteModel()
     private let renameModel = RenameSheetModel()
+    private let batchRenameModel = BatchRenameModel()
 
     init() {
         // When launched from `swift run` (no bundle), become a regular
@@ -24,7 +25,8 @@ struct FileExplorerApp: App {
                     SidebarView(session: session)
                         .navigationSplitViewColumnWidth(min: 160, ideal: 200)
                 } detail: {
-                    TabContentView(session: session, renameModel: renameModel)
+                    TabContentView(session: session, renameModel: renameModel,
+                                   batchRenameModel: batchRenameModel)
                         .navigationTitle(session.activePane.currentURL.lastPathComponent)
                         .toolbar {
                             ToolbarItemGroup(placement: .navigation) {
@@ -66,6 +68,13 @@ struct FileExplorerApp: App {
                 set: { if !$0 { renameModel.dismiss() } })) {
                 RenameSheet(model: renameModel) { url, newName in
                     Task { await session.activePane.renameSelected(url, to: newName) }
+                }
+            }
+            .sheet(isPresented: Binding(
+                get: { batchRenameModel.isPresented },
+                set: { if !$0 { batchRenameModel.dismiss() } })) {
+                BatchRenameSheet(model: batchRenameModel) { targets, rules in
+                    Task { await session.activePane.batchRename(targets, rules: rules) }
                 }
             }
         }

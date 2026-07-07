@@ -5,6 +5,7 @@ struct PaneView: View {
     @Bindable var pane: PaneState
     var otherPane: PaneState?
     var renameModel: RenameSheetModel
+    var batchRenameModel: BatchRenameModel
     private let hoverModel = HoverPreviewModel()
     @Environment(\.undoManager) private var undoManager
 
@@ -19,7 +20,8 @@ struct PaneView: View {
                     ThumbnailGridView(
                         pane: pane,
                         actions: FileActions(pane: pane, otherPane: otherPane,
-                                             renameModel: renameModel)) { open($0) }
+                                             renameModel: renameModel,
+                                             batchRenameModel: batchRenameModel)) { open($0) }
                 } else {
                     table
                 }
@@ -39,6 +41,14 @@ struct PaneView: View {
                 guard !targets.isEmpty else { return .ignored }
                 Task { await pane.trashSelected(targets) }
                 return .handled
+            }
+            .dropDestination(for: URL.self) { urls, _ in
+                let outside = urls.filter {
+                    $0.deletingLastPathComponent().standardizedFileURL != pane.currentURL
+                }
+                guard !outside.isEmpty else { return false }
+                Task { await pane.copySelected(outside, into: pane.currentURL) }
+                return true
             }
             Divider()
             statusBar
@@ -100,7 +110,13 @@ struct PaneView: View {
             }
             TableColumn("Size", value: \.size) { entry in
                 if entry.isDirectory {
-                    Text("—").foregroundStyle(.tertiary)
+                    if let size = pane.folderSizes[entry.url.standardizedFileURL] {
+                        Text(size, format: .byteCount(style: .file))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    } else {
+                        Text("—").foregroundStyle(.tertiary)
+                    }
                 } else {
                     Text(entry.size, format: .byteCount(style: .file))
                         .foregroundStyle(.secondary)
@@ -122,7 +138,8 @@ struct PaneView: View {
         }
         .contextMenu(forSelectionType: URL.self) { urls in
             FileActions(pane: pane, otherPane: otherPane,
-                        renameModel: renameModel).menu(for: urls)
+                        renameModel: renameModel,
+                        batchRenameModel: batchRenameModel).menu(for: urls)
         } primaryAction: { urls in
             open(urls)
         }
