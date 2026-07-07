@@ -19,6 +19,7 @@ await hoverPreviewModelTests()
 await fileOperationTests()
 await undoTests()
 await renamePlanTests()
+await batchToolsTests()
 await fuzzyMatcherTests()
 
 finish()
