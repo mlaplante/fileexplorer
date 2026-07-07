@@ -48,6 +48,24 @@ func sessionSnapshotTests() async {
         expectEqual(restored[1].order, .reverse, "descending restored")
     }
 
+    await test("SortTokenCoder round-trips kind and modified fields") {
+        var modifiedDescending = KeyPathComparator(\FileEntry.modified)
+        modifiedDescending.order = .reverse
+        let comparators = [
+            KeyPathComparator(\FileEntry.kind),
+            modifiedDescending,
+        ]
+        let tokens = SortTokenCoder.tokens(from: comparators)
+        expectEqual(tokens, [SortToken(field: .kind, ascending: true),
+                             SortToken(field: .modified, ascending: false)],
+                    "kind and modified map to tokens")
+        let restored = SortTokenCoder.comparators(from: tokens)
+        expect(restored[0].keyPath == \FileEntry.kind, "kind key path restored")
+        expectEqual(restored[0].order, .forward, "kind ascending restored")
+        expect(restored[1].keyPath == \FileEntry.modified, "modified key path restored")
+        expectEqual(restored[1].order, .reverse, "modified descending restored")
+    }
+
     await test("SortTokenCoder drops unknown key paths and defaults when empty") {
         let tokens = SortTokenCoder.tokens(
             from: [KeyPathComparator(\FileEntry.isHidden, comparator: BoolComparator())])
