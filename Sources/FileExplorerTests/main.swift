@@ -14,6 +14,7 @@ await sessionStateTests()
 await recentsTests()
 await scannerTests()
 await paletteModelTests()
+await previewRendererTests()
 await fuzzyMatcherTests()
 
 finish()

@@ -20,6 +20,14 @@ public final class PaneState {
         didSet { recomputeVisible() }
     }
     public var showHidden = false
+
+    public enum ViewMode: String, Sendable {
+        case list
+        case icons
+    }
+
+    /// List vs thumbnail-grid presentation; per pane, remembered per tab.
+    public var viewMode: ViewMode = .list
     public var errorMessage: String?
     /// False until the first reload attempt finishes; lets the UI avoid
     /// flashing an "empty" state while the initial load is in flight.
