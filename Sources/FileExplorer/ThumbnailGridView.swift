@@ -91,6 +91,7 @@ struct ThumbnailCell: View {
 
 struct ThumbnailGridView: View {
     @Bindable var pane: PaneState
+    var actions: FileActions
     var open: (Set<URL>) -> Void
 
     private let columns = [GridItem(.adaptive(minimum: 116), spacing: 8)]
@@ -109,7 +110,8 @@ struct ThumbnailGridView: View {
                             pane.selection = [entry.url]
                         })
                         .contextMenu {
-                            // File operations arrive in Milestone 6.
+                            actions.menu(for: pane.selection.contains(entry.url)
+                                         ? pane.selection : [entry.url])
                         }
                 }
             }

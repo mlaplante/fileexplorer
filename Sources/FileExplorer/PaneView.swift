@@ -3,7 +3,10 @@ import FileExplorerCore
 
 struct PaneView: View {
     @Bindable var pane: PaneState
+    var otherPane: PaneState?
     private let hoverModel = HoverPreviewModel()
+    private let renameModel = RenameSheetModel()
+    @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         VStack(spacing: 0) {
@@ -13,7 +16,10 @@ struct PaneView: View {
             Divider()
             Group {
                 if pane.viewMode == .icons {
-                    ThumbnailGridView(pane: pane) { open($0) }
+                    ThumbnailGridView(
+                        pane: pane,
+                        actions: FileActions(pane: pane, otherPane: otherPane,
+                                             renameModel: renameModel)) { open($0) }
                 } else {
                     table
                 }
@@ -27,8 +33,24 @@ struct PaneView: View {
                 QuickLookController.shared.toggle(for: pane)
                 return .handled
             }
+            .onKeyPress(.init("\u{7F}"), phases: .down) { press in
+                guard press.modifiers.contains(.command) else { return .ignored }
+                let targets = Array(pane.selection)
+                guard !targets.isEmpty else { return .ignored }
+                Task { await pane.trashSelected(targets) }
+                return .handled
+            }
             Divider()
             statusBar
+        }
+        .onAppear { pane.undoManager = undoManager }
+        .onChange(of: pane.currentURL) { _, _ in pane.undoManager = undoManager }
+        .sheet(isPresented: Binding(
+            get: { renameModel.isPresented },
+            set: { if !$0 { renameModel.dismiss() } })) {
+            RenameSheet(model: renameModel) { url, newName in
+                Task { await pane.renameSelected(url, to: newName) }
+            }
         }
     }
 
@@ -97,8 +119,9 @@ struct PaneView: View {
             }
             .width(min: 120, ideal: 160)
         }
-        .contextMenu(forSelectionType: URL.self) { _ in
-            // Context menu items arrive in Milestone 6 (file operations).
+        .contextMenu(forSelectionType: URL.self) { urls in
+            FileActions(pane: pane, otherPane: otherPane,
+                        renameModel: renameModel).menu(for: urls)
         } primaryAction: { urls in
             open(urls)
         }

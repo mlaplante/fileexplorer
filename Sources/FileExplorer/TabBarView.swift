@@ -97,7 +97,8 @@ struct PaneAreaView: View {
                 .fill(tab.isDual && index == tab.activePaneIndex
                       ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
                 .frame(height: 2)
-            PaneView(pane: paneState)
+            PaneView(pane: paneState,
+                     otherPane: tab.isDual ? tab.panes[1 - index] : nil)
         }
         .frame(minWidth: 300)
         .simultaneousGesture(TapGesture().onEnded {

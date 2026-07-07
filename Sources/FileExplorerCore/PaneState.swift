@@ -74,6 +74,13 @@ public final class PaneState {
         history = NavigationHistory(current: url.standardizedFileURL)
     }
 
+    // A window-scoped UndoManager outlives closed tabs' panes, and
+    // registerUndo does NOT retain its target — without this, an undo/redo
+    // invoked after a pane is deallocated would crash on a dangling target.
+    isolated deinit {
+        undoManager?.removeAllActions(withTarget: self)
+    }
+
     private var started = false
 
     /// Begin watching and load once; safe to call every time the pane's view

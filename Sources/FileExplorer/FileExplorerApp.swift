@@ -63,6 +63,17 @@ struct FileExplorerApp: App {
         }
         .commands {
             CommandGroup(after: .newItem) {
+                Button("New Folder") {
+                    Task { await session.activePane.createNewFolder() }
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+                Button("Move to Trash") {
+                    let targets = Array(session.activePane.selection)
+                    guard !targets.isEmpty else { return }
+                    Task { await session.activePane.trashSelected(targets) }
+                }
+                .keyboardShortcut(.delete, modifiers: .command)
+                Divider()
                 Button("New Tab") { session.newTab() }
                     .keyboardShortcut("t", modifiers: .command)
                 Button("Close Tab") { session.closeTab(at: session.activeTabIndex) }
