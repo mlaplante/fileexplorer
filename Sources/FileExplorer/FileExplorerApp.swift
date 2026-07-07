@@ -3,8 +3,20 @@ import FileExplorerCore
 
 @main
 struct FileExplorerApp: App {
-    private let session = SessionState(
-        url: FileManager.default.homeDirectoryForCurrentUser)
+    private let session: SessionState = {
+        let arguments = CommandLine.arguments.dropFirst()
+        if let path = arguments.first {
+            var isDirectory: ObjCBool = false
+            let expanded = (path as NSString).expandingTildeInPath
+            if FileManager.default.fileExists(atPath: expanded,
+                                              isDirectory: &isDirectory),
+               isDirectory.boolValue {
+                return SessionState(url: URL(fileURLWithPath: expanded))
+            }
+        }
+        return SessionState(
+            url: FileManager.default.homeDirectoryForCurrentUser)
+    }()
     private let palette = PaletteModel()
     private let renameModel = RenameSheetModel()
     private let batchRenameModel = BatchRenameModel()

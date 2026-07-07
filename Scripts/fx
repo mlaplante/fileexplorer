@@ -1,0 +1,4 @@
+#!/bin/bash
+# fx [dir] — open FileExplorer at dir (default: cwd).
+# Note: --args only applies when the app isn't already running.
+exec open -a "FileExplorer" --args "${1:-$(pwd)}"
