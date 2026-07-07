@@ -17,6 +17,7 @@ final class ThumbnailStore {
 
     @ObservationIgnored private let cache = NSCache<NSString, NSImage>()
     @ObservationIgnored private var inFlight = Set<String>()
+    @ObservationIgnored private var failed = Set<String>()
 
     private init() {
         cache.countLimit = 500
@@ -30,6 +31,7 @@ final class ThumbnailStore {
     func image(for entry: FileEntry, side: CGFloat) -> NSImage? {
         _ = generation   // register observation
         let key = Self.key(entry)
+        if failed.contains(key) { return nil }
         if let cached = cache.object(forKey: key as NSString) {
             return cached
         }
@@ -47,7 +49,11 @@ final class ThumbnailStore {
             let representation = try? await QLThumbnailGenerator.shared
                 .generateBestRepresentation(for: request)
             inFlight.remove(key)
-            guard let cgImage = representation?.cgImage else { return }
+            guard let cgImage = representation?.cgImage else {
+                failed.insert(key)
+                if failed.count > 2000 { failed.removeAll() }
+                return
+            }
             let nsImage = NSImage(cgImage: cgImage,
                                   size: CGSize(width: side, height: side))
             cache.setObject(nsImage, forKey: key as NSString)
