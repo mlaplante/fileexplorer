@@ -9,5 +9,6 @@ await ancestorChainTests()
 await filterPresetsTests()
 await filterEngineTests()
 await paneFilterTests()
+await tabStateTests()
 
 finish()

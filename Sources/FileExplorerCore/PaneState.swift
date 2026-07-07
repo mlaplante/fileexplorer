@@ -65,6 +65,17 @@ public final class PaneState {
         watchCurrent()
     }
 
+    private var started = false
+
+    /// Begin watching and load once; safe to call every time the pane's view
+    /// appears — only the first call does anything.
+    public func startIfNeeded() {
+        guard !started else { return }
+        started = true
+        watchCurrent()
+        Task { await reload() }
+    }
+
     public func navigate(to url: URL) async {
         guard url.standardizedFileURL != currentURL else { return }
         history.navigate(to: url.standardizedFileURL)
