@@ -53,12 +53,13 @@ struct TabBarView: View {
 /// their state alive in SessionState but have no views.
 struct TabContentView: View {
     @Bindable var session: SessionState
+    var renameModel: RenameSheetModel
 
     var body: some View {
         VStack(spacing: 0) {
             TabBarView(session: session)
             Divider()
-            PaneAreaView(tab: session.activeTab)
+            PaneAreaView(tab: session.activeTab, renameModel: renameModel)
         }
         .onChange(of: session.activeTabIndex) { _, _ in
             if QuickLookController.shared.isVisible {
@@ -71,6 +72,7 @@ struct TabContentView: View {
 /// Single- or dual-pane area for one tab, with active-pane highlight.
 struct PaneAreaView: View {
     @Bindable var tab: TabState
+    var renameModel: RenameSheetModel
 
     var body: some View {
         Group {
@@ -98,7 +100,8 @@ struct PaneAreaView: View {
                       ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
                 .frame(height: 2)
             PaneView(pane: paneState,
-                     otherPane: tab.isDual ? tab.panes[1 - index] : nil)
+                     otherPane: tab.isDual ? tab.panes[1 - index] : nil,
+                     renameModel: renameModel)
         }
         .frame(minWidth: 300)
         .simultaneousGesture(TapGesture().onEnded {

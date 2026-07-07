@@ -132,4 +132,23 @@ func fileOperationTests() async {
             expect(true, "self-copy rejected")
         }
     }
+
+    await test("rename validates names and allows case-only changes") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let file = dir.appendingPathComponent("file.txt")
+        try Data().write(to: file)
+        if case .success = FileOperationService.rename(file, to: "../escape.txt") {
+            expect(false, "path-escaping name must be rejected")
+        } else { expect(true, "slash rejected") }
+        expect(fm.fileExists(atPath: file.path), "file untouched by rejected rename")
+        switch FileOperationService.rename(file, to: "File.txt") {
+        case .success(let url):
+            expectEqual(url.lastPathComponent, "File.txt", "case-only rename works")
+            let listed = try fm.contentsOfDirectory(atPath: dir.path)
+            expect(listed.contains("File.txt"), "directory shows new case [got: \(listed)]")
+        case .failure(let error):
+            expect(false, "case-only rename should succeed [got: \(error.message)]")
+        }
+    }
 }

@@ -29,12 +29,40 @@ public enum FileOperationService {
     }
 
     public static func rename(_ url: URL, to newName: String) -> Result<URL, FileOpError> {
-        let target = url.deletingLastPathComponent().appendingPathComponent(newName)
+        guard !newName.contains("/"), newName != ".", newName != ".." else {
+            return .failure(FileOpError("Names can't contain “/”."))
+        }
         guard newName != url.lastPathComponent else {
             return .failure(FileOpError("Name is unchanged."))
         }
-        guard !FileManager.default.fileExists(atPath: target.path) else {
+        let target = url.deletingLastPathComponent().appendingPathComponent(newName)
+        // A case-only rename of the SAME item (e.g. "file.txt" -> "File.txt")
+        // must not trip the collision guard below — `fileExists` is
+        // case-insensitive on APFS, so it would always see "the target" as
+        // already existing (it's the same file). Only treat it as a real
+        // collision when the target is a DIFFERENT item on disk.
+        let isCaseOnlyRename = url.path.lowercased() == target.path.lowercased()
+        if !isCaseOnlyRename, FileManager.default.fileExists(atPath: target.path) {
             return .failure(FileOpError("“\(newName)” already exists."))
+        }
+        do {
+            try FileManager.default.moveItem(at: url, to: target)
+            return .success(target)
+        } catch {
+            return .failure(FileOpError(error))
+        }
+    }
+
+    /// Moves `url` to the EXACT target path (used by undo restores, where the
+    /// desired destination name is already known). Same guards as `perform`.
+    public static func relocate(_ url: URL, toExactly target: URL) -> Result<URL, FileOpError> {
+        let sourcePath = url.standardizedFileURL.path
+        let targetPath = target.standardizedFileURL.path
+        if targetPath == sourcePath || targetPath.hasPrefix(sourcePath + "/") {
+            return .failure(FileOpError("Can't put “\(url.lastPathComponent)” inside itself."))
+        }
+        guard !FileManager.default.fileExists(atPath: target.path) else {
+            return .failure(FileOpError("“\(target.lastPathComponent)” already exists."))
         }
         do {
             try FileManager.default.moveItem(at: url, to: target)

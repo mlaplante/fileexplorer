@@ -16,14 +16,30 @@ public enum UndoRecorder {
                 // is still true — otherwise registerUndo lands on the undo
                 // stack instead of the redo stack. Only the reload (which
                 // doesn't affect undo/redo bookkeeping) is deferred.
+                //
+                // Restore to the EXACT recorded path (not `move`, which
+                // would re-derive the target from `move.to`'s current
+                // basename — wrong for same-directory renames, where that
+                // resolves back to the file's own current path).
+                var restored: [(from: URL, to: URL)] = []
+                var failures: [String] = []
                 for move in moves {
-                    _ = FileOperationService.move(
-                        [move.to], into: move.from.deletingLastPathComponent())
+                    switch FileOperationService.relocate(move.to, toExactly: move.from) {
+                    case .success:
+                        restored.append(move)
+                    case .failure(let error):
+                        failures.append(error.message)
+                    }
                 }
-                UndoRecorder.recordMove(
-                    moves.map { (from: $0.to, to: $0.from) },
-                    actionName: actionName,
-                    on: undoManager, pane: pane)
+                if !restored.isEmpty {
+                    UndoRecorder.recordMove(
+                        restored.map { (from: $0.to, to: $0.from) },
+                        actionName: actionName,
+                        on: undoManager, pane: pane)
+                }
+                if !failures.isEmpty {
+                    pane.reportOpFailure(Self.aggregate(failures))
+                }
                 Task { await pane.reload() }
             }
         }
@@ -39,22 +55,30 @@ public enum UndoRecorder {
             MainActor.assumeIsolated {
                 // Same reasoning as recordMove: perform the restore and
                 // re-register synchronously so redo lands on the redo
-                // stack; only the reload is deferred.
-                var restored: [(from: URL, to: URL)] = []
+                // stack; only the reload is deferred. Restore to the EXACT
+                // original path — macOS renames items that collide with an
+                // existing name on entry to .Trash, so `item.trashed`'s
+                // current basename is not necessarily `item.original`'s.
+                var restored: [URL] = []
+                var failures: [String] = []
                 for item in trashes {
-                    let parent = item.original.deletingLastPathComponent()
-                    if case .success(let back) =
-                        FileOperationService.move([item.trashed], into: parent)[0].outcome {
-                        restored.append((from: item.original, to: back))
+                    switch FileOperationService.relocate(item.trashed, toExactly: item.original) {
+                    case .success:
+                        restored.append(item.original)
+                    case .failure(let error):
+                        failures.append(error.message)
                     }
                 }
                 // Redo of a restore = trash again, under the same action
                 // name this trash was originally recorded under (so e.g.
                 // undoing "New Folder" and redoing shows "Redo New Folder",
                 // not "Redo Move to Trash").
-                UndoRecorder.recordCreation(restored.map(\.to),
+                UndoRecorder.recordCreation(restored,
                                             actionName: actionName,
                                             on: undoManager, pane: pane)
+                if !failures.isEmpty {
+                    pane.reportOpFailure(Self.aggregate(failures))
+                }
                 Task { await pane.reload() }
             }
         }
@@ -79,13 +103,26 @@ public enum UndoRecorder {
                     }
                     return nil
                 }
+                let failures = results.compactMap { result -> String? in
+                    if case .failure(let error) = result.outcome { return error.message }
+                    return nil
+                }
                 UndoRecorder.recordTrash(
                     trashed.map { (original: $0.0, trashed: $0.1) },
                     actionName: actionName,
                     on: undoManager, pane: pane)
+                if !failures.isEmpty {
+                    pane.reportOpFailure(Self.aggregate(failures))
+                }
                 Task { await pane.reload() }
             }
         }
         undoManager.setActionName(actionName)
+    }
+
+    private static func aggregate(_ failures: [String]) -> String {
+        let first = failures[0]
+        let suffix = failures.count > 1 ? " (+\(failures.count - 1) more)" : ""
+        return "Undo failed for \(failures.count) item\(failures.count == 1 ? "" : "s"): \(first)\(suffix)"
     }
 }

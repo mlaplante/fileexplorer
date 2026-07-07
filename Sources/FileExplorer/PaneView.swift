@@ -4,8 +4,8 @@ import FileExplorerCore
 struct PaneView: View {
     @Bindable var pane: PaneState
     var otherPane: PaneState?
+    var renameModel: RenameSheetModel
     private let hoverModel = HoverPreviewModel()
-    private let renameModel = RenameSheetModel()
     @Environment(\.undoManager) private var undoManager
 
     var body: some View {
@@ -45,13 +45,6 @@ struct PaneView: View {
         }
         .onAppear { pane.undoManager = undoManager }
         .onChange(of: pane.currentURL) { _, _ in pane.undoManager = undoManager }
-        .sheet(isPresented: Binding(
-            get: { renameModel.isPresented },
-            set: { if !$0 { renameModel.dismiss() } })) {
-            RenameSheet(model: renameModel) { url, newName in
-                Task { await pane.renameSelected(url, to: newName) }
-            }
-        }
     }
 
     private var statusBar: some View {

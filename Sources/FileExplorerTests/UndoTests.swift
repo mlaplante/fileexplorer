@@ -99,4 +99,44 @@ func undoTests() async {
         expectEqual(undoManager.redoActionName, "Rename",
                     "redo after undoing Rename is still Rename, not Move")
     }
+
+    await test("undo rename restores the original filename on disk") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let old = dir.appendingPathComponent("old.txt")
+        try Data().write(to: old)
+        let undoManager = UndoManager()
+        let pane = PaneState(url: dir)
+        pane.undoManager = undoManager
+        await pane.reload()
+        await pane.renameSelected(old, to: "new.txt")
+        expect(fm.fileExists(atPath: dir.appendingPathComponent("new.txt").path), "renamed")
+        undoManager.undo()
+        try await Task.sleep(for: .milliseconds(400))
+        expect(fm.fileExists(atPath: old.path), "old.txt restored ON DISK")
+        expect(!fm.fileExists(atPath: dir.appendingPathComponent("new.txt").path),
+               "new.txt gone after undo")
+    }
+
+    await test("undo move into reoccupied source surfaces a failure") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let sub = dir.appendingPathComponent("sub")
+        try fm.createDirectory(at: sub, withIntermediateDirectories: false)
+        let file = dir.appendingPathComponent("a.txt")
+        try Data().write(to: file)
+        let undoManager = UndoManager()
+        let pane = PaneState(url: dir)
+        pane.undoManager = undoManager
+        await pane.reload()
+        await pane.moveSelected([file], into: sub)
+        try Data("squatter".utf8).write(to: file)   // reoccupy the source path
+        undoManager.undo()
+        try await Task.sleep(for: .milliseconds(400))
+        expectEqual(try? String(contentsOf: file, encoding: .utf8), "squatter",
+                    "squatter not overwritten")
+        expect(fm.fileExists(atPath: sub.appendingPathComponent("a.txt").path),
+               "moved file stays put when restore collides")
+        expect(pane.opErrorMessage != nil, "undo failure surfaced")
+    }
 }

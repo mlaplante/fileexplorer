@@ -34,6 +34,15 @@ public final class PaneState {
     /// folder-LOAD failures and drives the full-pane overlay. Cleared on the
     /// next successful operation and on navigation.
     public private(set) var opErrorMessage: String?
+
+    /// Lets `UndoRecorder` surface a failure discovered while performing an
+    /// undo/redo restore, through the same channel forward operations use.
+    /// (Chosen over widening `opErrorMessage`'s setter access because the
+    /// write is conceptually an action PaneState performs on itself, just
+    /// triggered from UndoRecorder's callback.)
+    func reportOpFailure(_ message: String) {
+        opErrorMessage = message
+    }
     /// False until the first reload attempt finishes; lets the UI avoid
     /// flashing an "empty" state while the initial load is in flight.
     public private(set) var hasLoadedOnce = false

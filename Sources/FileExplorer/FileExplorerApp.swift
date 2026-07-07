@@ -6,6 +6,7 @@ struct FileExplorerApp: App {
     private let session = SessionState(
         url: FileManager.default.homeDirectoryForCurrentUser)
     private let palette = PaletteModel()
+    private let renameModel = RenameSheetModel()
 
     init() {
         // When launched from `swift run` (no bundle), become a regular
@@ -23,7 +24,7 @@ struct FileExplorerApp: App {
                     SidebarView(session: session)
                         .navigationSplitViewColumnWidth(min: 160, ideal: 200)
                 } detail: {
-                    TabContentView(session: session)
+                    TabContentView(session: session, renameModel: renameModel)
                         .navigationTitle(session.activePane.currentURL.lastPathComponent)
                         .toolbar {
                             ToolbarItemGroup(placement: .navigation) {
@@ -60,6 +61,13 @@ struct FileExplorerApp: App {
                 }
             }
             .frame(minWidth: 760, minHeight: 400)
+            .sheet(isPresented: Binding(
+                get: { renameModel.isPresented },
+                set: { if !$0 { renameModel.dismiss() } })) {
+                RenameSheet(model: renameModel) { url, newName in
+                    Task { await session.activePane.renameSelected(url, to: newName) }
+                }
+            }
         }
         .commands {
             CommandGroup(after: .newItem) {
@@ -67,6 +75,14 @@ struct FileExplorerApp: App {
                     Task { await session.activePane.createNewFolder() }
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+                Button("Rename…") {
+                    if let url = session.activePane.selection.first,
+                       session.activePane.selection.count == 1 {
+                        renameModel.present(for: url)
+                    }
+                }
+                .keyboardShortcut(.return, modifiers: [])
+                .disabled(session.activePane.selection.count != 1)
                 Button("Move to Trash") {
                     let targets = Array(session.activePane.selection)
                     guard !targets.isEmpty else { return }
