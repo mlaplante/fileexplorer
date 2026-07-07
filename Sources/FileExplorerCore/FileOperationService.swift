@@ -82,6 +82,13 @@ public enum FileOperationService {
     private static func perform(_ sources: [URL], into destination: URL,
                                 _ operation: (URL, URL) throws -> Void) -> [ItemResult] {
         sources.map { source in
+            let sourcePath = source.standardizedFileURL.path
+            let destinationPath = destination.standardizedFileURL.path
+            if destinationPath == sourcePath
+                || destinationPath.hasPrefix(sourcePath + "/") {
+                return ItemResult(source: source, outcome: .failure(FileOpError(
+                    "Can't put “\(source.lastPathComponent)” inside itself.")))
+            }
             let target = destination.appendingPathComponent(source.lastPathComponent)
             guard !FileManager.default.fileExists(atPath: target.path) else {
                 return ItemResult(source: source, outcome: .failure(

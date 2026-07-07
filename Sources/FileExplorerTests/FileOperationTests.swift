@@ -99,4 +99,37 @@ func fileOperationTests() async {
             expect(false, "trash should succeed")
         }
     }
+
+    await test("copy/move into own descendant is rejected cleanly") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let folder = dir.appendingPathComponent("folder")
+        let inside = folder.appendingPathComponent("inside")
+        try fm.createDirectory(at: inside, withIntermediateDirectories: true)
+
+        let copyResult = FileOperationService.copy([folder], into: inside)
+        if case .success = copyResult[0].outcome {
+            expect(false, "copy into own descendant must fail")
+        } else {
+            expect(true, "copy rejected")
+        }
+        let contents = try fm.contentsOfDirectory(atPath: inside.path)
+        expect(contents.isEmpty, "no partial copy left behind [got: \(contents)]")
+
+        let moveResult = FileOperationService.move([folder], into: inside)
+        if case .failure(let error) = moveResult[0].outcome {
+            expect(error.message.contains("inside itself"),
+                   "clear message [got: \(error.message)]")
+        } else {
+            expect(false, "move into own descendant must fail")
+        }
+        expect(fm.fileExists(atPath: folder.path), "source untouched")
+
+        let selfResult = FileOperationService.copy([folder], into: folder)
+        if case .success = selfResult[0].outcome {
+            expect(false, "copy into itself must fail")
+        } else {
+            expect(true, "self-copy rejected")
+        }
+    }
 }
