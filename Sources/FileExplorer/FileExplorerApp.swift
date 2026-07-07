@@ -92,6 +92,15 @@ struct FileExplorerApp: App {
         }
         .commands {
             CommandGroup(after: .newItem) {
+                Button("Open") {
+                    Task {
+                        await session.activePane.openSelection {
+                            NSWorkspace.shared.open($0)
+                        }
+                    }
+                }
+                .keyboardShortcut("o", modifiers: .command)
+                .disabled(session.activePane.selection.isEmpty)
                 Button("New Folder") {
                     Task { await session.activePane.createNewFolder() }
                 }

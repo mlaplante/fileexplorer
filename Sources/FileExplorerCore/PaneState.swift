@@ -275,6 +275,9 @@ public final class PaneState {
             ? nil
             : failures.prefix(3).joined(separator: " ")
                 + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
+        if !pairs.isEmpty {
+            selection = Set(pairs.map { $0.to.standardizedFileURL })
+        }
     }
 
     public func convertSelected(_ urls: [URL], to format: ImageConverter.Format) async {
@@ -316,6 +319,20 @@ public final class PaneState {
             selection = [archive.standardizedFileURL]
         case .failure(let error):
             opErrorMessage = error.message
+        }
+    }
+
+    /// Menu/keyboard "Open": a single selected folder navigates; anything
+    /// else opens with the default application.
+    public func openSelection(_ openExternally: (URL) -> Void) async {
+        let targets = Array(selection)
+        if targets.count == 1, let url = targets.first,
+           entries.first(where: {
+               $0.url.standardizedFileURL.path == url.standardizedFileURL.path
+           })?.isDirectory == true {
+            await navigate(to: url)
+        } else {
+            for url in targets { openExternally(url) }
         }
     }
 

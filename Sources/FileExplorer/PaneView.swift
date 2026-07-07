@@ -42,6 +42,14 @@ struct PaneView: View {
                 Task { await pane.trashSelected(targets) }
                 return .handled
             }
+            .onKeyPress(.downArrow, phases: .down) { press in
+                guard press.modifiers.contains(.command),
+                      !pane.selection.isEmpty else { return .ignored }
+                Task {
+                    await pane.openSelection { NSWorkspace.shared.open($0) }
+                }
+                return .handled
+            }
             .dropDestination(for: URL.self) { urls, _ in
                 let outside = urls.filter {
                     $0.deletingLastPathComponent().standardizedFileURL != pane.currentURL

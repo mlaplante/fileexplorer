@@ -31,6 +31,10 @@ func paneBatchToolsTests() async {
                "second renamed")
         expect(fm.fileExists(atPath: dir.appendingPathComponent("skip.txt").path),
                "unchanged item skipped, not errored")
+        expectEqual(pane.selection,
+                    [dir.appendingPathComponent("Photo-1.jpg").standardizedFileURL,
+                     dir.appendingPathComponent("Photo-2.jpg").standardizedFileURL],
+                    "renamed files selected")
         expect(pane.opErrorMessage == nil, "no error for skipped-unchanged")
 
         undoManager.undo()
@@ -81,5 +85,27 @@ func paneBatchToolsTests() async {
 
         await pane.navigate(to: sub)
         expect(pane.folderSizes.isEmpty, "cache cleared on navigation")
+    }
+
+    await test("openSelection navigates into a single selected folder") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let sub = dir.appendingPathComponent("sub")
+        try fm.createDirectory(at: sub, withIntermediateDirectories: false)
+        try Data().write(to: dir.appendingPathComponent("f.txt"))
+
+        let pane = PaneState(url: dir)
+        await pane.reload()
+        pane.selection = [sub.standardizedFileURL]
+        var opened: [URL] = []
+        await pane.openSelection { opened.append($0) }
+        expectEqual(pane.currentURL, sub.standardizedFileURL, "navigated into folder")
+        expect(opened.isEmpty, "no external opens for a folder")
+
+        await pane.goBack()
+        pane.selection = [dir.appendingPathComponent("f.txt").standardizedFileURL]
+        await pane.openSelection { opened.append($0) }
+        expectEqual(opened.count, 1, "file opened externally")
+        expectEqual(pane.currentURL, dir.standardizedFileURL, "no navigation for a file")
     }
 }

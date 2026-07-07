@@ -57,6 +57,7 @@ All assertions should report PASS.
 | ⌥⌘1 | View as List |
 | ⌥⌘2 | View as Icons |
 | ⌘Y / Space | Quick Look |
+| ⌘O / ⌘↓ | Open |
 | ⇧⌘N | New folder |
 | ⌘⌫ | Move to Trash |
 | Return | Rename selected item |
