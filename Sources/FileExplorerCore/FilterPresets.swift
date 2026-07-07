@@ -1,7 +1,7 @@
 import Foundation
 import UniformTypeIdentifiers
 
-public enum TypePreset: String, CaseIterable, Sendable {
+public enum TypePreset: String, CaseIterable, Sendable, Codable {
     case images = "Images"
     case pdfs = "PDFs"
     case videos = "Videos"
@@ -34,7 +34,7 @@ public enum TypePreset: String, CaseIterable, Sendable {
     }
 }
 
-public enum DatePreset: String, CaseIterable, Sendable {
+public enum DatePreset: String, CaseIterable, Sendable, Codable {
     case today = "Today"
     case last7Days = "Last 7 Days"
     case last30Days = "Last 30 Days"
@@ -56,7 +56,7 @@ public enum DatePreset: String, CaseIterable, Sendable {
     }
 }
 
-public enum SizePreset: String, CaseIterable, Sendable {
+public enum SizePreset: String, CaseIterable, Sendable, Codable {
     case under1MB = "Under 1 MB"
     case oneTo100MB = "1–100 MB"
     case over100MB = "Over 100 MB"

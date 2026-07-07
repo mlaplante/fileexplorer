@@ -21,6 +21,7 @@ await undoTests()
 await renamePlanTests()
 await batchToolsTests()
 await paneBatchToolsTests()
+await sessionSnapshotTests()
 await fuzzyMatcherTests()
 
 finish()

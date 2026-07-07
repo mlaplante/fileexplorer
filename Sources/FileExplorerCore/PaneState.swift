@@ -21,7 +21,7 @@ public final class PaneState {
     }
     public var showHidden = false
 
-    public enum ViewMode: String, Sendable {
+    public enum ViewMode: String, Sendable, Codable {
         case list
         case icons
     }
