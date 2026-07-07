@@ -103,6 +103,7 @@ struct ThumbnailGridView: View {
                     ThumbnailCell(entry: entry,
                                   isSelected: pane.selection.contains(entry.url))
                         .contentShape(Rectangle())
+                        .draggable(entry.url)
                         .gesture(TapGesture(count: 2).onEnded {
                             open([entry.url])
                         })

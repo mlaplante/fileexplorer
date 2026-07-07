@@ -90,6 +90,7 @@ struct PaneView: View {
                     Text(entry.name)
                         .lineLimit(1)
                 }
+                .draggable(entry.url)
                 .onHover { hovering in
                     if hovering {
                         hoverModel.hoverBegan(entry)
