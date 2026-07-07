@@ -24,7 +24,7 @@
 - Create: `Sources/FileExplorerTests/FilterPresetsTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/FilterPresetsTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/FilterPresetsTests.swift`**
 
 ```swift
 import Foundation
@@ -92,12 +92,12 @@ func filterPresetsTests() async {
 
 Add `await filterPresetsTests()` to `Sources/FileExplorerTests/main.swift` after `await ancestorChainTests()`.
 
-- [ ] **Step 2: Run tests to verify red**
+- [x] **Step 2: Run tests to verify red**
 
 Run: `swift run FileExplorerTests`
 Expected: build FAILS with "cannot find 'TypePreset' in scope" (and siblings).
 
-- [ ] **Step 3: Implement — `Sources/FileExplorerCore/FilterPresets.swift`**
+- [x] **Step 3: Implement — `Sources/FileExplorerCore/FilterPresets.swift`**
 
 ```swift
 import Foundation
@@ -174,12 +174,12 @@ public enum SizePreset: String, CaseIterable, Sendable {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify green**
+- [x] **Step 4: Run tests to verify green**
 
 Run: `swift run FileExplorerTests`
 Expected: PASS, exit 0 (58 prior + 19 new = 77 assertions — recount honestly if it differs and say why).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
@@ -196,7 +196,7 @@ git commit -m "feat: type/date/size filter presets"
 - Create: `Sources/FileExplorerTests/FilterEngineTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/FilterEngineTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/FilterEngineTests.swift`**
 
 ```swift
 import Foundation
@@ -270,12 +270,12 @@ func filterEngineTests() async {
 
 Add `await filterEngineTests()` to `main.swift` after `await filterPresetsTests()`.
 
-- [ ] **Step 2: Run tests to verify red**
+- [x] **Step 2: Run tests to verify red**
 
 Run: `swift run FileExplorerTests`
 Expected: build FAILS with "cannot find 'FilterState' in scope".
 
-- [ ] **Step 3: Implement — `Sources/FileExplorerCore/FilterState.swift`**
+- [x] **Step 3: Implement — `Sources/FileExplorerCore/FilterState.swift`**
 
 ```swift
 import Foundation
@@ -295,7 +295,7 @@ public struct FilterState: Equatable, Sendable {
 }
 ```
 
-- [ ] **Step 4: Implement — `Sources/FileExplorerCore/FilterEngine.swift`**
+- [x] **Step 4: Implement — `Sources/FileExplorerCore/FilterEngine.swift`**
 
 ```swift
 import Foundation
@@ -330,12 +330,12 @@ public enum FilterEngine {
 }
 ```
 
-- [ ] **Step 5: Run tests to verify green**
+- [x] **Step 5: Run tests to verify green**
 
 Run: `swift run FileExplorerTests`
 Expected: PASS, exit 0 (77 prior + 10 new = 87 assertions — recount honestly).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
@@ -351,7 +351,7 @@ git commit -m "feat: FilterState and FilterEngine with AND-composed filters"
 - Create: `Sources/FileExplorerTests/PaneFilterTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/PaneFilterTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/PaneFilterTests.swift`**
 
 ```swift
 import Foundation
@@ -419,12 +419,12 @@ func paneFilterTests() async {
 
 Add `await paneFilterTests()` to `main.swift` after `await filterEngineTests()`.
 
-- [ ] **Step 2: Run tests to verify red**
+- [x] **Step 2: Run tests to verify red**
 
 Run: `swift run FileExplorerTests`
 Expected: build FAILS — PaneState has no `filter` / `totalCount` / `filterExtensionsText` / `clearFilters`.
 
-- [ ] **Step 3: Implement in `Sources/FileExplorerCore/PaneState.swift`**
+- [x] **Step 3: Implement in `Sources/FileExplorerCore/PaneState.swift`**
 
 Add stored properties (near `sortOrder`):
 
@@ -473,12 +473,12 @@ Rename the private `applySort()` to `recomputeVisible()` (update the `entries`/`
 
 Update `visibleEntries`' doc comment to mention filtering, e.g. "Filtered and sorted snapshot of `entries` … refreshed when `entries`, `sortOrder`, or `filter` changes."
 
-- [ ] **Step 4: Run tests to verify green**
+- [x] **Step 4: Run tests to verify green**
 
 Run: `swift run FileExplorerTests`
 Expected: PASS, exit 0 (87 prior + 11 new = 98 assertions — recount honestly). Run twice for stability.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
@@ -495,7 +495,7 @@ git commit -m "feat: wire FilterEngine into PaneState with live recompute"
 
 UI glue — no unit tests; logic stays in Core. NO `@State` (CLT constraint).
 
-- [ ] **Step 1: Create `Sources/FileExplorer/FilterBarView.swift`**
+- [x] **Step 1: Create `Sources/FileExplorer/FilterBarView.swift`**
 
 ```swift
 import SwiftUI
@@ -560,7 +560,7 @@ struct FilterBarView: View {
 }
 ```
 
-- [ ] **Step 2: Wire into `Sources/FileExplorer/PaneView.swift`**
+- [x] **Step 2: Wire into `Sources/FileExplorer/PaneView.swift`**
 
 In `body`'s VStack, insert the filter bar between the breadcrumb and the table:
 
@@ -600,13 +600,13 @@ Also update the empty-state overlay so a fully-filtered-out folder doesn't claim
             }
 ```
 
-- [ ] **Step 3: Build and verify**
+- [x] **Step 3: Build and verify**
 
 1. `swift build` → clean; `grep -rn "@State" Sources/` → empty.
 2. `swift run FileExplorerTests` → PASS (98 assertions), exit 0.
 3. Launch check: `swift run FileExplorer` backgrounded, alive >5 s, kill. (Visual verification deferred to milestone walkthrough.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -A
@@ -619,10 +619,20 @@ git commit -m "feat: filter bar with preset chips, date/size menus, extension fi
 
 **Files:** none (verification only; fixes if found)
 
-- [ ] **Step 1: Full test run** — `swift run FileExplorerTests` → PASS, exit 0, twice.
+- [x] **Step 1: Full test run** — `swift run FileExplorerTests` → PASS, exit 0, twice.
 
-- [ ] **Step 2: Bundle + idle check** — `./Scripts/bundle.sh`, `open build/FileExplorer.app`, after 15 s `ps -p <pid> -o %cpu,rss` → CPU near 0, RSS stable ~130 MB (regression guard on the M1 idle bug). Kill it.
+- [x] **Step 2: Bundle + idle check** — `./Scripts/bundle.sh`, `open build/FileExplorer.app`, after 15 s `ps -p <pid> -o %cpu,rss` → CPU near 0, RSS stable ~130 MB (regression guard on the M1 idle bug). Kill it.
 
-- [ ] **Step 3: Automated evidence where possible** — screenshots/keyboard driving are TCC-blocked for agents on this machine; note what needs the human walkthrough: chips narrow the table live, date/size menus filter, extension field filters as you type, Clear restores, "N of M items", "No Matches" overlay.
+- [x] **Step 3: Automated evidence where possible** — screenshots/keyboard driving are TCC-blocked for agents on this machine; note what needs the human walkthrough: chips narrow the table live, date/size menus filter, extension field filters as you type, Clear restores, "N of M items", "No Matches" overlay.
 
-- [ ] **Step 4: Fix anything real found; commit fixes** (`fix: … (milestone 2 verification)`).
+- [x] **Step 4: Fix anything real found; commit fixes** (`fix: … (milestone 2 verification)`).
+
+---
+
+## Completion Notes (2026-07-07)
+
+All 5 tasks implemented, reviewed, and verified. Final: `swift run FileExplorerTests` → PASS (99 assertions); idle app 0.0% CPU, ~135 MB stable.
+
+- Assertion-count estimates in this plan were off (actuals: 80 → 88 → 99); implementers recounted honestly each time. Code shipped verbatim.
+- **Emergent behavior (by design, note for walkthrough):** folders always pass filters, so "N of M items" counts passing folders in N, and the "No Matches" overlay only appears in directories with no subfolders. If this reads as "filter did nothing" in practice, consider a files-only match count in a later milestone.
+- Walkthrough items for the human: chips narrow the table live; date/size menus; extension field filters per keystroke; Clear restores; N-of-M text; No Matches overlay; the folder-count semantics above.
