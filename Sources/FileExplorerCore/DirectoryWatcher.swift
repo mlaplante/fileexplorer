@@ -3,6 +3,8 @@ import Foundation
 /// Watches one directory via a kqueue DispatchSource and invokes the callback
 /// on the main actor after a 200 ms debounce. Re-calling `watch` replaces the
 /// previous watch.
+/// Watching a path that can't be opened is a silent no-op by design —
+/// the caller's reload path surfaces unreadable directories to the user.
 @MainActor
 public final class DirectoryWatcher {
     private var source: DispatchSourceFileSystemObject?
@@ -26,7 +28,9 @@ public final class DirectoryWatcher {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 self.pending?.cancel()
-                let work = DispatchWorkItem { Task { @MainActor in onChange() } }
+                let work = DispatchWorkItem {
+                    MainActor.assumeIsolated { onChange() }
+                }
                 self.pending = work
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
             }
@@ -41,5 +45,9 @@ public final class DirectoryWatcher {
         pending = nil
         source?.cancel()
         source = nil
+    }
+
+    isolated deinit {
+        stop()
     }
 }
