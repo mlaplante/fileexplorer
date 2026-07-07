@@ -396,6 +396,16 @@ public final class PaneState {
         filter = FilterState()
     }
 
+    public func snapshot() -> SessionSnapshot.Pane {
+        SessionSnapshot.Pane(
+            path: currentURL.path,
+            showHidden: showHidden,
+            viewMode: viewMode.rawValue,
+            filter: filter,
+            filterExtensionsText: filterExtensionsText,
+            sort: SortTokenCoder.tokens(from: sortOrder))
+    }
+
     private func recomputeVisible() {
         visibleEntries = FileSorter.sort(
             FilterEngine.apply(filter, to: entries), using: sortOrder)

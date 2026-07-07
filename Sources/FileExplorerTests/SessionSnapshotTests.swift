@@ -75,4 +75,60 @@ func sessionSnapshotTests() async {
         expectEqual(restored.count, 1, "empty tokens restore a default sort")
         expect(restored[0].keyPath == \FileEntry.name, "default sort is by name")
     }
+
+    await test("snapshot() captures the session graph") {
+        let home = URL(fileURLWithPath: "/tmp")
+        let session = SessionState(url: home)
+        session.activeTab.toggleDual()          // tab 0: dual, right pane active
+        session.newTab()                        // tab 1 active
+        session.activePane.showHidden = true
+        session.activePane.viewMode = .icons
+        session.activePane.filter.preset = .images
+        session.activePane.filterExtensionsText = "png, jpg"
+
+        let snapshot = session.snapshot()
+        expectEqual(snapshot.tabs.count, 2, "two tabs captured")
+        expectEqual(snapshot.activeTabIndex, 1, "active tab captured")
+        expectEqual(snapshot.tabs[0].panes.count, 2, "dual pane captured")
+        expectEqual(snapshot.tabs[0].activePaneIndex, 1, "active pane captured")
+
+        let pane = snapshot.tabs[1].panes[0]
+        expectEqual(pane.path, "/tmp", "pane folder captured as path")
+        expect(pane.showHidden, "showHidden captured")
+        expectEqual(pane.viewMode, "icons", "view mode captured as raw string")
+        expectEqual(pane.filter.preset, .images, "filter preset captured")
+        expectEqual(pane.filterExtensionsText, "png, jpg",
+                    "extension draft text captured")
+        expectEqual(pane.sort, [SortToken(field: .name, ascending: true)],
+                    "default sort captured as token")
+    }
+
+    await test("SessionSnapshot round-trips through JSON") {
+        let home = URL(fileURLWithPath: "/tmp")
+        let session = SessionState(url: home)
+        session.newTab()
+        await session.activePane.navigate(to: URL(fileURLWithPath: "/private/tmp"))
+        let snapshot = session.snapshot()
+
+        let data = try JSONEncoder().encode(snapshot)
+        let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: data)
+        expectEqual(decoded, snapshot, "snapshot survives encode/decode")
+        expect(!decoded.recentFolders.isEmpty, "recents captured via navigation")
+    }
+
+    await test("SessionSnapshot decodes minimal JSON with defaults") {
+        let json = #"{"tabs":[{"panes":[{"path":"/tmp"}]}]}"#
+        let decoded = try JSONDecoder().decode(
+            SessionSnapshot.self, from: Data(json.utf8))
+        expectEqual(decoded.activeTabIndex, 0, "missing activeTabIndex defaults")
+        expectEqual(decoded.tabs[0].activePaneIndex, 0,
+                    "missing activePaneIndex defaults")
+        let pane = decoded.tabs[0].panes[0]
+        expectEqual(pane.path, "/tmp", "path decoded")
+        expect(!pane.showHidden, "missing showHidden defaults to false")
+        expectEqual(pane.viewMode, "list", "missing viewMode defaults to list")
+        expectEqual(pane.filter, FilterState(), "missing filter defaults to empty")
+        expect(pane.sort.isEmpty, "missing sort defaults to empty tokens")
+        expect(decoded.recentFolders.isEmpty, "missing recents default to empty")
+    }
 }

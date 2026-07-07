@@ -29,6 +29,11 @@ public final class TabState: Identifiable {
         return name.isEmpty ? "/" : name
     }
 
+    public func snapshot() -> SessionSnapshot.Tab {
+        SessionSnapshot.Tab(panes: panes.map { $0.snapshot() },
+                            activePaneIndex: activePaneIndex)
+    }
+
     public func toggleDual() {
         if isDual {
             activePaneIndex = 0

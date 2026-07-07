@@ -24,6 +24,12 @@ public final class SessionState {
 
     public var activePane: PaneState { activeTab.activePane }
 
+    public func snapshot() -> SessionSnapshot {
+        SessionSnapshot(tabs: tabs.map { $0.snapshot() },
+                        activeTabIndex: activeTabIndex,
+                        recentFolders: recentFolders.map(\.path))
+    }
+
     /// New tab opens at the current active pane's folder (like Finder/WhimFiles).
     public func newTab() {
         tabs.append(makeTab(url: activePane.currentURL))
