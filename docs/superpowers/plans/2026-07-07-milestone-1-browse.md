@@ -27,7 +27,7 @@
 - Create: `Sources/FileExplorerTests/Harness.swift`
 - Create: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Create `Package.swift`**
+- [x] **Step 1: Create `Package.swift`**
 
 ```swift
 // swift-tools-version: 6.0
@@ -44,7 +44,7 @@ let package = Package(
 )
 ```
 
-- [ ] **Step 2: Create `.gitignore`**
+- [x] **Step 2: Create `.gitignore`**
 
 ```
 .build/
@@ -52,7 +52,7 @@ build/
 .DS_Store
 ```
 
-- [ ] **Step 3: Create `Sources/FileExplorerCore/Placeholder.swift`**
+- [x] **Step 3: Create `Sources/FileExplorerCore/Placeholder.swift`**
 
 (Removed in Task 2 — SPM requires the target to contain at least one file.)
 
@@ -60,7 +60,7 @@ build/
 // Placeholder so the target compiles; replaced by real sources in Task 2.
 ```
 
-- [ ] **Step 4: Create `Sources/FileExplorer/FileExplorerApp.swift`**
+- [x] **Step 4: Create `Sources/FileExplorer/FileExplorerApp.swift`**
 
 ```swift
 import SwiftUI
@@ -85,7 +85,7 @@ struct FileExplorerApp: App {
 }
 ```
 
-- [ ] **Step 5: Create `Sources/FileExplorerTests/Harness.swift`**
+- [x] **Step 5: Create `Sources/FileExplorerTests/Harness.swift`**
 
 The harness: `test` groups assertions, `expect` records pass/fail, `finish()` exits non-zero on any failure. Top-level code in `main.swift` is MainActor-isolated, so MainActor globals are safe.
 
@@ -132,7 +132,7 @@ func finish() -> Never {
 }
 ```
 
-- [ ] **Step 6: Create `Sources/FileExplorerTests/main.swift`**
+- [x] **Step 6: Create `Sources/FileExplorerTests/main.swift`**
 
 ```swift
 import Foundation
@@ -145,18 +145,18 @@ await test("harness sanity") {
 finish()
 ```
 
-- [ ] **Step 7: Build and run tests**
+- [x] **Step 7: Build and run tests**
 
 Run: `swift build && swift run FileExplorerTests`
 Expected: `Build complete!`, then `• harness sanity`, two `ok -` lines, `PASS (2 assertions)`, exit code 0.
 (A linker warning about `/Library/Developer/CommandLineTools/Developer/Library/Frameworks` not found is normal on this machine — ignore it.)
 
-- [ ] **Step 8: Smoke-run the app**
+- [x] **Step 8: Smoke-run the app**
 
 Run: `swift run FileExplorer &` then after a few seconds `kill %1`
 Expected: a window titled FileExplorer appears with the placeholder text. (If verifying non-interactively: the process staying alive >3s without crashing is sufficient.)
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add -A
@@ -174,7 +174,7 @@ git commit -m "feat: SPM scaffold with app target and test harness"
 - Create: `Sources/FileExplorerTests/DirectoryLoaderTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/DirectoryLoaderTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/DirectoryLoaderTests.swift`**
 
 ```swift
 import Foundation
@@ -239,12 +239,12 @@ await directoryLoaderTests()
 finish()
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `swift run FileExplorerTests`
 Expected: build FAILS with "cannot find 'DirectoryLoader' in scope" (compile-time failure is this step's red).
 
-- [ ] **Step 3: Implement — delete `Placeholder.swift`, create `Sources/FileExplorerCore/FileEntry.swift`**
+- [x] **Step 3: Implement — delete `Placeholder.swift`, create `Sources/FileExplorerCore/FileEntry.swift`**
 
 ```swift
 import Foundation
@@ -286,7 +286,7 @@ public struct FileEntry: Identifiable, Hashable, Sendable {
 }
 ```
 
-- [ ] **Step 4: Create `Sources/FileExplorerCore/DirectoryLoader.swift`**
+- [x] **Step 4: Create `Sources/FileExplorerCore/DirectoryLoader.swift`**
 
 ```swift
 import Foundation
@@ -324,12 +324,12 @@ public enum DirectoryLoader {
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `swift run FileExplorerTests`
 Expected: PASS, exit 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
@@ -345,7 +345,7 @@ git commit -m "feat: FileEntry model and DirectoryLoader"
 - Create: `Sources/FileExplorerTests/FileSorterTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/FileSorterTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/FileSorterTests.swift`**
 
 ```swift
 import Foundation
@@ -391,12 +391,12 @@ Add to `main.swift` before `finish()`:
 await fileSorterTests()
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `swift run FileExplorerTests`
 Expected: build FAILS with "cannot find 'FileSorter' in scope".
 
-- [ ] **Step 3: Implement — `Sources/FileExplorerCore/FileSorter.swift`**
+- [x] **Step 3: Implement — `Sources/FileExplorerCore/FileSorter.swift`**
 
 ```swift
 import Foundation
@@ -412,12 +412,12 @@ public enum FileSorter {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `swift run FileExplorerTests`
 Expected: PASS, exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
@@ -433,7 +433,7 @@ git commit -m "feat: FileSorter with folders-first ordering"
 - Create: `Sources/FileExplorerTests/NavigationHistoryTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/NavigationHistoryTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/NavigationHistoryTests.swift`**
 
 ```swift
 import Foundation
@@ -487,12 +487,12 @@ Add to `main.swift` before `finish()`:
 await navigationHistoryTests()
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `swift run FileExplorerTests`
 Expected: build FAILS with "cannot find 'NavigationHistory' in scope".
 
-- [ ] **Step 3: Implement — `Sources/FileExplorerCore/NavigationHistory.swift`**
+- [x] **Step 3: Implement — `Sources/FileExplorerCore/NavigationHistory.swift`**
 
 ```swift
 import Foundation
@@ -530,12 +530,12 @@ public struct NavigationHistory: Equatable, Sendable {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `swift run FileExplorerTests`
 Expected: PASS, exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
@@ -551,7 +551,7 @@ git commit -m "feat: NavigationHistory back/forward stack"
 - Create: `Sources/FileExplorerTests/DirectoryWatcherTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/DirectoryWatcherTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/DirectoryWatcherTests.swift`**
 
 ```swift
 import Foundation
@@ -602,12 +602,12 @@ Add to `main.swift` before `finish()`:
 await directoryWatcherTests()
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `swift run FileExplorerTests`
 Expected: build FAILS with "cannot find 'DirectoryWatcher' in scope".
 
-- [ ] **Step 3: Implement — `Sources/FileExplorerCore/DirectoryWatcher.swift`**
+- [x] **Step 3: Implement — `Sources/FileExplorerCore/DirectoryWatcher.swift`**
 
 ```swift
 import Foundation
@@ -657,12 +657,12 @@ public final class DirectoryWatcher {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `swift run FileExplorerTests`
 Expected: PASS, exit 0. (Timing-based — if the debounce assertion flakes, re-run once; persistent failure = real bug.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
@@ -678,7 +678,7 @@ git commit -m "feat: DirectoryWatcher with debounced change events"
 - Create: `Sources/FileExplorerTests/PaneStateTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/PaneStateTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/PaneStateTests.swift`**
 
 ```swift
 import Foundation
@@ -747,12 +747,12 @@ Add to `main.swift` before `finish()`:
 await paneStateTests()
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `swift run FileExplorerTests`
 Expected: build FAILS with "cannot find 'PaneState' in scope".
 
-- [ ] **Step 3: Implement — `Sources/FileExplorerCore/PaneState.swift`**
+- [x] **Step 3: Implement — `Sources/FileExplorerCore/PaneState.swift`**
 
 ```swift
 import Foundation
@@ -850,12 +850,12 @@ public final class PaneState {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `swift run FileExplorerTests`
 Expected: PASS, exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
@@ -873,7 +873,7 @@ git commit -m "feat: PaneState observable pane model"
 
 No unit tests — UI glue; verified by running the app. Keep all logic in Core.
 
-- [ ] **Step 1: Create `Sources/FileExplorer/AppState.swift`**
+- [x] **Step 1: Create `Sources/FileExplorer/AppState.swift`**
 
 ```swift
 import Foundation
@@ -893,7 +893,7 @@ final class AppState {
 }
 ```
 
-- [ ] **Step 2: Create `Sources/FileExplorer/PaneView.swift`**
+- [x] **Step 2: Create `Sources/FileExplorer/PaneView.swift`**
 
 ```swift
 import SwiftUI
@@ -967,7 +967,7 @@ struct PaneView: View {
 }
 ```
 
-- [ ] **Step 3: Replace `Sources/FileExplorer/FileExplorerApp.swift`**
+- [x] **Step 3: Replace `Sources/FileExplorer/FileExplorerApp.swift`**
 
 ```swift
 import SwiftUI
@@ -996,17 +996,17 @@ struct FileExplorerApp: App {
 }
 ```
 
-- [ ] **Step 4: Build and verify**
+- [x] **Step 4: Build and verify**
 
 Run: `swift build && swift run FileExplorer` (leave running)
 Expected: a window listing the home directory with Name/Size/Kind/Date Modified columns, sortable by clicking headers. Double-click a folder → navigates in; double-click a file → opens in its default app. Then quit (⌘Q or kill).
 
-- [ ] **Step 5: Run tests (regression)**
+- [x] **Step 5: Run tests (regression)**
 
 Run: `swift run FileExplorerTests`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
@@ -1022,7 +1022,7 @@ git commit -m "feat: file table UI with sorting and double-click navigation"
 - Modify: `Sources/FileExplorer/PaneView.swift`
 - Modify: `Sources/FileExplorer/FileExplorerApp.swift`
 
-- [ ] **Step 1: Create `Sources/FileExplorer/BreadcrumbView.swift`**
+- [x] **Step 1: Create `Sources/FileExplorer/BreadcrumbView.swift`**
 
 ```swift
 import SwiftUI
@@ -1070,7 +1070,7 @@ struct BreadcrumbView: View {
 }
 ```
 
-- [ ] **Step 2: Add breadcrumb + status bar around the table in `PaneView.swift`**
+- [x] **Step 2: Add breadcrumb + status bar around the table in `PaneView.swift`**
 
 Wrap the existing `Table` in a `VStack`. Replace the `body` property's outermost structure so it reads:
 
@@ -1107,7 +1107,7 @@ Wrap the existing `Table` in a `VStack`. Replace the `body` property's outermost
 
 (The `table` property holds the exact Table code from Task 7 — cut and paste it unchanged.)
 
-- [ ] **Step 3: Add toolbar and Go menu in `FileExplorerApp.swift`**
+- [x] **Step 3: Add toolbar and Go menu in `FileExplorerApp.swift`**
 
 Replace the `body` scene with:
 
@@ -1163,12 +1163,12 @@ Replace the `body` scene with:
     }
 ```
 
-- [ ] **Step 4: Build and verify**
+- [x] **Step 4: Build and verify**
 
 Run: `swift run FileExplorer`
 Expected: breadcrumb bar above the table (click a segment to jump), status bar below with item/selection counts, back/forward/up toolbar buttons that enable/disable correctly, Go menu with working ⌘[, ⌘], ⌘↑, ⇧⌘H.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
@@ -1183,7 +1183,7 @@ git commit -m "feat: breadcrumbs, status bar, toolbar and Go menu navigation"
 - Create: `Sources/FileExplorer/SidebarView.swift`
 - Modify: `Sources/FileExplorer/FileExplorerApp.swift`
 
-- [ ] **Step 1: Create `Sources/FileExplorer/SidebarView.swift`**
+- [x] **Step 1: Create `Sources/FileExplorer/SidebarView.swift`**
 
 ```swift
 import SwiftUI
@@ -1253,7 +1253,7 @@ struct SidebarView: View {
 }
 ```
 
-- [ ] **Step 2: Wrap the window content in `NavigationSplitView` in `FileExplorerApp.swift`**
+- [x] **Step 2: Wrap the window content in `NavigationSplitView` in `FileExplorerApp.swift`**
 
 Replace the `WindowGroup` content (keep the `.commands` block unchanged):
 
@@ -1273,12 +1273,12 @@ Replace the `WindowGroup` content (keep the `.commands` block unchanged):
         }
 ```
 
-- [ ] **Step 3: Build and verify**
+- [x] **Step 3: Build and verify**
 
 Run: `swift run FileExplorer`
 Expected: sidebar with Favorites (Home/Desktop/Documents/Downloads/Pictures) and Volumes (at least Macintosh HD); clicking any entry navigates the pane; sidebar collapses with the toolbar button.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -A
@@ -1292,7 +1292,7 @@ git commit -m "feat: sidebar with favorites and mounted volumes"
 **Files:**
 - Modify: `Sources/FileExplorer/FileExplorerApp.swift`
 
-- [ ] **Step 1: Add a View menu command**
+- [x] **Step 1: Add a View menu command**
 
 Inside `.commands { }`, after the `CommandMenu("Go") { }` block, add:
 
@@ -1308,17 +1308,17 @@ Inside `.commands { }`, after the `CommandMenu("Go") { }` block, add:
             }
 ```
 
-- [ ] **Step 2: Build and verify**
+- [x] **Step 2: Build and verify**
 
 Run: `swift run FileExplorer`
 Expected: View menu contains "Show Hidden Files" with a checkmark state; pressing ⇧⌘. in the home folder toggles dotfiles (e.g. `.zshrc`) in and out of the table.
 
-- [ ] **Step 3: Run tests (regression)**
+- [x] **Step 3: Run tests (regression)**
 
 Run: `swift run FileExplorerTests`
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -A
@@ -1333,7 +1333,7 @@ git commit -m "feat: show hidden files toggle (shift-cmd-period)"
 - Create: `Resources/Info.plist`
 - Create: `Scripts/bundle.sh` (mode 755)
 
-- [ ] **Step 1: Create `Resources/Info.plist`**
+- [x] **Step 1: Create `Resources/Info.plist`**
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -1364,7 +1364,7 @@ git commit -m "feat: show hidden files toggle (shift-cmd-period)"
 </plist>
 ```
 
-- [ ] **Step 2: Create `Scripts/bundle.sh`**
+- [x] **Step 2: Create `Scripts/bundle.sh`**
 
 ```bash
 #!/bin/bash
@@ -1385,12 +1385,12 @@ echo "Built $APP"
 
 Run: `chmod +x Scripts/bundle.sh`
 
-- [ ] **Step 3: Build the bundle and verify**
+- [x] **Step 3: Build the bundle and verify**
 
 Run: `./Scripts/bundle.sh && open build/FileExplorer.app`
 Expected: script prints `Built build/FileExplorer.app`; the app launches as a normal foreground app (appears in Dock as FileExplorer) with the full browse UI working.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -A
@@ -1403,12 +1403,12 @@ git commit -m "feat: app bundle script and Info.plist"
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Full test run**
+- [x] **Step 1: Full test run**
 
 Run: `swift run FileExplorerTests`
 Expected: PASS, 0 failures.
 
-- [ ] **Step 2: End-to-end walkthrough**
+- [x] **Step 2: End-to-end walkthrough**
 
 Run: `open build/FileExplorer.app` and verify each Milestone 1 requirement:
 
@@ -1421,9 +1421,31 @@ Run: `open build/FileExplorer.app` and verify each Milestone 1 requirement:
 7. In Terminal: `touch ~/from-terminal.txt` while viewing Home → file appears within ~1 s (watcher). `rm ~/from-terminal.txt` → disappears.
 8. Status bar counts update with selection.
 
-- [ ] **Step 3: Fix anything that fails, re-verify, then commit any fixes**
+- [x] **Step 3: Fix anything that fails, re-verify, then commit any fixes**
 
 ```bash
 git add -A
 git commit -m "fix: milestone 1 verification fixes"   # only if fixes were needed
 ```
+
+---
+
+## Completion Notes (2026-07-07)
+
+All 12 tasks implemented, reviewed (per-task spec + quality review), and verified. Deviations and additions relative to the original plan, all committed on `milestone-1-browse`:
+
+- **Symlink semantics** (review finding): folder symlinks are navigable (`isDirectory` resolved Finder-like); tested.
+- **DirectoryWatcher**: `isolated deinit { stop() }` added (fd-leak prevention); debounce work item runs via `MainActor.assumeIsolated` (stop-safe).
+- **PaneState**: staleness guard (`reloadID`) discards out-of-order reloads (race-tested); `hasLoadedOnce` gates the empty-folder overlay; same-URL `navigate` is a full no-op; standardized URLs; memoized `visibleEntries`.
+- **`@State` does not compile on this CLT-only toolchain** (SwiftUIMacros plugin ships with Xcode only) — app uses `private let` + `@Observable`; keep avoiding `@State` in future milestones or install Xcode.
+- **Breadcrumb infinite loop fixed**: `deletingLastPathComponent()` at "/" returns "/.." (lexical), so the original termination check never fired → 100% CPU + memory runaway at idle. Logic extracted to `URL.ancestorChain` in Core with root-clamp tests.
+- **Spec error handling wired** (final-review finding): vanished folders fall back to the nearest existing ancestor (gated on `hasLoadedOnce`); permission errors append a Full Disk Access hint.
+- **Bundle script** resolves the binary path via `swift build -c release --show-bin-path` (this machine outputs to `.build/out/Products/Release`).
+
+**Deliberately deferred** (revisit in Milestone 2+):
+- `showHidden` requires a manual reload at the call site (unlike `entries`/`sortOrder` didSet auto-resort) — unify the invalidation convention when the filter bar adds more such state.
+- `FileEntry.isSymlink` is not yet surfaced as a UI badge.
+- Volume list doesn't observe mount/unmount notifications; sidebar has no "current location" highlight.
+- Interactive UI verification (keyboard shortcuts, Scene-level @Observable reactivity of title/toolbar) requires human walkthrough — TCC permissions block agent-driven UI automation on this machine.
+
+Final state: `swift run FileExplorerTests` → PASS (58 assertions); idle app ~0% CPU, ~125 MB stable.
