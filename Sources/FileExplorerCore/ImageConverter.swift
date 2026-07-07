@@ -47,10 +47,16 @@ public enum ImageConverter {
             target as CFURL, format.utType.identifier as CFString, 1, nil) else {
             return .failure(.init("Couldn't create “\(target.lastPathComponent)”."))
         }
-        let options = format == .jpeg
-            ? [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary
-            : nil
-        CGImageDestinationAddImage(destination, image, options)
+        let sourceProperties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil)
+            as? [CFString: Any]
+        var destinationOptions: [CFString: Any] = [:]
+        if format == .jpeg {
+            destinationOptions[kCGImageDestinationLossyCompressionQuality] = quality
+        }
+        if let orientation = sourceProperties?[kCGImagePropertyOrientation] {
+            destinationOptions[kCGImagePropertyOrientation] = orientation
+        }
+        CGImageDestinationAddImage(destination, image, destinationOptions as CFDictionary)
         guard CGImageDestinationFinalize(destination) else {
             try? FileManager.default.removeItem(at: target)
             return .failure(.init("Failed writing “\(target.lastPathComponent)”."))

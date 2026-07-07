@@ -1,5 +1,7 @@
 import Foundation
 import ImageIO
+import CoreGraphics
+import UniformTypeIdentifiers
 import FileExplorerCore
 
 @MainActor
@@ -72,6 +74,47 @@ func batchToolsTests() async {
         expectEqual(FolderSizer.size(of: dir), 350, "recursive byte total")
         expectEqual(FolderSizer.size(of: dir.appendingPathComponent("missing")), 0,
                     "missing folder is 0")
+    }
+
+    await test("Zipper handles leading-dash filenames") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        try Data("d".utf8).write(to: dir.appendingPathComponent("-weird.txt"))
+        let result = Zipper.compress([dir.appendingPathComponent("-weird.txt")], in: dir)
+        if case .success(let archive) = result {
+            let listing = try listZip(archive)
+            expect(listing.contains("-weird.txt"), "dash file archived [got: \(listing)]")
+        } else {
+            expect(false, "dash filename must not be parsed as zip flags")
+        }
+    }
+
+    await test("ImageConverter preserves EXIF orientation") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let rotated = dir.appendingPathComponent("rotated.png")
+        // Write a PNG carrying orientation 6 metadata.
+        let ctx = CGContext(data: nil, width: 10, height: 20, bitsPerComponent: 8,
+                            bytesPerRow: 0,
+                            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        let img = ctx.makeImage()!
+        let dest = CGImageDestinationCreateWithURL(
+            rotated as CFURL, UTType.png.identifier as CFString, 1, nil)!
+        CGImageDestinationAddImage(dest, img,
+            [kCGImagePropertyOrientation: 6] as CFDictionary)
+        expect(CGImageDestinationFinalize(dest), "fixture written")
+
+        let results = ImageConverter.convert([rotated], to: .jpeg)
+        guard case .success(let out) = results[0].outcome else {
+            expect(false, "conversion should succeed")
+            return
+        }
+        let outSource = CGImageSourceCreateWithURL(out as CFURL, nil)!
+        let properties = CGImageSourceCopyPropertiesAtIndex(outSource, 0, nil)
+            as? [CFString: Any]
+        let orientation = properties?[kCGImagePropertyOrientation] as? Int
+        expectEqual(orientation, 6, "orientation carried into the converted file")
     }
 }
 

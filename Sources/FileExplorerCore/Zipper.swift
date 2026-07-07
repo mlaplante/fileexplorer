@@ -19,7 +19,7 @@ public enum Zipper {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
         process.currentDirectoryURL = directory
-        process.arguments = ["-r", "-q", archive.path]
+        process.arguments = ["-r", "-q", archive.path, "--"]
             + sources.map { source in
                 source.path.hasPrefix(directory.path + "/")
                     ? String(source.path.dropFirst(directory.path.count + 1))
