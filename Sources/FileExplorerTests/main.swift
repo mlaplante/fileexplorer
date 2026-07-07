@@ -7,5 +7,6 @@ await directoryWatcherTests()
 await paneStateTests()
 await ancestorChainTests()
 await filterPresetsTests()
+await filterEngineTests()
 
 finish()
