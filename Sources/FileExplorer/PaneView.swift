@@ -11,7 +11,11 @@ struct PaneView: View {
             Divider()
             FilterBarView(pane: pane)
             Divider()
-            table
+            if pane.viewMode == .icons {
+                ThumbnailGridView(pane: pane) { open($0) }
+            } else {
+                table
+            }
             Divider()
             statusBar
         }

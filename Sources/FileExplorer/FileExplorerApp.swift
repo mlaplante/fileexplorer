@@ -107,6 +107,15 @@ struct FileExplorerApp: App {
                     .keyboardShortcut(".", modifiers: [.command, .shift])
                 Button("Toggle Dual Pane") { session.activeTab.toggleDual() }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
+                Picker("View", selection: Binding(
+                    get: { session.activePane.viewMode },
+                    set: { session.activePane.viewMode = $0 })) {
+                    Text("as List").tag(PaneState.ViewMode.list)
+                        .keyboardShortcut("1", modifiers: [.command, .option])
+                    Text("as Icons").tag(PaneState.ViewMode.icons)
+                        .keyboardShortcut("2", modifiers: [.command, .option])
+                }
+                .pickerStyle(.inline)
                 Button("Quick Look") {
                     QuickLookController.shared.toggle(for: session.activePane)
                 }
