@@ -3,7 +3,8 @@ import FileExplorerCore
 
 @main
 struct FileExplorerApp: App {
-    private let appState = AppState()
+    private let session = SessionState(
+        url: FileManager.default.homeDirectoryForCurrentUser)
 
     init() {
         // When launched from `swift run` (no bundle), become a regular
@@ -17,29 +18,29 @@ struct FileExplorerApp: App {
     var body: some Scene {
         WindowGroup {
             NavigationSplitView {
-                SidebarView(pane: appState.pane)
+                SidebarView(session: session)
                     .navigationSplitViewColumnWidth(min: 160, ideal: 200)
             } detail: {
-                PaneView(pane: appState.pane)
-                    .navigationTitle(appState.pane.currentURL.lastPathComponent)
+                TabContentView(session: session)
+                    .navigationTitle(session.activePane.currentURL.lastPathComponent)
                     .toolbar {
                         ToolbarItemGroup(placement: .navigation) {
                             Button {
-                                Task { await appState.pane.goBack() }
+                                Task { await session.activePane.goBack() }
                             } label: { Image(systemName: "chevron.left") }
-                            .disabled(!appState.pane.canGoBack)
+                            .disabled(!session.activePane.canGoBack)
                             .help("Back")
 
                             Button {
-                                Task { await appState.pane.goForward() }
+                                Task { await session.activePane.goForward() }
                             } label: { Image(systemName: "chevron.right") }
-                            .disabled(!appState.pane.canGoForward)
+                            .disabled(!session.activePane.canGoForward)
                             .help("Forward")
 
                             Button {
-                                Task { await appState.pane.goUp() }
+                                Task { await session.activePane.goUp() }
                             } label: { Image(systemName: "chevron.up") }
-                            .disabled(!appState.pane.canGoUp)
+                            .disabled(!session.activePane.canGoUp)
                             .help("Enclosing Folder")
                         }
                     }
@@ -47,20 +48,27 @@ struct FileExplorerApp: App {
             .frame(minWidth: 760, minHeight: 400)
         }
         .commands {
+            CommandGroup(after: .newItem) {
+                Button("New Tab") { session.newTab() }
+                    .keyboardShortcut("t", modifiers: .command)
+                Button("Close Tab") { session.closeTab(at: session.activeTabIndex) }
+                    .keyboardShortcut("w", modifiers: .command)
+                    .disabled(session.tabs.count == 1)
+            }
             CommandMenu("Go") {
-                Button("Back") { Task { await appState.pane.goBack() } }
+                Button("Back") { Task { await session.activePane.goBack() } }
                     .keyboardShortcut("[", modifiers: .command)
-                    .disabled(!appState.pane.canGoBack)
-                Button("Forward") { Task { await appState.pane.goForward() } }
+                    .disabled(!session.activePane.canGoBack)
+                Button("Forward") { Task { await session.activePane.goForward() } }
                     .keyboardShortcut("]", modifiers: .command)
-                    .disabled(!appState.pane.canGoForward)
-                Button("Enclosing Folder") { Task { await appState.pane.goUp() } }
+                    .disabled(!session.activePane.canGoForward)
+                Button("Enclosing Folder") { Task { await session.activePane.goUp() } }
                     .keyboardShortcut(.upArrow, modifiers: .command)
-                    .disabled(!appState.pane.canGoUp)
+                    .disabled(!session.activePane.canGoUp)
                 Divider()
                 Button("Home") {
                     Task {
-                        await appState.pane.navigate(
+                        await session.activePane.navigate(
                             to: FileManager.default.homeDirectoryForCurrentUser)
                     }
                 }
@@ -68,12 +76,22 @@ struct FileExplorerApp: App {
             }
             CommandGroup(after: .toolbar) {
                 Toggle("Show Hidden Files", isOn: Binding(
-                    get: { appState.pane.showHidden },
+                    get: { session.activePane.showHidden },
                     set: { newValue in
-                        appState.pane.showHidden = newValue
-                        Task { await appState.pane.reload() }
+                        session.activePane.showHidden = newValue
+                        Task { await session.activePane.reload() }
                     }))
                     .keyboardShortcut(".", modifiers: [.command, .shift])
+                Button("Toggle Dual Pane") { session.activeTab.toggleDual() }
+                    .keyboardShortcut("d", modifiers: [.command, .shift])
+            }
+            CommandGroup(before: .windowList) {
+                ForEach(1...9, id: \.self) { number in
+                    Button("Tab \(number)") { session.selectTab(number - 1) }
+                        .keyboardShortcut(
+                            KeyEquivalent(Character("\(number)")), modifiers: .command)
+                        .disabled(session.tabs.count < number)
+                }
             }
         }
     }

@@ -2,7 +2,7 @@ import SwiftUI
 import FileExplorerCore
 
 struct SidebarView: View {
-    @Bindable var pane: PaneState
+    @Bindable var session: SessionState
 
     private struct Place: Identifiable, Hashable {
         let name: String
@@ -56,7 +56,7 @@ struct SidebarView: View {
 
     private func row(_ place: Place) -> some View {
         Button {
-            Task { await pane.navigate(to: place.url) }
+            Task { await session.activePane.navigate(to: place.url) }
         } label: {
             Label(place.name, systemImage: place.icon)
         }
