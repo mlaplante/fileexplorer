@@ -6,7 +6,7 @@ import Observation
 public final class PaneState {
     public private(set) var history: NavigationHistory
     public var entries: [FileEntry] = [] {
-        didSet { applySort() }
+        didSet { recomputeVisible() }
     }
     /// Note: cleared on navigation, but a watcher-triggered reload keeps the
     /// existing selection even if some selected files no longer exist.
@@ -14,7 +14,7 @@ public final class PaneState {
     public var sortOrder: [KeyPathComparator<FileEntry>] = [
         KeyPathComparator(\FileEntry.name, comparator: .localizedStandard)
     ] {
-        didSet { applySort() }
+        didSet { recomputeVisible() }
     }
     public var showHidden = false
     public var errorMessage: String?
@@ -22,10 +22,29 @@ public final class PaneState {
     /// flashing an "empty" state while the initial load is in flight.
     public private(set) var hasLoadedOnce = false
 
-    /// Sorted snapshot of `entries`. Stored rather than computed so SwiftUI
-    /// body evaluations don't re-sort large directories; refreshed only when
-    /// `entries` or `sortOrder` changes.
+    public var filter = FilterState() {
+        didSet { recomputeVisible() }
+    }
+
+    /// UI draft for the extension filter field; parsed into `filter.extensions`
+    /// on every edit ("png, .JPG" → ["png", "jpg"]).
+    public var filterExtensionsText = "" {
+        didSet {
+            filter.extensions = Set(
+                filterExtensionsText.split(separator: ",")
+                    .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+                    .map { $0.hasPrefix(".") ? String($0.dropFirst()) : $0 }
+                    .filter { !$0.isEmpty })
+        }
+    }
+
+    /// Filtered and sorted snapshot of `entries`. Stored rather than computed
+    /// so SwiftUI body evaluations don't re-sort/re-filter large directories;
+    /// refreshed when `entries`, `sortOrder`, or `filter` changes.
     public private(set) var visibleEntries: [FileEntry] = []
+
+    /// Count before filtering — the "M" in the status bar's "N of M items".
+    public var totalCount: Int { entries.count }
 
     private let watcher = DirectoryWatcher()
     private var reloadID = 0
@@ -108,8 +127,14 @@ public final class PaneState {
             + " → Privacy & Security → Full Disk Access."
     }
 
-    private func applySort() {
-        visibleEntries = FileSorter.sort(entries, using: sortOrder)
+    public func clearFilters() {
+        filterExtensionsText = ""
+        filter = FilterState()
+    }
+
+    private func recomputeVisible() {
+        visibleEntries = FileSorter.sort(
+            FilterEngine.apply(filter, to: entries), using: sortOrder)
     }
 
     private func afterNavigation() async {

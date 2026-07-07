@@ -8,5 +8,6 @@ await paneStateTests()
 await ancestorChainTests()
 await filterPresetsTests()
 await filterEngineTests()
+await paneFilterTests()
 
 finish()
