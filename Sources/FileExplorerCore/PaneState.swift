@@ -65,6 +65,9 @@ public final class PaneState {
     public var canGoForward: Bool { history.canGoForward }
     public var canGoUp: Bool { currentURL.path != "/" }
 
+    /// Window-level UndoManager, injected by the UI (or tests).
+    @ObservationIgnored public weak var undoManager: UndoManager?
+
     public init(url: URL) {
         // Standardize so NavigationHistory's exact-URL-equality no-op check
         // works for equivalent paths (trailing slash, "." components).
@@ -131,6 +134,117 @@ public final class PaneState {
             errorMessage = Self.describe(error)
             hasLoadedOnce = true
         }
+    }
+
+    // NOTE: in each wrapper below, `reload()` runs BEFORE the error/undo
+    // bookkeeping rather than after. `reload()` sets `errorMessage = nil` on
+    // a successful directory load; running it last would clobber the
+    // op-failure message these methods are responsible for surfacing.
+    // `reload()` doesn't touch `selection`, so this reordering is safe.
+
+    public func moveSelected(_ urls: [URL], into destination: URL) async {
+        let results = await Task.detached(priority: .userInitiated) {
+            FileOperationService.move(urls, into: destination)
+        }.value
+        await reload()
+        finishOperation(results: results) { successes in
+            guard let undoManager else { return }
+            UndoRecorder.recordMove(
+                successes.map { (from: $0.source, to: $0.destination) },
+                on: undoManager, pane: self)
+        }
+    }
+
+    public func copySelected(_ urls: [URL], into destination: URL) async {
+        let results = await Task.detached(priority: .userInitiated) {
+            FileOperationService.copy(urls, into: destination)
+        }.value
+        await reload()
+        finishOperation(results: results) { successes in
+            guard let undoManager else { return }
+            UndoRecorder.recordCreation(successes.map(\.destination),
+                                        actionName: "Copy",
+                                        on: undoManager, pane: self)
+        }
+    }
+
+    public func trashSelected(_ urls: [URL]) async {
+        let results = await Task.detached(priority: .userInitiated) {
+            FileOperationService.trash(urls)
+        }.value
+        selection.removeAll()
+        await reload()
+        finishOperation(results: results) { successes in
+            guard let undoManager else { return }
+            UndoRecorder.recordTrash(
+                successes.map { (original: $0.source, trashed: $0.destination) },
+                on: undoManager, pane: self)
+        }
+    }
+
+    public func renameSelected(_ url: URL, to newName: String) async {
+        let result = FileOperationService.rename(url, to: newName)
+        await reload()
+        switch result {
+        case .success(let newURL):
+            if let undoManager {
+                UndoRecorder.recordMove([(from: url, to: newURL)],
+                                        on: undoManager, pane: self)
+                undoManager.setActionName("Rename")
+            }
+            errorMessage = nil
+            selection = [newURL.standardizedFileURL]
+        case .failure(let error):
+            errorMessage = error.message
+        }
+    }
+
+    public func createNewFolder() async {
+        let result = FileOperationService.newFolder(in: currentURL)
+        await reload()
+        switch result {
+        case .success(let url):
+            if let undoManager {
+                UndoRecorder.recordCreation([url], actionName: "New Folder",
+                                            on: undoManager, pane: self)
+            }
+            errorMessage = nil
+            selection = [url.standardizedFileURL]
+        case .failure(let error):
+            errorMessage = error.message
+        }
+    }
+
+    private struct OperationSuccess {
+        let source: URL
+        let destination: URL
+    }
+
+    private func finishOperation(
+        results: [FileOperationService.ItemResult],
+        recordUndo: ([OperationSuccess]) -> Void
+    ) {
+        let successes = results.compactMap { result -> OperationSuccess? in
+            if case .success(let url) = result.outcome {
+                return OperationSuccess(source: result.source, destination: url)
+            }
+            return nil
+        }
+        let failures = results.filter {
+            if case .failure = $0.outcome { return true }
+            return false
+        }
+        if failures.isEmpty {
+            errorMessage = nil
+        } else {
+            let details = failures.prefix(3).compactMap { result -> String? in
+                if case .failure(let error) = result.outcome { return error.message }
+                return nil
+            }.joined(separator: " ")
+            let suffix = failures.count > 3 ? " (+\(failures.count - 3) more)" : ""
+            errorMessage = details + suffix
+        }
+        recordUndo(successes)
     }
 
     private static func describe(_ error: Error) -> String {
