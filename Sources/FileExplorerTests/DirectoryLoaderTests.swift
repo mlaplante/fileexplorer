@@ -40,6 +40,30 @@ func directoryLoaderTests() async {
             expect(true, "threw as expected")
         }
     }
+
+    await test("DirectoryLoader resolves symlink directories and kinds") {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let target = dir.appendingPathComponent("real-folder")
+        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: false)
+        try FileManager.default.createSymbolicLink(
+            at: dir.appendingPathComponent("link-to-folder"),
+            withDestinationURL: target)
+        try Data().write(to: dir.appendingPathComponent("plainfile"))
+
+        let entries = try DirectoryLoader.load(dir, includeHidden: false)
+
+        let link = entries.first { $0.name == "link-to-folder" }!
+        expect(link.isSymlink, "symlink flagged as symlink")
+        expect(link.isDirectory, "symlink to directory is navigable (isDirectory)")
+        expectEqual(link.kind, "Folder", "symlink to directory reads as Folder")
+
+        let folder = entries.first { $0.name == "real-folder" }!
+        expectEqual(folder.kind, "Folder", "real directory kind is Folder")
+
+        let plain = entries.first { $0.name == "plainfile" }!
+        expect(!plain.kind.isEmpty, "extensionless file still gets a non-empty kind")
+    }
 }
 
 func makeTempDir() throws -> URL {

@@ -1,6 +1,11 @@
 import Foundation
 import UniformTypeIdentifiers
 
+/// Immutable snapshot of one directory entry.
+///
+/// `modified` falls back to `.distantPast` when unreadable because it feeds
+/// a sortable table column and must be non-optional; `created` stays optional
+/// because it is display-only.
 public struct FileEntry: Identifiable, Hashable, Sendable {
     public let url: URL
     public let name: String
@@ -17,8 +22,9 @@ public struct FileEntry: Identifiable, Hashable, Sendable {
     /// Human-readable kind, e.g. "PNG image", "Folder".
     public var kind: String {
         if isDirectory { return "Folder" }
-        return contentType?.localizedDescription
-            ?? url.pathExtension.uppercased()
+        if let description = contentType?.localizedDescription { return description }
+        let ext = url.pathExtension
+        return ext.isEmpty ? "Document" : ext.uppercased()
     }
 
     public init(url: URL, name: String, isDirectory: Bool, isHidden: Bool,
