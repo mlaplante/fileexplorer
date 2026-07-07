@@ -6,5 +6,6 @@ await navigationHistoryTests()
 await directoryWatcherTests()
 await paneStateTests()
 await ancestorChainTests()
+await filterPresetsTests()
 
 finish()
