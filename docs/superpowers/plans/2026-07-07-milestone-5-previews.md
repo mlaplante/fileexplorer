@@ -28,7 +28,7 @@
 - Create: `Sources/FileExplorerTests/PreviewRendererTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/PreviewRendererTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/PreviewRendererTests.swift`**
 
 ```swift
 import Foundation
@@ -112,9 +112,9 @@ func previewRendererTests() async {
 
 Add `await previewRendererTests()` to `main.swift` after `await paletteModelTests()`.
 
-- [ ] **Step 2: Verify red** — `swift run FileExplorerTests` → no `PreviewRenderer`, no `viewMode`.
+- [x] **Step 2: Verify red** — `swift run FileExplorerTests` → no `PreviewRenderer`, no `viewMode`.
 
-- [ ] **Step 3: Implement.** In `Sources/FileExplorerCore/PaneState.swift` add (near `showHidden`):
+- [x] **Step 3: Implement.** In `Sources/FileExplorerCore/PaneState.swift` add (near `showHidden`):
 
 ```swift
     public enum ViewMode: String, Sendable {
@@ -175,9 +175,9 @@ public enum PreviewRenderer {
 }
 ```
 
-- [ ] **Step 4: Verify green** — PASS (~199, recount honestly). Run twice.
+- [x] **Step 4: Verify green** — PASS (~199, recount honestly). Run twice.
 
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat: PreviewRenderer and per-pane view mode"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat: PreviewRenderer and per-pane view mode"`
 
 ---
 
@@ -188,7 +188,7 @@ public enum PreviewRenderer {
 - Create: `Sources/FileExplorerTests/HoverPreviewModelTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/HoverPreviewModelTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/HoverPreviewModelTests.swift`**
 
 ```swift
 import Foundation
@@ -267,9 +267,9 @@ func hoverPreviewModelTests() async {
 
 Add `await hoverPreviewModelTests()` to `main.swift` after `await previewRendererTests()`.
 
-- [ ] **Step 2: Verify red.**
+- [x] **Step 2: Verify red.**
 
-- [ ] **Step 3: Implement — `Sources/FileExplorerCore/HoverPreviewModel.swift`**
+- [x] **Step 3: Implement — `Sources/FileExplorerCore/HoverPreviewModel.swift`**
 
 ```swift
 import Foundation
@@ -331,9 +331,9 @@ public final class HoverPreviewModel {
 }
 ```
 
-- [ ] **Step 4: Verify green** — PASS (~209, recount honestly). Timing-based: run twice; a single flake → re-run, persistent failure → real bug.
+- [x] **Step 4: Verify green** — PASS (~209, recount honestly). Timing-based: run twice; a single flake → re-run, persistent failure → real bug.
 
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat: HoverPreviewModel debounce state"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat: HoverPreviewModel debounce state"`
 
 ---
 
@@ -346,7 +346,7 @@ public final class HoverPreviewModel {
 
 UI glue — no unit tests. NO `@State`.
 
-- [ ] **Step 1: Create `Sources/FileExplorer/QuickLookController.swift`**
+- [x] **Step 1: Create `Sources/FileExplorer/QuickLookController.swift`**
 
 ```swift
 import AppKit
@@ -410,7 +410,7 @@ final class QuickLookController: NSObject, QLPreviewPanelDataSource,
 
 (If `Quartz` fails to import or the delegate signatures differ on this SDK, adapt minimally — the load-bearing behavior is: toggle shows/hides the shared panel with the pane's files, and selection sync moves `currentPreviewItemIndex`. QLPreviewPanel data-source methods are called on the main thread; `assumeIsolated` bridges the nonisolated protocol requirement.)
 
-- [ ] **Step 2: Wire selection-follow and space key in `Sources/FileExplorer/PaneView.swift`.** Add to the `table` property chain (after `.overlay { ... }`):
+- [x] **Step 2: Wire selection-follow and space key in `Sources/FileExplorer/PaneView.swift`.** Add to the `table` property chain (after `.overlay { ... }`):
 
 ```swift
         .onChange(of: pane.selection) { _, _ in
@@ -424,7 +424,7 @@ final class QuickLookController: NSObject, QLPreviewPanelDataSource,
         }
 ```
 
-- [ ] **Step 3: Menu item in `Sources/FileExplorer/FileExplorerApp.swift`.** In the `CommandGroup(after: .toolbar)` block (with Show Hidden Files / Toggle Dual Pane), add:
+- [x] **Step 3: Menu item in `Sources/FileExplorer/FileExplorerApp.swift`.** In the `CommandGroup(after: .toolbar)` block (with Show Hidden Files / Toggle Dual Pane), add:
 
 ```swift
                 Button("Quick Look") {
@@ -433,9 +433,9 @@ final class QuickLookController: NSObject, QLPreviewPanelDataSource,
                 .keyboardShortcut("y", modifiers: .command)
 ```
 
-- [ ] **Step 4: Verify** — `swift build` clean; `swift run FileExplorerTests` unchanged PASS; grep sweeps clean; launch check >5 s.
+- [x] **Step 4: Verify** — `swift build` clean; `swift run FileExplorerTests` unchanged PASS; grep sweeps clean; launch check >5 s.
 
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat: Quick Look panel following the active pane selection"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat: Quick Look panel following the active pane selection"`
 
 ---
 
@@ -445,7 +445,7 @@ final class QuickLookController: NSObject, QLPreviewPanelDataSource,
 - Create: `Sources/FileExplorer/HoverPreviewView.swift`
 - Modify: `Sources/FileExplorer/PaneView.swift`
 
-- [ ] **Step 1: Create `Sources/FileExplorer/HoverPreviewView.swift`**
+- [x] **Step 1: Create `Sources/FileExplorer/HoverPreviewView.swift`**
 
 ```swift
 import SwiftUI
@@ -474,7 +474,7 @@ struct HoverPreviewView: View {
 }
 ```
 
-- [ ] **Step 2: Wire into the Name column in `Sources/FileExplorer/PaneView.swift`.** PaneView needs a hover model — add a stored property (plain let — PaneView is recreated per pane but the model is only transient hover state):
+- [x] **Step 2: Wire into the Name column in `Sources/FileExplorer/PaneView.swift`.** PaneView needs a hover model — add a stored property (plain let — PaneView is recreated per pane but the model is only transient hover state):
 
 ```swift
     private let hoverModel = HoverPreviewModel()
@@ -501,9 +501,9 @@ In the Name `TableColumn`'s cell content (the HStack), append these modifiers to
 
 (Simplify the onHover else-branch if it's redundant — `hoverModel.hoverEnded()` on any un-hover is acceptable; report what you shipped.)
 
-- [ ] **Step 3: Verify** — build clean, tests unchanged, launch check. Report that popover behavior itself is walkthrough-verified only.
+- [x] **Step 3: Verify** — build clean, tests unchanged, launch check. Report that popover behavior itself is walkthrough-verified only.
 
-- [ ] **Step 4: Commit** — `git add -A && git commit -m "feat: hover previews for images and PDFs"`
+- [x] **Step 4: Commit** — `git add -A && git commit -m "feat: hover previews for images and PDFs"`
 
 ---
 
@@ -514,7 +514,7 @@ In the Name `TableColumn`'s cell content (the HStack), append these modifiers to
 - Modify: `Sources/FileExplorer/PaneView.swift`
 - Modify: `Sources/FileExplorer/FileExplorerApp.swift`
 
-- [ ] **Step 1: Create `Sources/FileExplorer/ThumbnailGridView.swift`**
+- [x] **Step 1: Create `Sources/FileExplorer/ThumbnailGridView.swift`**
 
 ```swift
 import SwiftUI
@@ -632,7 +632,7 @@ struct ThumbnailGridView: View {
 }
 ```
 
-- [ ] **Step 2: Switch on view mode in `Sources/FileExplorer/PaneView.swift`.** In `body`'s VStack replace the bare `table` line with:
+- [x] **Step 2: Switch on view mode in `Sources/FileExplorer/PaneView.swift`.** In `body`'s VStack replace the bare `table` line with:
 
 ```swift
             if pane.viewMode == .icons {
@@ -644,7 +644,7 @@ struct ThumbnailGridView: View {
 
 (`open(_:)` is the existing private method — it already handles folder-navigate vs file-open.)
 
-- [ ] **Step 3: View-menu items in `Sources/FileExplorer/FileExplorerApp.swift`.** In `CommandGroup(after: .toolbar)`, add before the Quick Look button:
+- [x] **Step 3: View-menu items in `Sources/FileExplorer/FileExplorerApp.swift`.** In `CommandGroup(after: .toolbar)`, add before the Quick Look button:
 
 ```swift
                 Picker("View", selection: Binding(
@@ -660,15 +660,31 @@ struct ThumbnailGridView: View {
 
 (If keyboardShortcut on Picker tags doesn't register, use two Buttons setting viewMode with those shortcuts instead — report which form shipped.)
 
-- [ ] **Step 4: Verify** — build clean; tests unchanged PASS; grep sweeps; launch check.
+- [x] **Step 4: Verify** — build clean; tests unchanged PASS; grep sweeps; launch check.
 
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat: thumbnail grid view mode with QuickLook thumbnails"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat: thumbnail grid view mode with QuickLook thumbnails"`
 
 ---
 
 ### Task 6: Final milestone verification
 
-- [ ] **Step 1:** `swift run FileExplorerTests` → PASS ×2.
-- [ ] **Step 2:** `./Scripts/bundle.sh && open build/FileExplorer.app`; idle check (~0% CPU, stable RSS ~15 s); kill.
-- [ ] **Step 3:** Walkthrough notes: ⌘Y/space Quick Look with arrow-follow; hover previews appear after ~0.5 s on images/PDFs and dismiss cleanly; ⌥⌘1/⌥⌘2 switch views; grid thumbnails load + cache (revisit is instant); grid selection/double-click; per-pane view modes in dual mode.
-- [ ] **Step 4:** Fix anything real; commit (`fix: … (milestone 5 verification)`).
+- [x] **Step 1:** `swift run FileExplorerTests` → PASS ×2.
+- [x] **Step 2:** `./Scripts/bundle.sh && open build/FileExplorer.app`; idle check (~0% CPU, stable RSS ~15 s); kill.
+- [x] **Step 3:** Walkthrough notes: ⌘Y/space Quick Look with arrow-follow; hover previews appear after ~0.5 s on images/PDFs and dismiss cleanly; ⌥⌘1/⌥⌘2 switch views; grid thumbnails load + cache (revisit is instant); grid selection/double-click; per-pane view modes in dual mode.
+- [x] **Step 4:** Fix anything real; commit (`fix: … (milestone 5 verification)`).
+
+---
+
+## Completion Notes (2026-07-07)
+
+All 6 tasks implemented, reviewed, verified. Final: `swift run FileExplorerTests` → PASS (214 assertions); idle ~0% CPU.
+
+**Interactive verification breakthrough:** UI automation (System Events + AX + screenshots) now works on this machine. 9/11 walkthrough items VERIFIED live, including the M1-era open question — **Scene-level @Observable reactivity works** (title/toolbar/breadcrumb/content update together). Also verified: hidden toggle, tabs, dual-pane layout, filter chips ("15 of 18 items"), ⌘G/⇧⌘A palettes, ⌘P opens Find File (no Print conflict), Quick Look opens at selection, icons grid with real thumbnails, live watcher. Remaining MANUAL (synthetic mouse events unreliable on contended desktop): dual-pane click-to-activate tint, hover preview popover.
+
+Deviations/additions beyond plan text:
+- `@preconcurrency import Quartz` (QLPreviewItem not Sendable on this SDK).
+- HoverPreviewModel gained an injectable `Renderer` seam; stale-image-on-retarget bug found and fixed with a genuinely discriminating red/green test.
+- Quick Look: first-open index fix; follows icon mode and tab/pane switches (post-review); toggle/refresh deduped.
+- ThumbnailStore: failed-generation memoization (no re-request storms).
+
+**Deferred to M6+:** grid multi-select (single-tap replaces selection — matters once batch ops land); hoverModel hoisting off the view struct (latent, no visible failure); generation-counter coalescing for very large folders.
