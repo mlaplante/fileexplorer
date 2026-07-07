@@ -27,7 +27,7 @@
 - Create: `Sources/FileExplorerTests/FileOperationTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/FileOperationTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/FileOperationTests.swift`**
 
 ```swift
 import Foundation
@@ -136,9 +136,9 @@ func fileOperationTests() async {
 
 Add `await fileOperationTests()` to `main.swift` after `await hoverPreviewModelTests()`.
 
-- [ ] **Step 2: Verify red.**
+- [x] **Step 2: Verify red.**
 
-- [ ] **Step 3: Implement — `Sources/FileExplorerCore/FileOperationService.swift`**
+- [x] **Step 3: Implement — `Sources/FileExplorerCore/FileOperationService.swift`**
 
 ```swift
 import Foundation
@@ -241,9 +241,9 @@ public enum FileOperationService {
 }
 ```
 
-- [ ] **Step 4: Verify green ×2** (~226, recount honestly).
+- [x] **Step 4: Verify green ×2** (~226, recount honestly).
 
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat: FileOperationService with per-item results"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat: FileOperationService with per-item results"`
 
 ---
 
@@ -255,7 +255,7 @@ public enum FileOperationService {
 - Create: `Sources/FileExplorerTests/UndoTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing test — `Sources/FileExplorerTests/UndoTests.swift`**
+- [x] **Step 1: Write the failing test — `Sources/FileExplorerTests/UndoTests.swift`**
 
 ```swift
 import Foundation
@@ -338,9 +338,9 @@ func undoTests() async {
 
 Add `await undoTests()` to `main.swift` after `await fileOperationTests()`.
 
-- [ ] **Step 2: Verify red.**
+- [x] **Step 2: Verify red.**
 
-- [ ] **Step 3: Implement.** Create `Sources/FileExplorerCore/UndoRecorder.swift`:
+- [x] **Step 3: Implement.** Create `Sources/FileExplorerCore/UndoRecorder.swift`:
 
 ```swift
 import Foundation
@@ -540,9 +540,9 @@ and the async op wrappers (near `reload()`):
 
 NOTE: `errorMessage` is currently used by the overlay for LOAD errors; op failures reuse it — the overlay only shows when `visibleEntries.isEmpty`, so surface op failures in the status bar too: that's Task 3's UI job. Core-side this is fine.
 
-- [ ] **Step 4: Verify green ×2** (~239, recount honestly). The undo closures are async — the tests sleep 400 ms after `undoManager.undo()`; if flaky once, re-run; persistent → investigate.
+- [x] **Step 4: Verify green ×2** (~239, recount honestly). The undo closures are async — the tests sleep 400 ms after `undoManager.undo()`; if flaky once, re-run; persistent → investigate.
 
-- [ ] **Step 5: Commit** — `git add -A && git commit -m "feat: undoable move/copy/trash/rename/new-folder on PaneState"`
+- [x] **Step 5: Commit** — `git add -A && git commit -m "feat: undoable move/copy/trash/rename/new-folder on PaneState"`
 
 ---
 
@@ -557,7 +557,7 @@ NOTE: `errorMessage` is currently used by the overlay for LOAD errors; op failur
 
 UI glue — no unit tests. NO @State/@FocusState.
 
-- [ ] **Step 1: Create `Sources/FileExplorer/RenameSheet.swift`**
+- [x] **Step 1: Create `Sources/FileExplorer/RenameSheet.swift`**
 
 ```swift
 import SwiftUI
@@ -616,7 +616,7 @@ struct RenameSheet: View {
 }
 ```
 
-- [ ] **Step 2: Create `Sources/FileExplorer/FileActionsMenu.swift`** — shared context-menu builder used by table and grid:
+- [x] **Step 2: Create `Sources/FileExplorer/FileActionsMenu.swift`** — shared context-menu builder used by table and grid:
 
 ```swift
 import SwiftUI
@@ -670,7 +670,7 @@ struct FileActions {
 }
 ```
 
-- [ ] **Step 3: Wire into `Sources/FileExplorer/PaneView.swift`.**
+- [x] **Step 3: Wire into `Sources/FileExplorer/PaneView.swift`.**
 
 Add stored properties (after `hoverModel`):
 
@@ -728,7 +728,7 @@ Add keyboard delete: append to the same `Group` that has `.onKeyPress(.space)`:
 
 (If `KeyEquivalent("\u{7F}")` misbehaves, use `.onKeyPress(.delete)` if available, or attach ⌘⌫ to a File-menu item instead — report which shipped. A File-menu "Move to Trash" ⌘⌫ item is ALSO added in Step 6 regardless, so the menu path always works.)
 
-- [ ] **Step 4: Grid context menu — `Sources/FileExplorer/ThumbnailGridView.swift`.**
+- [x] **Step 4: Grid context menu — `Sources/FileExplorer/ThumbnailGridView.swift`.**
 
 ThumbnailGridView gains the same properties (`var otherPane: PaneState?`, and receive `renameModel` — simplest: give ThumbnailGridView `let actions: FileActions` built by PaneView). Change ThumbnailGridView:
 
@@ -757,14 +757,14 @@ In PaneView's body, update the call site:
                                          renameModel: renameModel)) { open($0) }
 ```
 
-- [ ] **Step 5: Pass `otherPane` — `Sources/FileExplorer/TabBarView.swift`.** In `PaneAreaView.pane(at:)`, change the `PaneView(pane: paneState)` construction to:
+- [x] **Step 5: Pass `otherPane` — `Sources/FileExplorer/TabBarView.swift`.** In `PaneAreaView.pane(at:)`, change the `PaneView(pane: paneState)` construction to:
 
 ```swift
             PaneView(pane: paneState,
                      otherPane: tab.isDual ? tab.panes[1 - index] : nil)
 ```
 
-- [ ] **Step 6: File menu items — `Sources/FileExplorer/FileExplorerApp.swift`.** In `CommandGroup(after: .newItem)` (with New Tab/Close Tab), add before New Tab:
+- [x] **Step 6: File menu items — `Sources/FileExplorer/FileExplorerApp.swift`.** In `CommandGroup(after: .newItem)` (with New Tab/Close Tab), add before New Tab:
 
 ```swift
                 Button("New Folder") {
@@ -782,9 +782,9 @@ In PaneView's body, update the call site:
 
 (SwiftUI provides Undo/Redo in the Edit menu automatically via the responder chain's undoManager — verify at runtime that ⌘Z shows "Undo Move" after a move; if the Edit menu is missing them, note for walkthrough.)
 
-- [ ] **Step 7: Verify** — `swift build` clean; greps clean; `swift run FileExplorerTests` PASS (unchanged); launch check.
+- [x] **Step 7: Verify** — `swift build` clean; greps clean; `swift run FileExplorerTests` PASS (unchanged); launch check.
 
-- [ ] **Step 8: Commit** — `git add -A && git commit -m "feat: context menus, rename sheet, trash/new-folder commands with undo"`
+- [x] **Step 8: Commit** — `git add -A && git commit -m "feat: context menus, rename sheet, trash/new-folder commands with undo"`
 
 ---
 
@@ -794,7 +794,7 @@ In PaneView's body, update the call site:
 - Modify: `Sources/FileExplorer/PaneView.swift`
 - Modify: `Sources/FileExplorer/ThumbnailGridView.swift`
 
-- [ ] **Step 1: Table rows.** SwiftUI `Table` on macOS supports row drag via `TableColumn` content `.draggable(...)`? No — the supported hook is `.itemProvider` on ForEach-style content or `Table`'s `TableRow` init. Our Table uses the collection initializer, so attach to the Name cell's HStack in PaneView:
+- [x] **Step 1: Table rows.** SwiftUI `Table` on macOS supports row drag via `TableColumn` content `.draggable(...)`? No — the supported hook is `.itemProvider` on ForEach-style content or `Table`'s `TableRow` init. Our Table uses the collection initializer, so attach to the Name cell's HStack in PaneView:
 
 ```swift
                 .draggable(entry.url)
@@ -802,21 +802,40 @@ In PaneView's body, update the call site:
 
 (URL conforms to Transferable.) If `.draggable` on a cell view compiles but drags only the cell visual, that's acceptable v1 (dragging exports the file URL — Finder accepts it as a copy).
 
-- [ ] **Step 2: Grid cells.** In ThumbnailGridView's ForEach cell chain add `.draggable(entry.url)` before the gestures. NOTE: `.draggable` adds its own drag gesture — verify the tap/double-tap gestures still fire (build + walkthrough); if they conflict badly, keep `.draggable` ONLY on the grid image portion, or drop grid drag support and report.
+- [x] **Step 2: Grid cells.** In ThumbnailGridView's ForEach cell chain add `.draggable(entry.url)` before the gestures. NOTE: `.draggable` adds its own drag gesture — verify the tap/double-tap gestures still fire (build + walkthrough); if they conflict badly, keep `.draggable` ONLY on the grid image portion, or drop grid drag support and report.
 
-- [ ] **Step 3: Verify** — build clean, tests unchanged, launch check. Actual drag behavior → walkthrough.
+- [x] **Step 3: Verify** — build clean, tests unchanged, launch check. Actual drag behavior → walkthrough.
 
-- [ ] **Step 4: Commit** — `git add -A && git commit -m "feat: drag files out to Finder"`
+- [x] **Step 4: Commit** — `git add -A && git commit -m "feat: drag files out to Finder"`
 
 ---
 
 ### Task 5: Interactive verification + merge prep
 
-- [ ] **Step 1:** `swift run FileExplorerTests` ×2; `./Scripts/bundle.sh`; idle check.
-- [ ] **Step 2:** Interactive (UI automation works on this machine — System Events menu clicks, AX reads, screenshots; synthetic raw mouse clicks are unreliable, prefer menu/keyboard/AX):
+- [x] **Step 1:** `swift run FileExplorerTests` ×2; `./Scripts/bundle.sh`; idle check.
+- [x] **Step 2:** Interactive (UI automation works on this machine — System Events menu clicks, AX reads, screenshots; synthetic raw mouse clicks are unreliable, prefer menu/keyboard/AX):
   - New Folder via File menu in a temp-ish folder (navigate via ⌘G to a temp dir created for the test); verify "untitled folder" appears (AX row read).
   - Rename… via context menu is mouse-bound — use the File-menu-less path: select the folder via AX, invoke rename through the sheet? Context menus need right-click (unreliable) — verify the RENAME SHEET opens if achievable, else mark MANUAL.
   - Move to Trash via File menu (⌘⌫): select the untitled folder (AX), File → Move to Trash, verify gone; **Edit menu: does it show "Undo New Folder"/"Undo Move to Trash"? Click Undo — folder returns?** This is the headline check (undo through the real window UndoManager).
   - Dual pane: ⇧⌘D, verify "Move to Other Pane"/"Copy to Other Pane" exist in the context menu (AX menu inspection if possible) — else MANUAL.
   - Clean up all test artifacts.
-- [ ] **Step 3:** Fix small real bugs found (commit `fix: … (milestone 6a verification)`); structural → report.
+- [x] **Step 3:** Fix small real bugs found (commit `fix: … (milestone 6a verification)`); structural → report.
+
+---
+
+## Completion Notes (2026-07-07)
+
+All 5 tasks implemented, reviewed, verified. Final: `swift run FileExplorerTests` → PASS (260 assertions); idle ~0% CPU.
+
+Bugs found and fixed along the way (each with red/green regression tests):
+- copy-into-own-descendant recursively self-copied until ENAMETOOLONG → descendant guard in `perform` + `relocate`.
+- Redo registrations landed on the undo stack (deferred Task ran after `isUndoing` flipped) → inverse op + re-registration now synchronous in the undo handler.
+- `reload()` clobbered op error messages → separate `opErrorMessage` channel shown in the status bar (both view modes).
+- Redo labels clobbered ("Redo Move to Trash" after undoing New Folder) → action names threaded through all recorder chains.
+- **Undo Rename was a silent no-op** (restore derived from current basename); trash-collision restores came back wrong-named; all undo failures were discarded → `FileOperationService.relocate(_:toExactly:)` point-to-point restores, failures surfaced via `reportOpFailure`, redo registered only for succeeded items. Tests now assert DISK STATE, not just action names.
+- Rename validation (rejects "/", ".", ".."), case-only renames work on APFS.
+- `PaneState` `isolated deinit` clears stale undo targets (window UndoManager outlives closed tabs).
+
+Interactive verification: New Folder, trash, undo/redo labels+effects via the real Edit menu, op-failure status bar, watcher, Return-key rename (all three Return contexts verified live). Remaining MANUAL: rename via context menu, dual-pane cross-op execution, drag-out to Finder.
+
+**Known accepted debt:** move/copy don't select results (rename/newFolder do); rename/newFolder run FileManager on main actor (fine locally, note for network mounts); large-batch undo blocks main actor briefly; TOCTOU between exists-check and op (fail-loudly design absorbs it).
