@@ -11,6 +11,7 @@ await filterEngineTests()
 await paneFilterTests()
 await tabStateTests()
 await sessionStateTests()
+await recentsTests()
 await fuzzyMatcherTests()
 
 finish()

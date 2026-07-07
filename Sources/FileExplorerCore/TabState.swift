@@ -8,9 +8,13 @@ public final class TabState: Identifiable {
     public let id = UUID()
     public private(set) var panes: [PaneState]
     public var activePaneIndex = 0
+    private let onNavigated: (@MainActor (URL) -> Void)?
 
-    public init(url: URL) {
-        panes = [PaneState(url: url)]
+    public init(url: URL, onNavigated: (@MainActor (URL) -> Void)? = nil) {
+        self.onNavigated = onNavigated
+        let pane = PaneState(url: url)
+        pane.onNavigated = onNavigated
+        panes = [pane]
     }
 
     public var isDual: Bool { panes.count == 2 }
@@ -30,7 +34,9 @@ public final class TabState: Identifiable {
             activePaneIndex = 0
             panes.removeLast()   // PaneState deinit stops its watcher
         } else {
-            panes.append(PaneState(url: activePane.currentURL))
+            let pane = PaneState(url: activePane.currentURL)
+            pane.onNavigated = onNavigated
+            panes.append(pane)
             activePaneIndex = 1
         }
     }

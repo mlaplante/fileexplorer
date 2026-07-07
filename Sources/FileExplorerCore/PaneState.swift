@@ -5,6 +5,9 @@ import Observation
 @Observable
 public final class PaneState {
     public private(set) var history: NavigationHistory
+    /// Invoked after every completed navigation (navigate/back/forward/up)
+    /// with the new current URL; used by the session layer to record recents.
+    public var onNavigated: (@MainActor (URL) -> Void)?
     public var entries: [FileEntry] = [] {
         didSet { recomputeVisible() }
     }
@@ -147,6 +150,7 @@ public final class PaneState {
         selection.removeAll()
         watchCurrent()
         await reload()
+        onNavigated?(currentURL)
     }
 
     private func watchCurrent() {

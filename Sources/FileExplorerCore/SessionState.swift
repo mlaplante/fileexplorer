@@ -9,8 +9,13 @@ public final class SessionState {
     public private(set) var tabs: [TabState]
     public var activeTabIndex = 0
 
+    /// Most-recently-visited folders across all tabs/panes, newest first.
+    public private(set) var recentFolders: [URL] = []
+    private static let recentsCap = 30
+
     public init(url: URL) {
-        tabs = [TabState(url: url)]
+        tabs = []
+        tabs = [makeTab(url: url)]
     }
 
     public var activeTab: TabState {
@@ -21,8 +26,22 @@ public final class SessionState {
 
     /// New tab opens at the current active pane's folder (like Finder/WhimFiles).
     public func newTab() {
-        tabs.append(TabState(url: activePane.currentURL))
+        tabs.append(makeTab(url: activePane.currentURL))
         activeTabIndex = tabs.count - 1
+    }
+
+    private func makeTab(url: URL) -> TabState {
+        TabState(url: url) { [weak self] visited in
+            self?.recordRecent(visited)
+        }
+    }
+
+    private func recordRecent(_ url: URL) {
+        recentFolders.removeAll { $0 == url }
+        recentFolders.insert(url, at: 0)
+        if recentFolders.count > Self.recentsCap {
+            recentFolders.removeLast(recentFolders.count - Self.recentsCap)
+        }
     }
 
     public func selectTab(_ index: Int) {
