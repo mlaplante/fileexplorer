@@ -14,11 +14,25 @@ public final class HoverPreviewModel {
     public private(set) var presented: FileEntry?
     public private(set) var presentedImage: CGImage?
 
+    public typealias Renderer = @Sendable (URL, _ isPDF: Bool) async -> CGImage?
+
     private let delay: Duration
+    private let renderer: Renderer
     private var pending: Task<Void, Never>?
 
-    public init(delay: Duration = .milliseconds(500)) {
+    public init(delay: Duration = .milliseconds(500),
+                renderer: @escaping Renderer = HoverPreviewModel.defaultRenderer) {
         self.delay = delay
+        self.renderer = renderer
+    }
+
+    /// Production renderer: PreviewRenderer off the main actor.
+    public static let defaultRenderer: Renderer = { url, isPDF in
+        await Task.detached(priority: .userInitiated) {
+            isPDF
+                ? PreviewRenderer.pdfFirstPage(at: url, maxDimension: 512)
+                : PreviewRenderer.downsampledImage(at: url, maxDimension: 512)
+        }.value
     }
 
     public static func isPreviewable(_ entry: FileEntry) -> Bool {
@@ -37,13 +51,10 @@ public final class HoverPreviewModel {
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
             presented = entry
+            presentedImage = nil
             let url = entry.url
             let isPDF = entry.contentType?.conforms(to: .pdf) == true
-            let rendered = await Task.detached(priority: .userInitiated) {
-                isPDF
-                    ? PreviewRenderer.pdfFirstPage(at: url, maxDimension: 512)
-                    : PreviewRenderer.downsampledImage(at: url, maxDimension: 512)
-            }.value
+            let rendered = await renderer(url, isPDF)
             guard !Task.isCancelled, presented?.url == url else { return }
             presentedImage = rendered
         }

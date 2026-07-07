@@ -1,5 +1,6 @@
 import Foundation
 import UniformTypeIdentifiers
+import CoreGraphics
 import FileExplorerCore
 
 @MainActor
@@ -68,5 +69,38 @@ func hoverPreviewModelTests() async {
         expect(model.presentedImage != nil, "rendered image published")
         model.hoverEnded()
         expect(model.presentedImage == nil, "image cleared on hover end")
+    }
+
+    await test("retarget clears the previous rendered image immediately") {
+        // Slow injected renderer: returns a real 1x1 image after 300 ms, so we
+        // can observe the window between retarget and the new render landing.
+        let pixel: CGImage = {
+            let ctx = CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8,
+                                bytesPerRow: 0,
+                                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            return ctx.makeImage()!
+        }()
+        let model = HoverPreviewModel(delay: .milliseconds(20)) { _, _ in
+            try? await Task.sleep(for: .milliseconds(300))
+            return pixel
+        }
+        func entry(_ name: String) -> FileEntry {
+            FileEntry(url: URL(fileURLWithPath: "/t/\(name)"), name: name,
+                      isDirectory: false, isHidden: false, isSymlink: false,
+                      size: 1, created: nil, modified: .distantPast,
+                      contentType: UTType(filenameExtension: "png"))
+        }
+
+        model.hoverBegan(entry("a.png"))
+        try await Task.sleep(for: .milliseconds(600))
+        expect(model.presentedImage != nil, "first image rendered")
+
+        model.hoverBegan(entry("b.png"))
+        try await Task.sleep(for: .milliseconds(120)) // past 20 ms delay, well before 300 ms render
+        expectEqual(model.presented?.name, "b.png", "retargeted")
+        expect(model.presentedImage == nil,
+               "stale first image cleared while second render is pending")
+        model.hoverEnded()
     }
 }
