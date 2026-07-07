@@ -107,6 +107,10 @@ struct FileExplorerApp: App {
                     .keyboardShortcut(".", modifiers: [.command, .shift])
                 Button("Toggle Dual Pane") { session.activeTab.toggleDual() }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
+                Button("Quick Look") {
+                    QuickLookController.shared.toggle(for: session.activePane)
+                }
+                .keyboardShortcut("y", modifiers: .command)
             }
             CommandGroup(after: .windowArrangement) {
                 Button("Command Palette…") {

@@ -89,6 +89,15 @@ struct PaneView: View {
                 }
             }
         }
+        .onChange(of: pane.selection) { _, _ in
+            if QuickLookController.shared.isVisible {
+                QuickLookController.shared.refresh(from: pane)
+            }
+        }
+        .onKeyPress(.space) {
+            QuickLookController.shared.toggle(for: pane)
+            return .handled
+        }
     }
 
     private func open(_ urls: Set<URL>) {
