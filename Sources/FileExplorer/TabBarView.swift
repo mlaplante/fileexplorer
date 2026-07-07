@@ -80,10 +80,10 @@ struct PaneAreaView: View {
 
     private func pane(at index: Int) -> some View {
         let paneState = tab.panes[index]
-        let isActive = !tab.isDual || index == tab.activePaneIndex
         return VStack(spacing: 0) {
             Rectangle()
-                .fill(isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
+                .fill(tab.isDual && index == tab.activePaneIndex
+                      ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
                 .frame(height: 2)
             PaneView(pane: paneState)
         }

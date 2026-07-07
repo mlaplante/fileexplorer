@@ -60,11 +60,6 @@ public final class PaneState {
         history = NavigationHistory(current: url.standardizedFileURL)
     }
 
-    /// Call once from the UI to begin watching; tests skip this.
-    public func start() {
-        watchCurrent()
-    }
-
     private var started = false
 
     /// Begin watching and load once; safe to call every time the pane's view

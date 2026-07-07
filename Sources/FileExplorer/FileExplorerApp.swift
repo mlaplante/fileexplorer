@@ -16,7 +16,7 @@ struct FileExplorerApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        Window("FileExplorer", id: "main") {
             NavigationSplitView {
                 SidebarView(session: session)
                     .navigationSplitViewColumnWidth(min: 160, ideal: 200)
