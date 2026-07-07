@@ -92,8 +92,10 @@ func paneStateTests() async {
         defer { try? FileManager.default.removeItem(at: dir) }
         let pane = PaneState(url: dir)
         await pane.reload()
+        pane.selection.insert(dir.appendingPathComponent("anything"))
         // Same folder, unstandardized spelling (trailing "." component).
         await pane.navigate(to: dir.appendingPathComponent("."))
         expect(!pane.canGoBack, "equivalent URL does not pollute history")
+        expect(!pane.selection.isEmpty, "selection preserved on same-URL navigate")
     }
 }

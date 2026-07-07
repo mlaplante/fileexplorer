@@ -47,6 +47,7 @@ public final class PaneState {
     }
 
     public func navigate(to url: URL) async {
+        guard url.standardizedFileURL != currentURL else { return }
         history.navigate(to: url.standardizedFileURL)
         await afterNavigation()
     }
