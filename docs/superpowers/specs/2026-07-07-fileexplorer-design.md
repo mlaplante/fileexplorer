@@ -34,6 +34,7 @@
 ### Directory loading & watching
 
 - `DirectoryLoader` enumerates a folder off the main actor via `FileManager`, producing `[FileEntry]` — a value struct: URL, name, size, created/modified dates, `UTType`, `isDirectory`, `isHidden`, `isSymlink`.
+- **Symlink semantics (Finder-like):** a symlink whose target is a directory has `isDirectory == true` (double-click navigates into it, `kind` shows Folder); `isSymlink` stays true so the UI can badge it. Per-entry attribute failures are dropped from listings by design (TOCTOU races); this is documented on `DirectoryLoader.load`.
 - Each pane owns a `DirectoryWatcher`: a `DispatchSource.makeFileSystemObjectSource` on the open directory file descriptor; reloads on write events, debounced (~200 ms).
 - Sorting and filtering are applied in-memory on the loaded entries; the Table renders the filtered array.
 
