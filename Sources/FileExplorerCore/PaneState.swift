@@ -82,10 +82,30 @@ public final class PaneState {
             hasLoadedOnce = true
         } catch {
             guard myID == reloadID else { return }
+            if hasLoadedOnce,
+               !FileManager.default.fileExists(atPath: url.path),
+               let fallback = url.ancestorChain.reversed().dropFirst()
+                   .first(where: { FileManager.default.fileExists(atPath: $0.path) }) {
+                await navigate(to: fallback)
+                return
+            }
             entries = []
-            errorMessage = error.localizedDescription
+            errorMessage = Self.describe(error)
             hasLoadedOnce = true
         }
+    }
+
+    private static func describe(_ error: Error) -> String {
+        let nsError = error as NSError
+        let underlyingPosix = nsError.userInfo[NSUnderlyingErrorKey] as? NSError
+        let isCocoaPermission = nsError.domain == NSCocoaErrorDomain
+            && nsError.code == NSFileReadNoPermissionError
+        let isPosixPermission = underlyingPosix?.domain == NSPOSIXErrorDomain
+            && (underlyingPosix?.code == Int(EACCES) || underlyingPosix?.code == Int(EPERM))
+        guard isCocoaPermission || isPosixPermission else { return error.localizedDescription }
+        return error.localizedDescription
+            + " Grant Full Disk Access to FileExplorer in System Settings"
+            + " → Privacy & Security → Full Disk Access."
     }
 
     private func applySort() {

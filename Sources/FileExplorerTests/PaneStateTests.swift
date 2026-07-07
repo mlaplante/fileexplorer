@@ -98,4 +98,37 @@ func paneStateTests() async {
         expect(!pane.canGoBack, "equivalent URL does not pollute history")
         expect(!pane.selection.isEmpty, "selection preserved on same-URL navigate")
     }
+
+    await test("PaneState falls back to nearest existing ancestor when folder vanishes") {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let child = dir.appendingPathComponent("doomed")
+        try FileManager.default.createDirectory(at: child, withIntermediateDirectories: false)
+
+        let pane = PaneState(url: child)
+        await pane.reload()
+        expectEqual(pane.currentURL, child.standardizedFileURL, "starts in child")
+
+        try FileManager.default.removeItem(at: child)
+        await pane.reload()
+        expectEqual(pane.currentURL, dir.standardizedFileURL,
+                    "vanished folder falls back to existing parent")
+        expect(pane.errorMessage == nil, "no lingering error after fallback")
+    }
+
+    await test("PaneState hints Full Disk Access on permission errors") {
+        let dir = try makeTempDir()
+        let locked = dir.appendingPathComponent("locked")
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: locked.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path)
+            try? FileManager.default.removeItem(at: dir)
+        }
+
+        let pane = PaneState(url: locked)
+        await pane.reload()
+        expect(pane.errorMessage?.contains("Full Disk Access") == true,
+               "permission failure mentions Full Disk Access [got: \(pane.errorMessage ?? "nil")]")
+    }
 }
