@@ -1,7 +1,10 @@
 import SwiftUI
+import FileExplorerCore
 
 @main
 struct FileExplorerApp: App {
+    private let appState = AppState()
+
     init() {
         // When launched from `swift run` (no bundle), become a regular
         // foreground app so the window appears and takes focus.
@@ -13,8 +16,9 @@ struct FileExplorerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Text("FileExplorer")
-                .frame(minWidth: 400, minHeight: 300)
+            PaneView(pane: appState.pane)
+                .frame(minWidth: 600, minHeight: 400)
+                .navigationTitle(appState.pane.currentURL.lastPathComponent)
         }
     }
 }
