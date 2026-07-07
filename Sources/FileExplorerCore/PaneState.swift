@@ -29,6 +29,11 @@ public final class PaneState {
     /// List vs thumbnail-grid presentation; per pane, remembered per tab.
     public var viewMode: ViewMode = .list
     public var errorMessage: String?
+    /// Failure summary from the most recent file OPERATION (move/copy/trash/
+    /// rename/new folder) — distinct from `errorMessage`, which reports
+    /// folder-LOAD failures and drives the full-pane overlay. Cleared on the
+    /// next successful operation and on navigation.
+    public private(set) var opErrorMessage: String?
     /// False until the first reload attempt finishes; lets the UI avoid
     /// flashing an "empty" state while the initial load is in flight.
     public private(set) var hasLoadedOnce = false
@@ -199,10 +204,10 @@ public final class PaneState {
                                         on: undoManager, pane: self)
                 undoManager.setActionName("Rename")
             }
-            errorMessage = nil
+            opErrorMessage = nil
             selection = [newURL.standardizedFileURL]
         case .failure(let error):
-            errorMessage = error.message
+            opErrorMessage = error.message
         }
     }
 
@@ -215,10 +220,10 @@ public final class PaneState {
                 UndoRecorder.recordCreation([url], actionName: "New Folder",
                                             on: undoManager, pane: self)
             }
-            errorMessage = nil
+            opErrorMessage = nil
             selection = [url.standardizedFileURL]
         case .failure(let error):
-            errorMessage = error.message
+            opErrorMessage = error.message
         }
     }
 
@@ -242,14 +247,14 @@ public final class PaneState {
             return false
         }
         if failures.isEmpty {
-            errorMessage = nil
+            opErrorMessage = nil
         } else {
             let details = failures.prefix(3).compactMap { result -> String? in
                 if case .failure(let error) = result.outcome { return error.message }
                 return nil
             }.joined(separator: " ")
             let suffix = failures.count > 3 ? " (+\(failures.count - 3) more)" : ""
-            errorMessage = details + suffix
+            opErrorMessage = details + suffix
         }
         recordUndo(successes)
     }
@@ -279,6 +284,7 @@ public final class PaneState {
 
     private func afterNavigation() async {
         selection.removeAll()
+        opErrorMessage = nil
         watchCurrent()
         await reload()
         onNavigated?(currentURL)

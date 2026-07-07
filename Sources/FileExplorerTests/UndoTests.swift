@@ -71,6 +71,6 @@ func undoTests() async {
         await pane.moveSelected([dir.appendingPathComponent("nope.txt")], into: dir)
         expectEqual(undoManager.canUndo, before,
                     "an all-failure operation registers no undo")
-        expect(pane.errorMessage != nil, "failure surfaced to errorMessage")
+        expect(pane.opErrorMessage != nil, "failure surfaced to opErrorMessage")
     }
 }

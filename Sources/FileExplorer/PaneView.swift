@@ -65,6 +65,13 @@ struct PaneView: View {
                 Text("· \(pane.selection.count) selected")
             }
             Spacer()
+            if let opError = pane.opErrorMessage {
+                Text(opError)
+                    .foregroundStyle(.red)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .help(opError)
+            }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
