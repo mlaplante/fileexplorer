@@ -149,10 +149,14 @@ public final class PaneState {
     }
 
     // NOTE: in each wrapper below, `reload()` runs BEFORE the error/undo
-    // bookkeeping rather than after. `reload()` sets `errorMessage = nil` on
-    // a successful directory load; running it last would clobber the
-    // op-failure message these methods are responsible for surfacing.
-    // `reload()` doesn't touch `selection`, so this reordering is safe.
+    // bookkeeping rather than after. `reload()` itself only touches
+    // `errorMessage` (the folder-LOAD-failure channel), not `opErrorMessage`
+    // — but if the current directory has vanished, `reload()`'s fallback
+    // path calls `navigate(to:)` → `afterNavigation()`, which clears
+    // `opErrorMessage`. Running `reload()` first ensures the bookkeeping
+    // below — which sets `opErrorMessage` for this operation — has the
+    // last word. `reload()` doesn't touch `selection`, so this reordering
+    // is safe.
 
     public func moveSelected(_ urls: [URL], into destination: URL) async {
         let results = await Task.detached(priority: .userInitiated) {
