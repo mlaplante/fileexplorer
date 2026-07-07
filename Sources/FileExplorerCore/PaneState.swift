@@ -47,6 +47,10 @@ public final class PaneState {
     /// flashing an "empty" state while the initial load is in flight.
     public private(set) var hasLoadedOnce = false
 
+    /// On-demand recursive folder sizes (context menu → Calculate Size),
+    /// keyed by standardized URL; cleared on navigation.
+    public private(set) var folderSizes: [URL: Int64] = [:]
+
     public var filter = FilterState() {
         didSet { recomputeVisible() }
     }
@@ -240,6 +244,92 @@ public final class PaneState {
         }
     }
 
+    /// Applies the plan's clean items; conflicted items are skipped and
+    /// reported, `.unchanged` items are skipped silently. One undo step.
+    public func batchRename(_ urls: [URL], rules: RenameRules) async {
+        let existing = Set(entries.map(\.name))
+        let plan = RenamePlan.plan(urls: urls, rules: rules, existingNames: existing)
+        var pairs: [(from: URL, to: URL)] = []
+        var failures: [String] = []
+        for item in plan {
+            switch item.conflict {
+            case .unchanged:
+                continue
+            case .some(let conflict):
+                failures.append("“\(item.source.lastPathComponent)” skipped (\(conflict)).")
+            case nil:
+                switch FileOperationService.rename(item.source, to: item.newName) {
+                case .success(let newURL):
+                    pairs.append((from: item.source, to: newURL))
+                case .failure(let error):
+                    failures.append(error.message)
+                }
+            }
+        }
+        if let undoManager, !pairs.isEmpty {
+            UndoRecorder.recordMove(pairs, actionName: "Batch Rename",
+                                    on: undoManager, pane: self)
+        }
+        await reload()
+        opErrorMessage = failures.isEmpty
+            ? nil
+            : failures.prefix(3).joined(separator: " ")
+                + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
+    }
+
+    public func convertSelected(_ urls: [URL], to format: ImageConverter.Format) async {
+        let results = await Task.detached(priority: .userInitiated) {
+            ImageConverter.convert(urls, to: format)
+        }.value
+        let created = results.compactMap { result -> URL? in
+            if case .success(let url) = result.outcome { return url }
+            return nil
+        }
+        let failures = results.compactMap { result -> String? in
+            if case .failure(let error) = result.outcome { return error.message }
+            return nil
+        }
+        if let undoManager, !created.isEmpty {
+            UndoRecorder.recordCreation(created, actionName: "Convert Image",
+                                        on: undoManager, pane: self)
+        }
+        await reload()
+        opErrorMessage = failures.isEmpty
+            ? nil
+            : failures.prefix(3).joined(separator: " ")
+                + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
+    }
+
+    public func compressSelected(_ urls: [URL]) async {
+        let destination = currentURL
+        let result = await Task.detached(priority: .userInitiated) {
+            Zipper.compress(urls, in: destination)
+        }.value
+        switch result {
+        case .success(let archive):
+            if let undoManager {
+                UndoRecorder.recordCreation([archive], actionName: "Compress",
+                                            on: undoManager, pane: self)
+            }
+            opErrorMessage = nil
+            await reload()
+            selection = [archive.standardizedFileURL]
+        case .failure(let error):
+            opErrorMessage = error.message
+            await reload()
+        }
+    }
+
+    public func calculateFolderSizes(_ urls: [URL]) async {
+        let targets = urls.map(\.standardizedFileURL)
+        let sizes = await Task.detached(priority: .userInitiated) {
+            targets.map { ($0, FolderSizer.size(of: $0)) }
+        }.value
+        for (url, size) in sizes {
+            folderSizes[url] = size
+        }
+    }
+
     private struct OperationSuccess {
         let source: URL
         let destination: URL
@@ -298,6 +388,7 @@ public final class PaneState {
     private func afterNavigation() async {
         selection.removeAll()
         opErrorMessage = nil
+        folderSizes.removeAll()
         watchCurrent()
         await reload()
         onNavigated?(currentURL)

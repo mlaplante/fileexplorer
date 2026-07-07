@@ -20,6 +20,7 @@ await fileOperationTests()
 await undoTests()
 await renamePlanTests()
 await batchToolsTests()
+await paneBatchToolsTests()
 await fuzzyMatcherTests()
 
 finish()
