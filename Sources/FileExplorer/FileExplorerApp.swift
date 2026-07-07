@@ -5,6 +5,7 @@ import FileExplorerCore
 struct FileExplorerApp: App {
     private let session = SessionState(
         url: FileManager.default.homeDirectoryForCurrentUser)
+    private let palette = PaletteModel()
 
     init() {
         // When launched from `swift run` (no bundle), become a regular
@@ -17,33 +18,46 @@ struct FileExplorerApp: App {
 
     var body: some Scene {
         Window("FileExplorer", id: "main") {
-            NavigationSplitView {
-                SidebarView(session: session)
-                    .navigationSplitViewColumnWidth(min: 160, ideal: 200)
-            } detail: {
-                TabContentView(session: session)
-                    .navigationTitle(session.activePane.currentURL.lastPathComponent)
-                    .toolbar {
-                        ToolbarItemGroup(placement: .navigation) {
-                            Button {
-                                Task { await session.activePane.goBack() }
-                            } label: { Image(systemName: "chevron.left") }
-                            .disabled(!session.activePane.canGoBack)
-                            .help("Back")
+            ZStack(alignment: .top) {
+                NavigationSplitView {
+                    SidebarView(session: session)
+                        .navigationSplitViewColumnWidth(min: 160, ideal: 200)
+                } detail: {
+                    TabContentView(session: session)
+                        .navigationTitle(session.activePane.currentURL.lastPathComponent)
+                        .toolbar {
+                            ToolbarItemGroup(placement: .navigation) {
+                                Button {
+                                    Task { await session.activePane.goBack() }
+                                } label: { Image(systemName: "chevron.left") }
+                                .disabled(!session.activePane.canGoBack)
+                                .help("Back")
 
-                            Button {
-                                Task { await session.activePane.goForward() }
-                            } label: { Image(systemName: "chevron.right") }
-                            .disabled(!session.activePane.canGoForward)
-                            .help("Forward")
+                                Button {
+                                    Task { await session.activePane.goForward() }
+                                } label: { Image(systemName: "chevron.right") }
+                                .disabled(!session.activePane.canGoForward)
+                                .help("Forward")
 
-                            Button {
-                                Task { await session.activePane.goUp() }
-                            } label: { Image(systemName: "chevron.up") }
-                            .disabled(!session.activePane.canGoUp)
-                            .help("Enclosing Folder")
+                                Button {
+                                    Task { await session.activePane.goUp() }
+                                } label: { Image(systemName: "chevron.up") }
+                                .disabled(!session.activePane.canGoUp)
+                                .help("Enclosing Folder")
+                            }
                         }
+                }
+
+                if palette.isPresented {
+                    Color.black.opacity(0.15)
+                        .ignoresSafeArea()
+                        .onTapGesture { palette.dismiss() }
+                    PaletteOverlayView(palette: palette) { item in
+                        PaletteCoordinator.confirm(item, palette: palette,
+                                                   session: session)
                     }
+                    .padding(.top, 60)
+                }
             }
             .frame(minWidth: 760, minHeight: 400)
         }
@@ -73,6 +87,15 @@ struct FileExplorerApp: App {
                     }
                 }
                 .keyboardShortcut("h", modifiers: [.command, .shift])
+                Divider()
+                Button("Go to Folder…") {
+                    PaletteCoordinator.openFolders(palette, session: session)
+                }
+                .keyboardShortcut("g", modifiers: .command)
+                Button("Find File…") {
+                    PaletteCoordinator.openFiles(palette, session: session)
+                }
+                .keyboardShortcut("p", modifiers: .command)
             }
             CommandGroup(after: .toolbar) {
                 Toggle("Show Hidden Files", isOn: Binding(
@@ -84,6 +107,12 @@ struct FileExplorerApp: App {
                     .keyboardShortcut(".", modifiers: [.command, .shift])
                 Button("Toggle Dual Pane") { session.activeTab.toggleDual() }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
+            }
+            CommandGroup(after: .windowArrangement) {
+                Button("Command Palette…") {
+                    PaletteCoordinator.openCommands(palette, session: session)
+                }
+                .keyboardShortcut("a", modifiers: [.command, .shift])
             }
             CommandGroup(before: .windowList) {
                 ForEach(1...9, id: \.self) { number in
