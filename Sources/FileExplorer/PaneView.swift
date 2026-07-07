@@ -3,6 +3,7 @@ import FileExplorerCore
 
 struct PaneView: View {
     @Bindable var pane: PaneState
+    private let hoverModel = HoverPreviewModel()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -44,6 +45,19 @@ struct PaneView: View {
                         .frame(width: 16, height: 16)
                     Text(entry.name)
                         .lineLimit(1)
+                }
+                .onHover { hovering in
+                    if hovering {
+                        hoverModel.hoverBegan(entry)
+                    } else {
+                        hoverModel.hoverEnded()
+                    }
+                }
+                .popover(isPresented: Binding(
+                    get: { hoverModel.presented?.url == entry.url },
+                    set: { if !$0 { hoverModel.hoverEnded() } }),
+                    arrowEdge: .trailing) {
+                    HoverPreviewView(model: hoverModel)
                 }
             }
             TableColumn("Size", value: \.size) { entry in
