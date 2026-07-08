@@ -114,13 +114,25 @@ public final class TabState: Identifiable {
         }.value
         if let undoManager = targetPane.undoManager,
            !outcome.copied.isEmpty || !outcome.trashed.isEmpty {
+            // ORDER IS LOAD-BEARING: grouped registrations fire LIFO on undo.
+            // recordTrash must be registered FIRST so that on undo the
+            // creation-undo (registered second, fires first) trashes the new
+            // copies and VACATES the overwrite paths before the trash-restore
+            // relocates the old files back — relocate() fails loudly on an
+            // occupied path, so the reverse order strands both versions in
+            // the Trash. Redo re-registers inside the undo pass and flips
+            // LIFO again: restored-old is trashed first, then the new copies
+            // relocate back. One visible step each way.
+            // (No setActionName after endUndoGrouping: it requires an OPEN
+            // group — an implicit one exists under event grouping, but none
+            // under manual grouping (tests), where it raises. The recorders
+            // already set "Sync Folders" inside the group.)
             undoManager.beginUndoGrouping()
-            UndoRecorder.recordCreation(outcome.copied, actionName: "Sync Folders",
-                                        on: undoManager, pane: targetPane)
             UndoRecorder.recordTrash(outcome.trashed, actionName: "Sync Folders",
                                      on: undoManager, pane: targetPane)
+            UndoRecorder.recordCreation(outcome.copied, actionName: "Sync Folders",
+                                        on: undoManager, pane: targetPane)
             undoManager.endUndoGrouping()
-            undoManager.setActionName("Sync Folders")
         }
         await targetPane.reload()
         if !outcome.failures.isEmpty {

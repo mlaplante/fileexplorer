@@ -43,6 +43,39 @@ func syncExecutorTests() async {
                     "trashed the overwritten target")
     }
 
+    await test("sync-then-undo restores an overwritten file and removes the copy") {
+        // Regression for the undo-grouping LIFO order: an overwrite item's
+        // trash-restore must run AFTER the creation-undo vacates the path.
+        let source = try makeTree(["changed.txt": "fresh"])
+        let target = try makeTree(["changed.txt": "stale-old"])
+        defer {
+            try? FileManager.default.removeItem(at: source)
+            try? FileManager.default.removeItem(at: target)
+        }
+        let tab = TabState(url: source)
+        tab.toggleDual()
+        await tab.panes[1].navigate(to: target)
+        let undo = UndoManager()
+        undo.groupsByEvent = false // tests have no run loop turns; group manually
+        tab.panes[1].undoManager = undo
+        await tab.runCompare()
+        expectEqual(tab.compareResult?.differs, ["changed.txt"], "differs detected")
+        await tab.syncCompare(direction: .leftToRight)
+        let targetFile = target.appendingPathComponent("changed.txt")
+        expectEqual(try String(contentsOf: targetFile, encoding: .utf8), "fresh",
+                    "sync overwrote the target")
+        expect(undo.canUndo, "sync registered undo")
+        undo.undo()
+        try await Task.sleep(for: .milliseconds(400))
+        expectEqual(try String(contentsOf: targetFile, encoding: .utf8), "stale-old",
+                    "undo restored the OLD file (not lost to the Trash)")
+        expect(undo.canRedo, "redo available")
+        undo.redo()
+        try await Task.sleep(for: .milliseconds(400))
+        expectEqual(try String(contentsOf: targetFile, encoding: .utf8), "fresh",
+                    "redo re-applied the sync")
+    }
+
     await test("execute reports per-item failures without aborting") {
         let source = try makeTree(["ok.txt": "fine"])
         let target = try makeTree([:])
