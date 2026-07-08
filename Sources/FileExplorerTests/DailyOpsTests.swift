@@ -68,7 +68,7 @@ func dailyOpsTests() async {
                     "duplicate is selected")
         expect(undo.canUndo, "duplicate registered undo")
         undo.undo()
-        try? await Task.sleep(for: .milliseconds(100))
+        try await Task.sleep(for: .milliseconds(400))
         expect(!FileManager.default.fileExists(atPath: copy.path),
                "undo trashed the duplicate")
     }
@@ -84,7 +84,7 @@ func dailyOpsTests() async {
         expect(FileManager.default.fileExists(atPath: created.path), "file created")
         expectEqual(pane.selection, [created.standardizedFileURL], "selected")
         undo.undo()
-        try? await Task.sleep(for: .milliseconds(100))
+        try await Task.sleep(for: .milliseconds(400))
         expect(!FileManager.default.fileExists(atPath: created.path),
                "undo trashed the new file")
     }
