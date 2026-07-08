@@ -14,6 +14,10 @@ public final class PaneState {
     /// Note: cleared on navigation, but a watcher-triggered reload keeps the
     /// existing selection even if some selected files no longer exist.
     public var selection = Set<URL>()
+    /// Last plain-clicked item in the icon grid; anchors ⇧-click ranges.
+    /// Transient (not persisted); the resolver degrades to plain-click when
+    /// the anchor is no longer in visibleEntries.
+    @ObservationIgnored public var selectionAnchor: URL?
     public var sortOrder: [KeyPathComparator<FileEntry>] = [
         KeyPathComparator(\FileEntry.name, comparator: .localizedStandard)
     ] {

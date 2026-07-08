@@ -24,6 +24,7 @@ await paneBatchToolsTests()
 await sessionSnapshotTests()
 await sessionPersisterTests()
 await sessionAutosaverTests()
+await selectionResolverTests()
 await fuzzyMatcherTests()
 
 finish()
