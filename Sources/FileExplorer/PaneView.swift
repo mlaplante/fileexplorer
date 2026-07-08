@@ -9,6 +9,7 @@ struct PaneView: View {
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
     var settings: SettingsModel
+    var trashRegistry: TrashRegistryModel?
     /// Compare-mode context: this pane's side and the shared result, valid
     /// only while the pane is still at the compared root.
     var compareSide: FolderComparator.Side? = nil
@@ -30,7 +31,9 @@ struct PaneView: View {
                                              otherPane: otherPane,
                                              renameModel: renameModel,
                                              batchRenameModel: batchRenameModel,
-                                             settings: settings)) { open($0) }
+                                             settings: settings,
+                                             trashRegistry: trashRegistry,
+                                             share: share)) { open($0) }
                 } else if pane.viewMode == .columns {
                     ColumnBrowserView(
                         pane: pane,
@@ -38,7 +41,9 @@ struct PaneView: View {
                                              otherPane: otherPane,
                                              renameModel: renameModel,
                                              batchRenameModel: batchRenameModel,
-                                             settings: settings)) { open($0) }
+                                             settings: settings,
+                                             trashRegistry: trashRegistry,
+                                             share: share)) { open($0) }
                 } else {
                     table
                 }
@@ -122,13 +127,32 @@ struct PaneView: View {
             Divider()
             statusBar
         }
-        .onAppear { pane.undoManager = undoManager }
-        .onChange(of: pane.currentURL) { _, _ in pane.undoManager = undoManager }
+        .onAppear {
+            pane.undoManager = undoManager
+            pane.trashRegistry = trashRegistry
+            pane.settingsModel = settings
+            pane.springLoad.onSpring = { folder in
+                Task { await pane.navigate(to: folder) }
+            }
+        }
+        .onChange(of: pane.currentURL) { _, _ in
+            pane.undoManager = undoManager
+            pane.trashRegistry = trashRegistry
+            pane.settingsModel = settings
+        }
         .onChange(of: pane.pendingRenameURL) { _, url in
             guard let url else { return }
             renameModel.present(for: url, in: pane)
             pane.pendingRenameURL = nil
         }
+        .background(ShareAnchor { view in
+            pane.shareAnchor = view
+        }.frame(width: 0, height: 0))
+    }
+
+    private func share(_ targets: [URL]) {
+        guard let anchor = pane.shareAnchor else { return }
+        ShareBridge.shared.present(urls: targets, from: anchor)
     }
 
     /// Prominent folder heading over the content area (the breadcrumb stays
@@ -211,6 +235,11 @@ struct PaneView: View {
                     arrowEdge: .trailing) {
                     HoverPreviewView(model: pane.hoverPreview)
                 }
+                .dropDestination(for: URL.self,
+                                 action: { urls, _ in drop(urls, into: entry) },
+                                 isTargeted: { targeted in
+                                     springTargetChanged(targeted, for: entry)
+                                 })
             }
             TableColumn("Size", value: \.size) { entry in
                 if entry.isDirectory {
@@ -240,9 +269,20 @@ struct PaneView: View {
             }
             .width(min: 120, ideal: 160)
         } rows: {
-            ForEach(pane.visibleEntries) { entry in
-                TableRow(entry)
-                    .itemProvider { NSItemProvider(object: entry.url as NSURL) }
+            if pane.groupBy == .none {
+                ForEach(pane.visibleEntries) { entry in
+                    TableRow(entry)
+                        .itemProvider { NSItemProvider(object: entry.url as NSURL) }
+                }
+            } else {
+                ForEach(Array(pane.groupedEntries.enumerated()), id: \.offset) { _, group in
+                    Section(group.title ?? "") {
+                        ForEach(group.entries) { entry in
+                            TableRow(entry)
+                                .itemProvider { NSItemProvider(object: entry.url as NSURL) }
+                        }
+                    }
+                }
             }
         }
         .contextMenu(forSelectionType: URL.self) { urls in
@@ -250,7 +290,9 @@ struct PaneView: View {
                         otherPane: otherPane,
                         renameModel: renameModel,
                         batchRenameModel: batchRenameModel,
-                        settings: settings).menu(for: urls)
+                        settings: settings,
+                        trashRegistry: trashRegistry,
+                        share: share).menu(for: urls)
         } primaryAction: { urls in
             open(urls)
         }
@@ -281,6 +323,39 @@ struct PaneView: View {
         } else {
             for url in urls { NSWorkspace.shared.open(url) }
         }
+    }
+
+    private func springTargetChanged(_ targeted: Bool, for entry: FileEntry) {
+        guard entry.isDirectory else { return }
+        if targeted {
+            pane.springLoad.beginHover(folder: entry.url)
+        } else {
+            pane.springLoad.endHover()
+        }
+    }
+
+    private func drop(_ urls: [URL], into entry: FileEntry) -> Bool {
+        guard entry.isDirectory else { return false }
+        let target = entry.url.standardizedFileURL
+        let outside = urls.filter {
+            $0.standardizedFileURL != target
+                && $0.deletingLastPathComponent().standardizedFileURL != target
+        }
+        guard !outside.isEmpty else { return false }
+        let optionDown = NSEvent.modifierFlags.contains(.option)
+        let sameVolume = outside.allSatisfy {
+            DropDecision.sameVolume($0, target)
+        }
+        Task {
+            switch DropDecision.decide(optionDown: optionDown,
+                                       sameVolume: sameVolume) {
+            case .move:
+                await pane.moveSelected(outside, into: target)
+            case .copy:
+                await pane.copySelected(outside, into: target)
+            }
+        }
+        return true
     }
 
     private func badgeSymbol(_ badge: FolderComparator.Badge) -> String {

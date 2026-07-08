@@ -73,23 +73,26 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
         public var path: String
         public var showHidden: Bool
         public var viewMode: String
+        public var groupBy: Grouper.Axis
         public var filter: FilterState
         public var filterExtensionsText: String
         public var sort: [SortToken]
 
         public init(path: String, showHidden: Bool = false,
-                    viewMode: String = "list", filter: FilterState = FilterState(),
+                    viewMode: String = "list", groupBy: Grouper.Axis = .none,
+                    filter: FilterState = FilterState(),
                     filterExtensionsText: String = "", sort: [SortToken] = []) {
             self.path = path
             self.showHidden = showHidden
             self.viewMode = viewMode
+            self.groupBy = groupBy
             self.filter = filter
             self.filterExtensionsText = filterExtensionsText
             self.sort = sort
         }
 
         enum CodingKeys: String, CodingKey {
-            case path, showHidden, viewMode, filter, filterExtensionsText, sort
+            case path, showHidden, viewMode, groupBy, filter, filterExtensionsText, sort
         }
 
         public init(from decoder: Decoder) throws {
@@ -99,6 +102,8 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
                 Bool.self, forKey: .showHidden) ?? false
             viewMode = try container.decodeIfPresent(
                 String.self, forKey: .viewMode) ?? "list"
+            groupBy = try container.decodeIfPresent(
+                Grouper.Axis.self, forKey: .groupBy) ?? .none
             filter = try container.decodeIfPresent(
                 FilterState.self, forKey: .filter) ?? FilterState()
             filterExtensionsText = try container.decodeIfPresent(
@@ -136,19 +141,26 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
     public struct Tab: Codable, Equatable, Sendable {
         public var panes: [Pane]
         public var activePaneIndex: Int
+        public var showsPreviewPane: Bool
 
-        public init(panes: [Pane], activePaneIndex: Int = 0) {
+        public init(panes: [Pane], activePaneIndex: Int = 0,
+                    showsPreviewPane: Bool = false) {
             self.panes = panes
             self.activePaneIndex = activePaneIndex
+            self.showsPreviewPane = showsPreviewPane
         }
 
-        enum CodingKeys: String, CodingKey { case panes, activePaneIndex }
+        enum CodingKeys: String, CodingKey {
+            case panes, activePaneIndex, showsPreviewPane
+        }
 
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             panes = try container.decodeIfPresent([Pane].self, forKey: .panes) ?? []
             activePaneIndex = try container.decodeIfPresent(
                 Int.self, forKey: .activePaneIndex) ?? 0
+            showsPreviewPane = try container.decodeIfPresent(
+                Bool.self, forKey: .showsPreviewPane) ?? false
         }
     }
 

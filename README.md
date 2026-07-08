@@ -2,10 +2,20 @@
 
 A personal, keyboard-driven macOS file manager: fast
 dual-pane browsing, fuzzy palettes for navigation, commands, and
-file-content search, previews, saved filter presets, Finder tags,
+file-content search, previews, a Finder-style preview pane, saved filter presets, Finder tags,
 batch tools (rename with regex & date tokens / convert / resize /
-compress / extract), folder compare & sync, checksums, and full undo — built with Swift 6
+compress / extract), folder compare & sync, comments, Share, Put Back, checksums,
+and full undo — built with Swift 6
 and SwiftUI on top of Swift Package Manager.
+
+## Finder power features
+
+- Preview pane with metadata and large previews, toggled with `⌥⌘P`.
+- Sort By and Group By menus for list and icon views.
+- Share from the file context menu, including AirDrop through macOS sharing services.
+- Put Back for items moved to Trash by FileExplorer.
+- Tags and Recents in the sidebar, with tag clicks filtering the active pane.
+- Finder comments in Get Info.
 
 ## Building
 
@@ -62,6 +72,8 @@ All assertions should report PASS.
 | ⌥⌘2 | View as Icons |
 | ⌥⌘3 | View as Columns |
 | View → Sort By | Sort by Name, Size, Kind, or Date Modified |
+| View → Group By | Group by Kind, Date Modified, or Size |
+| ⌥⌘P | Preview Pane |
 | ⌘Y / Space | Quick Look |
 | ⌘O / ⌘↓ | Open |
 | ⇧⌘N | New folder |
@@ -69,6 +81,7 @@ All assertions should report PASS.
 | ⌘C / ⌘V | Copy / paste files (⌥⌘V moves) |
 | ⌘D | Duplicate |
 | Context menu | Make Alias |
+| Context menu | Share…, Put Back, Tags, and Finder comments via Get Info |
 | ⌘I | Get Info |
 | ⌘⌫ | Move to Trash |
 | Return | Rename selected item |

@@ -32,6 +32,10 @@ func shortcutTests() async {
         expectEqual(effective, override, "override wins")
         expectEqual(ShortcutRegistry.effectiveChord(for: .newFile, overrides: [:]),
                     ShortcutRegistry.defaultChord(for: .newFile), "no override → default")
+        expectEqual(ShortcutRegistry.defaultChord(for: .previewPane),
+                    KeyChord(key: "p", command: true, shift: false,
+                             option: true, control: false),
+                    "⌥⌘P default")
     }
 
     await test("conflict detection flags duplicate effective chords") {

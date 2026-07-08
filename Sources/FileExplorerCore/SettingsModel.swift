@@ -59,6 +59,13 @@ public final class SettingsModel {
         persister.saveSettings(settings)
     }
 
+    public func mergeKnownTags(_ tags: [String]) {
+        let merged = AppSettings.normalizedTags(settings.knownTags + tags)
+        guard merged != settings.knownTags else { return }
+        settings.knownTags = merged
+        persister.saveSettings(settings)
+    }
+
     public func chord(for command: ShortcutRegistry.Command) -> KeyChord {
         ShortcutRegistry.effectiveChord(for: command,
                                         overrides: settings.shortcutOverrides)

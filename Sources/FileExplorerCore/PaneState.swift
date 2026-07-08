@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import AppKit
 
 @MainActor
 @Observable
@@ -8,6 +9,7 @@ public final class PaneState {
     /// every parent render on this toolchain (M5 deferred hoisting).
     public let hoverPreview = HoverPreviewModel()
     public let columnsModel = ColumnsModel()
+    public let springLoad = SpringLoadModel()
     public private(set) var history: NavigationHistory
     /// Invoked after every completed navigation (navigate/back/forward/up)
     /// with the new current URL; used by the session layer to record recents.
@@ -28,6 +30,9 @@ public final class PaneState {
     public var sortOrder: [KeyPathComparator<FileEntry>] = [
         KeyPathComparator(\FileEntry.name, comparator: .localizedStandard)
     ] {
+        didSet { recomputeVisible() }
+    }
+    public var groupBy: Grouper.Axis = .none {
         didSet { recomputeVisible() }
     }
     public var showHidden = false {
@@ -102,6 +107,7 @@ public final class PaneState {
     /// deliberately NOT read by snapshot()).
     public var showsNewTagPopover = false
     public var newTagDraft = ""
+    @ObservationIgnored public weak var shareAnchor: NSView?
     /// Targets captured when "New Tag…" is chosen — the grid's context menu
     /// doesn't sync `selection` to the right-clicked item, so the popover
     /// must not re-read `selection` at Add-click time.
@@ -123,6 +129,9 @@ public final class PaneState {
     /// so SwiftUI body evaluations don't re-sort/re-filter large directories;
     /// refreshed when `entries`, `sortOrder`, or `filter` changes.
     public private(set) var visibleEntries: [FileEntry] = []
+    public private(set) var groupedEntries: [FileGroup] = [
+        FileGroup(title: nil, entries: [])
+    ]
 
     /// Count before filtering — the "M" in the status bar's "N of M items".
     public var totalCount: Int { entries.count }
@@ -137,6 +146,8 @@ public final class PaneState {
 
     /// Window-level UndoManager, injected by the UI (or tests).
     @ObservationIgnored public weak var undoManager: UndoManager?
+    @ObservationIgnored public var trashRegistry: TrashRegistryModel?
+    @ObservationIgnored public var settingsModel: SettingsModel?
 
     public init(url: URL) {
         // Standardize so NavigationHistory's exact-URL-equality no-op check
@@ -151,6 +162,7 @@ public final class PaneState {
         self.init(url: snapshot.resolvedURL(fallback: fallback))
         showHidden = snapshot.showHidden
         viewMode = ViewMode(rawValue: snapshot.viewMode) ?? .list
+        groupBy = snapshot.groupBy
         filter = snapshot.filter
         filterExtensionsText = snapshot.filterExtensionsText
         sortOrder = SortTokenCoder.comparators(from: snapshot.sort)
@@ -210,6 +222,7 @@ public final class PaneState {
             }.value
             guard myID == reloadID else { return }
             entries = loaded
+            settingsModel?.mergeKnownTags(loaded.flatMap(\.tags))
             availableSpaceText = spaceText
             errorMessage = nil
             hasLoadedOnce = true
@@ -272,11 +285,44 @@ public final class PaneState {
         selection.removeAll()
         await reload()
         finishOperation(results: results) { successes in
+            for success in successes {
+                trashRegistry?.record(original: success.source,
+                                      trashed: success.destination)
+            }
             guard let undoManager else { return }
             UndoRecorder.recordTrash(
                 successes.map { (original: $0.source, trashed: $0.destination) },
                 on: undoManager, pane: self)
         }
+    }
+
+    public func putBackSelected(_ urls: [URL]) async {
+        guard let trashRegistry else {
+            opErrorMessage = "No trash registry is available."
+            return
+        }
+        var successes: [(from: URL, to: URL)] = []
+        var failures: [String] = []
+        for trashed in urls {
+            guard let original = trashRegistry.original(forTrashed: trashed) else {
+                failures.append("No original location recorded for “\(trashed.lastPathComponent)”.")
+                continue
+            }
+            switch FileOperationService.relocate(trashed, toExactly: original) {
+            case .success:
+                successes.append((from: trashed, to: original))
+                trashRegistry.remove(trashed: trashed)
+            case .failure(let error):
+                failures.append(error.message)
+            }
+        }
+        selection.removeAll()
+        await reload()
+        if let undoManager {
+            UndoRecorder.recordMove(successes, actionName: "Put Back",
+                                    on: undoManager, pane: self)
+        }
+        opErrorMessage = OperationFailureSummary.message(failures)
     }
 
     public func renameSelected(_ url: URL, to newName: String) async {
@@ -639,6 +685,7 @@ public final class PaneState {
             path: currentURL.path,
             showHidden: showHidden,
             viewMode: viewMode.rawValue,
+            groupBy: groupBy,
             filter: filter,
             filterExtensionsText: filterExtensionsText,
             sort: SortTokenCoder.tokens(from: sortOrder))
@@ -647,6 +694,7 @@ public final class PaneState {
     private func recomputeVisible() {
         visibleEntries = FileSorter.sort(
             FilterEngine.apply(filter, to: entries), using: sortOrder)
+        groupedEntries = Grouper.group(visibleEntries, by: groupBy, now: Date())
     }
 
     private func afterNavigation() async {

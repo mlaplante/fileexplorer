@@ -19,6 +19,7 @@ public struct ItemInfo: Equatable, Sendable {
     public let group: String
     public let whereFroms: [String]
     public let symlinkTarget: String?
+    public let finderComment: String?
 }
 
 /// Blocking metadata read — call off the main actor. Uses lstat-style
@@ -66,7 +67,8 @@ public enum InfoGatherer {
             whereFroms: whereFroms,
             symlinkTarget: isSymlink
                 ? (try? fm.destinationOfSymbolicLink(atPath: url.path))
-                : nil)
+                : nil,
+            finderComment: CommentWriter.read(from: url))
     }
 
     /// "rwxr-xr-x" from a POSIX mode. Pure.

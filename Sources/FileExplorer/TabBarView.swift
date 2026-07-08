@@ -57,6 +57,7 @@ struct TabContentView: View {
     var batchRenameModel: BatchRenameModel
     var syncPreview: SyncPreviewModel
     var settings: SettingsModel
+    var trashRegistry: TrashRegistryModel?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -65,7 +66,8 @@ struct TabContentView: View {
             PaneAreaView(session: session, tab: session.activeTab,
                          renameModel: renameModel,
                          batchRenameModel: batchRenameModel,
-                         syncPreview: syncPreview, settings: settings)
+                         syncPreview: syncPreview, settings: settings,
+                         trashRegistry: trashRegistry)
         }
         .onChange(of: session.activeTabIndex) { _, _ in
             if QuickLookController.shared.isVisible {
@@ -83,27 +85,39 @@ struct PaneAreaView: View {
     var batchRenameModel: BatchRenameModel
     var syncPreview: SyncPreviewModel
     var settings: SettingsModel
+    var trashRegistry: TrashRegistryModel?
 
     var body: some View {
-        Group {
-            if tab.isDual {
-                VStack(spacing: 0) {
-                    if tabCompareActive {
-                        CompareBannerView(tab: tab, syncPreview: syncPreview)
-                    }
-                    HSplitView {
-                        pane(at: 0)
-                        pane(at: 1)
-                    }
-                }
-            } else {
-                pane(at: 0)
+        HSplitView {
+            browserArea
+            if tab.showsPreviewPane {
+                PreviewPaneView(pane: tab.activePane, model: tab.previewPane)
+                    .frame(width: 280)
             }
         }
         .onChange(of: tab.activePaneIndex) { _, _ in
             if QuickLookController.shared.isVisible {
                 QuickLookController.shared.refresh(from: tab.activePane)
             }
+            tab.previewPane.update(selection: tab.activePane.selection,
+                                   entries: tab.activePane.entries)
+        }
+    }
+
+    @ViewBuilder
+    private var browserArea: some View {
+        if tab.isDual {
+            VStack(spacing: 0) {
+                if tabCompareActive {
+                    CompareBannerView(tab: tab, syncPreview: syncPreview)
+                }
+                HSplitView {
+                    pane(at: 0)
+                    pane(at: 1)
+                }
+            }
+        } else {
+            pane(at: 0)
         }
     }
 
@@ -129,6 +143,7 @@ struct PaneAreaView: View {
                      renameModel: renameModel,
                      batchRenameModel: batchRenameModel,
                      settings: settings,
+                     trashRegistry: trashRegistry,
                      compareSide: compareActive ? (index == 0 ? .left : .right) : nil,
                      compareResult: compareActive ? tab.compareResult : nil)
         }

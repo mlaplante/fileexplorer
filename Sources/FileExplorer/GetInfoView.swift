@@ -70,6 +70,19 @@ struct GetInfoView: View {
                 LabeledContent("Where From",
                                value: info.whereFroms.joined(separator: "\n"))
             }
+            LabeledContent("Comments") {
+                VStack(alignment: .leading, spacing: 4) {
+                    TextField("Comments", text: Binding(
+                        get: { model.commentDraft },
+                        set: { model.commentDraft = $0 }))
+                        .onSubmit { model.commitComment() }
+                    if let error = model.commentError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
             LabeledContent("Location", value: info.url.deletingLastPathComponent()
                 .path(percentEncoded: false))
         }

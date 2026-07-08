@@ -25,4 +25,25 @@ func settingsModelTests() async {
         expectEqual(AppSettings(jpegQuality: -1).jpegQuality, 0.1,
                     "quality clamps to 0.1 min")
     }
+
+    await test("AppSettings without knownTags key still decodes") {
+        let old = #"{"jpegQuality":0.9}"#
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: Data(old.utf8))
+        expectEqual(decoded.jpegQuality, 0.9, "old field intact")
+        expectEqual(decoded.knownTags, [], "missing knownTags defaults empty")
+    }
+
+    await test("SettingsModel persists known tags sorted and deduped") {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("m14-settings-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let persister = SessionPersister(directory: dir)
+        let model = SettingsModel(persister: persister)
+
+        model.mergeKnownTags(["projx", "Red", "projx", "Blue"])
+        expectEqual(model.settings.knownTags, ["Blue", "projx", "Red"],
+                    "tags sorted and deduped in memory")
+        expectEqual(persister.loadSettings().knownTags, ["Blue", "projx", "Red"],
+                    "tags persisted")
+    }
 }

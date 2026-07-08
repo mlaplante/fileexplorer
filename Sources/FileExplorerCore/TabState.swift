@@ -8,6 +8,8 @@ public final class TabState: Identifiable {
     public let id = UUID()
     public private(set) var panes: [PaneState]
     public var activePaneIndex = 0
+    public var showsPreviewPane = false
+    public let previewPane = PreviewPaneModel()
     private let onNavigated: (@MainActor (URL) -> Void)?
 
     public init(url: URL, onNavigated: (@MainActor (URL) -> Void)? = nil) {
@@ -31,6 +33,7 @@ public final class TabState: Identifiable {
             return pane
         }
         activePaneIndex = max(0, min(snapshot.activePaneIndex, panes.count - 1))
+        showsPreviewPane = snapshot.showsPreviewPane
     }
 
     public var isDual: Bool { panes.count == 2 }
@@ -47,7 +50,8 @@ public final class TabState: Identifiable {
 
     public func snapshot() -> SessionSnapshot.Tab {
         SessionSnapshot.Tab(panes: panes.map { $0.snapshot() },
-                            activePaneIndex: activePaneIndex)
+                            activePaneIndex: activePaneIndex,
+                            showsPreviewPane: showsPreviewPane)
     }
 
     public func toggleDual() {

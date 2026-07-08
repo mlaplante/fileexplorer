@@ -12,6 +12,8 @@ struct FileActions {
     let renameModel: RenameSheetModel
     let batchRenameModel: BatchRenameModel
     let settings: SettingsModel
+    let trashRegistry: TrashRegistryModel?
+    let share: (@MainActor ([URL]) -> Void)?
 
     @ViewBuilder
     func menu(for urls: Set<URL>) -> some View {
@@ -63,6 +65,10 @@ struct FileActions {
             }
         }
         .disabled(targets.isEmpty)
+        Button("Share…") {
+            share?(targets)
+        }
+        .disabled(targets.isEmpty || share == nil)
         Button("Reveal in Finder") {
             NSWorkspace.shared.activateFileViewerSelecting(targets)
         }
@@ -277,6 +283,11 @@ struct FileActions {
 
     @ViewBuilder
     private func trashSection(targets: [URL]) -> some View {
+        if trashRegistry?.canPutBack(targets) == true {
+            Button("Put Back") {
+                Task { await pane.putBackSelected(targets) }
+            }
+        }
         Button("Move to Trash") {
             Task { await pane.trashSelected(targets) }
         }

@@ -6,7 +6,7 @@ public enum ShortcutRegistry {
     public enum Command: String, CaseIterable, Sendable {
         case newFile, duplicate, newFolder, comparePanes, dualPane,
              toggleHidden, goHome, gotoFolder, findFile, contentSearch,
-             commandPalette, quickLook, getInfo
+             commandPalette, quickLook, getInfo, previewPane
 
         public var displayName: String {
             switch self {
@@ -23,6 +23,7 @@ public enum ShortcutRegistry {
             case .commandPalette: "Command Palette…"
             case .quickLook: "Quick Look"
             case .getInfo: "Get Info"
+            case .previewPane: "Preview Pane"
             }
         }
     }
@@ -41,6 +42,7 @@ public enum ShortcutRegistry {
         .commandPalette: KeyChord(key: "a", command: true, shift: true, option: false, control: false),
         .quickLook: KeyChord(key: "y", command: true, shift: false, option: false, control: false),
         .getInfo: KeyChord(key: "i", command: true, shift: false, option: false, control: false),
+        .previewPane: KeyChord(key: "p", command: true, shift: false, option: true, control: false),
     ]
 
     public static func defaultChord(for command: Command) -> KeyChord {

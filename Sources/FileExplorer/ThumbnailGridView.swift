@@ -174,30 +174,26 @@ struct ThumbnailGridView: View {
         ScrollViewReader { proxy in
             ScrollView {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
-                ForEach(pane.visibleEntries) { entry in
-                    ThumbnailCell(entry: entry,
-                                  isSelected: pane.selection.contains(entry.url))
-                        .id(entry.url)
-                        .onGeometryChange(for: CGRect.self) { proxy in
-                            proxy.frame(in: .named("fxGrid"))
-                        } action: { frame in
-                            pane.rubberBandFrames[entry.url] = frame
+                if pane.groupBy == .none {
+                    ForEach(pane.visibleEntries) { entry in
+                        cell(for: entry)
+                    }
+                } else {
+                    ForEach(Array(pane.groupedEntries.enumerated()), id: \.offset) { _, group in
+                        Section {
+                            ForEach(group.entries) { entry in
+                                cell(for: entry)
+                            }
+                        } header: {
+                            if let title = group.title {
+                                Text(title)
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.top, 8)
+                            }
                         }
-                        .contentShape(Rectangle())
-                        .draggable(entry.url)
-                        .gesture(TapGesture(count: 2).onEnded {
-                            open([entry.url])
-                        })
-                        .simultaneousGesture(TapGesture(count: 1).onEnded {
-                            let flags = NSEvent.modifierFlags
-                            pane.clickSelect(entry.url,
-                                             commandDown: flags.contains(.command),
-                                             shiftDown: flags.contains(.shift))
-                        })
-                        .contextMenu {
-                            actions.menu(for: pane.selection.contains(entry.url)
-                                         ? pane.selection : [entry.url])
-                        }
+                    }
                 }
             }
             .padding(16)
@@ -236,6 +232,37 @@ struct ThumbnailGridView: View {
                 .onEnded { _ in pane.rubberBandRect = nil }
             )
         }
+    }
+
+    private func cell(for entry: FileEntry) -> some View {
+        ThumbnailCell(entry: entry,
+                      isSelected: pane.selection.contains(entry.url))
+            .id(entry.url)
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .named("fxGrid"))
+            } action: { frame in
+                pane.rubberBandFrames[entry.url] = frame
+            }
+            .contentShape(Rectangle())
+            .draggable(entry.url)
+            .dropDestination(for: URL.self,
+                             action: { urls, _ in drop(urls, into: entry) },
+                             isTargeted: { targeted in
+                                 springTargetChanged(targeted, for: entry)
+                             })
+            .gesture(TapGesture(count: 2).onEnded {
+                open([entry.url])
+            })
+            .simultaneousGesture(TapGesture(count: 1).onEnded {
+                let flags = NSEvent.modifierFlags
+                pane.clickSelect(entry.url,
+                                 commandDown: flags.contains(.command),
+                                 shiftDown: flags.contains(.shift))
+            })
+            .contextMenu {
+                actions.menu(for: pane.selection.contains(entry.url)
+                             ? pane.selection : [entry.url])
+            }
     }
 
     private func moveSelection(_ direction: MoveCommandDirection,
@@ -277,5 +304,38 @@ struct ThumbnailGridView: View {
         case .right: .right
         @unknown default: nil
         }
+    }
+
+    private func springTargetChanged(_ targeted: Bool, for entry: FileEntry) {
+        guard entry.isDirectory else { return }
+        if targeted {
+            pane.springLoad.beginHover(folder: entry.url)
+        } else {
+            pane.springLoad.endHover()
+        }
+    }
+
+    private func drop(_ urls: [URL], into entry: FileEntry) -> Bool {
+        guard entry.isDirectory else { return false }
+        let target = entry.url.standardizedFileURL
+        let outside = urls.filter {
+            $0.standardizedFileURL != target
+                && $0.deletingLastPathComponent().standardizedFileURL != target
+        }
+        guard !outside.isEmpty else { return false }
+        let optionDown = NSEvent.modifierFlags.contains(.option)
+        let sameVolume = outside.allSatisfy {
+            DropDecision.sameVolume($0, target)
+        }
+        Task {
+            switch DropDecision.decide(optionDown: optionDown,
+                                       sameVolume: sameVolume) {
+            case .move:
+                await pane.moveSelected(outside, into: target)
+            case .copy:
+                await pane.copySelected(outside, into: target)
+            }
+        }
+        return true
     }
 }
