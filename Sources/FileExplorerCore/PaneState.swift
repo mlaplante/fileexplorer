@@ -332,6 +332,13 @@ public final class PaneState {
                                         actionName: "Paste",
                                         on: undoManager, pane: self)
         }
+        let created = results.compactMap { result -> URL? in
+            if case .success(let url) = result.outcome { return url }
+            return nil
+        }
+        if !created.isEmpty {
+            selection = Set(created.map { $0.standardizedFileURL })
+        }
     }
 
     /// Applies the plan's clean items; conflicted items are skipped and

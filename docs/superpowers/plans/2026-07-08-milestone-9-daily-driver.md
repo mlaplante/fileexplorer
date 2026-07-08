@@ -1476,6 +1476,9 @@ Record in a "Completion Notes" section at the bottom of this plan: honest assert
 - stderr pipe in `Unarchiver`/`Zipper` reads after `waitUntilExit` — latent deadlock only if a tool writes >64KB of stderr; fine in practice.
 - `ditto -x -k` zip-slip behavior unverified (bsdtar refuses `..` by default; ditto undocumented). Optional post-extraction path check if ever hardened.
 - Get Info's directory Size row says "use Calculate Size", which lives in the context menu, not the panel.
+- `newFile` uses `createFile(atPath:)`, which would silently overwrite in a same-instant TOCTOU race (vs `newFolder`'s fail-loud `createDirectory`); one-in-a-million for a personal tool, noted for completeness.
+
+**Final-review fix (applied):** `pasteCopy` now selects pasted items after reload — it was the lone item-creating op that didn't (gap was in the plan itself; every other creating op and Finder select their output).
 
 **MANUAL walkthrough (human, ~10 min — TCC blocks agent UI automation):**
 - [ ] ⌘C in FileExplorer → ⌘V in Finder copies the file (and the reverse).

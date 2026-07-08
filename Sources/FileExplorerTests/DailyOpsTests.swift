@@ -99,6 +99,8 @@ func dailyOpsTests() async {
         await pane.pasteCopy([source])
         let pasted = dir.appendingPathComponent("p copy.txt")
         expect(FileManager.default.fileExists(atPath: pasted.path), "pasted copy exists")
+        expectEqual(pane.selection, [pasted.standardizedFileURL],
+                    "pasted item is selected (Finder parity)")
         expect(pane.opErrorMessage == nil, "no error reported")
         expect(undo.canUndo, "paste registered undo")
     }
