@@ -34,5 +34,6 @@ await dailyOpsTests()
 await archiveTests()
 await infoGathererTests()
 await tagFilterTests()
+await filterPresetTests()
 
 finish()
