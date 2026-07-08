@@ -276,6 +276,64 @@ public final class PaneState {
         }
     }
 
+    public func createNewFile() async {
+        let result = FileOperationService.newFile(in: currentURL)
+        await reload()
+        switch result {
+        case .success(let url):
+            if let undoManager {
+                UndoRecorder.recordCreation([url], actionName: "New File",
+                                            on: undoManager, pane: self)
+            }
+            opErrorMessage = nil
+            selection = [url.standardizedFileURL]
+        case .failure(let error):
+            opErrorMessage = error.message
+        }
+    }
+
+    /// Duplicates each item next to itself ("name copy.ext"), selects the
+    /// duplicates, one undo step (trash the copies).
+    public func duplicateSelected(_ urls: [URL]) async {
+        let results = await Task.detached(priority: .userInitiated) {
+            urls.flatMap { url in
+                FileOperationService.copyAvoidingCollisions(
+                    [url], into: url.deletingLastPathComponent())
+            }
+        }.value
+        await reload()
+        finishOperation(results: results) { successes in
+            guard let undoManager else { return }
+            UndoRecorder.recordCreation(successes.map(\.destination),
+                                        actionName: "Duplicate",
+                                        on: undoManager, pane: self)
+        }
+        let created = results.compactMap { result -> URL? in
+            if case .success(let url) = result.outcome { return url }
+            return nil
+        }
+        if !created.isEmpty {
+            selection = Set(created.map { $0.standardizedFileURL })
+        }
+    }
+
+    /// Paste-as-copy into the current folder: collisions auto-rename
+    /// (Finder ⌘V). Paste-as-move (⌥⌘V) reuses `moveSelected`, whose
+    /// fail-loudly collision policy matches Finder's move-paste prompt.
+    public func pasteCopy(_ urls: [URL]) async {
+        let destination = currentURL
+        let results = await Task.detached(priority: .userInitiated) {
+            FileOperationService.copyAvoidingCollisions(urls, into: destination)
+        }.value
+        await reload()
+        finishOperation(results: results) { successes in
+            guard let undoManager else { return }
+            UndoRecorder.recordCreation(successes.map(\.destination),
+                                        actionName: "Paste",
+                                        on: undoManager, pane: self)
+        }
+    }
+
     /// Applies the plan's clean items; conflicted items are skipped and
     /// reported, `.unchanged` items are skipped silently. One undo step.
     public func batchRename(_ urls: [URL], rules: RenameRules) async {
