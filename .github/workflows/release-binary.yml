@@ -12,7 +12,9 @@ permissions:
 
 jobs:
   build-and-attach:
-    runs-on: macos-latest
+    # Pinned: macos-latest floats between images (v5.1.0 drew macos-15 whose
+    # Xcode 16.4 lacks `isolated deinit`; the same day macos-26 built fine).
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
 
