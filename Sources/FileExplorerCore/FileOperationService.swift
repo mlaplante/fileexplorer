@@ -148,6 +148,25 @@ public enum FileOperationService {
         }
     }
 
+    /// Creates "name alias" symlinks next to each source. Collisions get
+    /// plain Finder-style counters ("name alias 2", "name alias 3", ...).
+    public static func symlink(_ sources: [URL]) -> [ItemResult] {
+        let fm = FileManager.default
+        return sources.map { source in
+            let directory = source.deletingLastPathComponent()
+            let existing = Set((try? fm.contentsOfDirectory(atPath: directory.path)) ?? [])
+            let aliasStem = CollisionNamer.split(source.lastPathComponent).stem + " alias"
+            let name = CollisionNamer.sequentialName(base: aliasStem, existing: existing)
+            let target = directory.appendingPathComponent(name)
+            do {
+                try fm.createSymbolicLink(at: target, withDestinationURL: source)
+                return ItemResult(source: source, outcome: .success(target))
+            } catch {
+                return ItemResult(source: source, outcome: .failure(FileOpError(error)))
+            }
+        }
+    }
+
     private static func perform(_ sources: [URL], into destination: URL,
                                 _ operation: (URL, URL) throws -> Void) -> [ItemResult] {
         sources.map { source in

@@ -347,6 +347,28 @@ public final class PaneState {
         }
     }
 
+    /// Creates Finder-style aliases (POSIX symlinks) next to each selected
+    /// item, selects the aliases, one undo step (trash the aliases).
+    public func makeAliasSelected(_ urls: [URL]) async {
+        let results = await Task.detached(priority: .userInitiated) {
+            FileOperationService.symlink(urls)
+        }.value
+        await reload()
+        finishOperation(results: results) { successes in
+            guard let undoManager else { return }
+            UndoRecorder.recordCreation(successes.map(\.destination),
+                                        actionName: "Make Alias",
+                                        on: undoManager, pane: self)
+        }
+        let created = results.compactMap { result -> URL? in
+            if case .success(let url) = result.outcome { return url }
+            return nil
+        }
+        if !created.isEmpty {
+            selection = Set(created.map { $0.standardizedFileURL })
+        }
+    }
+
     /// Paste-as-copy into the current folder: collisions auto-rename
     /// (Finder ⌘V). Paste-as-move (⌥⌘V) reuses `moveSelected`, whose
     /// fail-loudly collision policy matches Finder's move-paste prompt.

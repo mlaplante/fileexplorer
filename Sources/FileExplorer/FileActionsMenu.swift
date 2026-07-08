@@ -95,6 +95,10 @@ struct FileActions {
             Task { await pane.duplicateSelected(targets) }
         }
         .disabled(targets.isEmpty)
+        Button("Make Alias") {
+            Task { await pane.makeAliasSelected(targets) }
+        }
+        .disabled(targets.isEmpty)
         Menu("Copy Path") {
             Button("POSIX Path") {
                 PasteboardOps.copyString(
