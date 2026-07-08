@@ -7,17 +7,21 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var filterPresets: [FilterPreset]
     public var updateCheckEnabled: Bool
     public var lastUpdateCheckAt: Date?
+    public var shortcutOverrides: [String: KeyChord]
 
     public init(jpegQuality: Double = 0.85, filterPresets: [FilterPreset] = [],
-                updateCheckEnabled: Bool = true, lastUpdateCheckAt: Date? = nil) {
+                updateCheckEnabled: Bool = true, lastUpdateCheckAt: Date? = nil,
+                shortcutOverrides: [String: KeyChord] = [:]) {
         self.jpegQuality = min(max(jpegQuality, 0.1), 1.0)
         self.filterPresets = filterPresets
         self.updateCheckEnabled = updateCheckEnabled
         self.lastUpdateCheckAt = lastUpdateCheckAt
+        self.shortcutOverrides = shortcutOverrides
     }
 
     enum CodingKeys: String, CodingKey {
-        case jpegQuality, filterPresets, updateCheckEnabled, lastUpdateCheckAt
+        case jpegQuality, filterPresets, updateCheckEnabled, lastUpdateCheckAt,
+             shortcutOverrides
     }
 
     public init(from decoder: Decoder) throws {
@@ -30,6 +34,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
             Bool.self, forKey: .updateCheckEnabled) ?? true
         lastUpdateCheckAt = try container.decodeIfPresent(
             Date.self, forKey: .lastUpdateCheckAt)
+        shortcutOverrides = try container.decodeIfPresent(
+            [String: KeyChord].self, forKey: .shortcutOverrides) ?? [:]
     }
 }
 

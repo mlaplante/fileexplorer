@@ -42,5 +42,6 @@ await renameTokensTests()
 await imageResizerTests()
 await fileHasherTests()
 await updateCheckerTests()
+await shortcutTests()
 
 finish()
