@@ -6,15 +6,15 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var jpegQuality: Double
 
     public init(jpegQuality: Double = 0.85) {
-        self.jpegQuality = jpegQuality
+        self.jpegQuality = min(max(jpegQuality, 0.1), 1.0)
     }
 
     enum CodingKeys: String, CodingKey { case jpegQuality }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        jpegQuality = try container.decodeIfPresent(
-            Double.self, forKey: .jpegQuality) ?? 0.85
+        let raw = try container.decodeIfPresent(Double.self, forKey: .jpegQuality) ?? 0.85
+        jpegQuality = min(max(raw, 0.1), 1.0)
     }
 }
 

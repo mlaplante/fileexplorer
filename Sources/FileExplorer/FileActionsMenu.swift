@@ -10,6 +10,7 @@ struct FileActions {
     let otherPane: PaneState?
     let renameModel: RenameSheetModel
     let batchRenameModel: BatchRenameModel
+    let settings: SettingsModel
 
     @ViewBuilder
     func menu(for urls: Set<URL>) -> some View {
@@ -24,13 +25,14 @@ struct FileActions {
         .disabled(targets.isEmpty)
         Divider()
         Button("Rename…") {
-            if let url = targets.first { renameModel.present(for: url) }
+            if let url = targets.first { renameModel.present(for: url, in: pane) }
         }
         .disabled(targets.count != 1)
         Button("Batch Rename…") {
             batchRenameModel.present(
                 targets: targets.sorted { $0.lastPathComponent < $1.lastPathComponent },
-                existingNames: Set(pane.entries.map(\.name)))
+                existingNames: Set(pane.entries.map(\.name)),
+                in: pane)
         }
         .disabled(targets.count < 2)
         Button("New Folder") {
@@ -49,8 +51,22 @@ struct FileActions {
         }
         Divider()
         Menu("Convert Image To") {
-            Button("JPG") { Task { await pane.convertSelected(targets, to: .jpeg) } }
-            Button("PNG") { Task { await pane.convertSelected(targets, to: .png) } }
+            Button("JPG") {
+                Task { await pane.convertSelected(
+                    targets, to: .jpeg,
+                    jpegQuality: settings.settings.jpegQuality) }
+            }
+            Button("PNG") {
+                Task { await pane.convertSelected(targets, to: .png) }
+            }
+            Divider()
+            Menu("JPG Quality") {
+                ForEach([0.6, 0.8, 0.9, 1.0], id: \.self) { quality in
+                    Toggle("\(Int((quality * 100).rounded()))", isOn: Binding(
+                        get: { settings.settings.jpegQuality == quality },
+                        set: { if $0 { settings.setJPEGQuality(quality) } }))
+                }
+            }
         }
         .disabled(targets.isEmpty)
         Button("Compress") {
@@ -60,7 +76,9 @@ struct FileActions {
         Button("Calculate Size") {
             Task { await pane.calculateFolderSizes(targets) }
         }
-        .disabled(targets.isEmpty)
+        .disabled(!targets.contains { url in
+            pane.entries.first(where: { $0.url == url })?.isDirectory == true
+        })
         Divider()
         Button("Move to Trash") {
             Task { await pane.trashSelected(targets) }

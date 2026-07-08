@@ -8,10 +8,14 @@ struct FileExplorerApp: App {
     private let palette = PaletteModel()
     private let renameModel = RenameSheetModel()
     private let batchRenameModel = BatchRenameModel()
+    private let volumesModel = VolumesModel()
+    private let settings: SettingsModel
 
     init() {
         let persister = SessionPersister(
             directory: SessionPersister.defaultDirectory)
+        let settings = SettingsModel(persister: persister)
+        self.settings = settings
         let home = FileManager.default.homeDirectoryForCurrentUser
         let session: SessionState
         if let snapshot = persister.loadSession() {
@@ -51,11 +55,11 @@ struct FileExplorerApp: App {
         Window("FileExplorer", id: "main") {
             ZStack(alignment: .top) {
                 NavigationSplitView {
-                    SidebarView(session: session)
+                    SidebarView(session: session, volumesModel: volumesModel)
                         .navigationSplitViewColumnWidth(min: 160, ideal: 200)
                 } detail: {
                     TabContentView(session: session, renameModel: renameModel,
-                                   batchRenameModel: batchRenameModel)
+                                   batchRenameModel: batchRenameModel, settings: settings)
                         .navigationTitle(session.activePane.currentURL.lastPathComponent)
                         .toolbar {
                             ToolbarItemGroup(placement: .navigation) {
@@ -96,14 +100,16 @@ struct FileExplorerApp: App {
                 get: { renameModel.isPresented },
                 set: { if !$0 { renameModel.dismiss() } })) {
                 RenameSheet(model: renameModel) { url, newName in
-                    Task { await session.activePane.renameSelected(url, to: newName) }
+                    let pane = renameModel.pane ?? session.activePane
+                    Task { await pane.renameSelected(url, to: newName) }
                 }
             }
             .sheet(isPresented: Binding(
                 get: { batchRenameModel.isPresented },
                 set: { if !$0 { batchRenameModel.dismiss() } })) {
                 BatchRenameSheet(model: batchRenameModel) { targets, rules in
-                    Task { await session.activePane.batchRename(targets, rules: rules) }
+                    let pane = batchRenameModel.pane ?? session.activePane
+                    Task { await pane.batchRename(targets, rules: rules) }
                 }
             }
         }
@@ -125,7 +131,7 @@ struct FileExplorerApp: App {
                 Button("Rename…") {
                     if let url = session.activePane.selection.first,
                        session.activePane.selection.count == 1 {
-                        renameModel.present(for: url)
+                        renameModel.present(for: url, in: session.activePane)
                     }
                 }
                 .keyboardShortcut(.return, modifiers: [])
@@ -139,9 +145,14 @@ struct FileExplorerApp: App {
                 Divider()
                 Button("New Tab") { session.newTab() }
                     .keyboardShortcut("t", modifiers: .command)
-                Button("Close Tab") { session.closeTab(at: session.activeTabIndex) }
-                    .keyboardShortcut("w", modifiers: .command)
-                    .disabled(session.tabs.count == 1)
+                Button("Close Tab") {
+                    if session.tabs.count == 1 {
+                        NSApp.mainWindow?.performClose(nil)
+                    } else {
+                        session.closeTab(at: session.activeTabIndex)
+                    }
+                }
+                .keyboardShortcut("w", modifiers: .command)
             }
             CommandMenu("Go") {
                 Button("Back") { Task { await session.activePane.goBack() } }
@@ -174,10 +185,7 @@ struct FileExplorerApp: App {
             CommandGroup(after: .toolbar) {
                 Toggle("Show Hidden Files", isOn: Binding(
                     get: { session.activePane.showHidden },
-                    set: { newValue in
-                        session.activePane.showHidden = newValue
-                        Task { await session.activePane.reload() }
-                    }))
+                    set: { session.activePane.showHidden = $0 }))
                     .keyboardShortcut(".", modifiers: [.command, .shift])
                 Button("Toggle Dual Pane") { session.activeTab.toggleDual() }
                     .keyboardShortcut("d", modifiers: [.command, .shift])

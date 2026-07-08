@@ -4,6 +4,9 @@ import Observation
 @MainActor
 @Observable
 public final class PaneState {
+    /// Hover-preview state; owned here because view structs are re-inited on
+    /// every parent render on this toolchain (M5 deferred hoisting).
+    public let hoverPreview = HoverPreviewModel()
     public private(set) var history: NavigationHistory
     /// Invoked after every completed navigation (navigate/back/forward/up)
     /// with the new current URL; used by the session layer to record recents.
@@ -14,12 +17,24 @@ public final class PaneState {
     /// Note: cleared on navigation, but a watcher-triggered reload keeps the
     /// existing selection even if some selected files no longer exist.
     public var selection = Set<URL>()
+    /// Last plain-clicked item in the icon grid; anchors ⇧-click ranges.
+    /// Transient (not persisted); the resolver degrades to plain-click when
+    /// the anchor is no longer in visibleEntries.
+    @ObservationIgnored public var selectionAnchor: URL?
+    /// Selection as of the last non-shift click; shift-ranges recompute from
+    /// this pivot so they can shrink as well as grow (Finder behavior).
+    @ObservationIgnored public var selectionPivot = Set<URL>()
     public var sortOrder: [KeyPathComparator<FileEntry>] = [
         KeyPathComparator(\FileEntry.name, comparator: .localizedStandard)
     ] {
         didSet { recomputeVisible() }
     }
-    public var showHidden = false
+    public var showHidden = false {
+        didSet {
+            guard oldValue != showHidden, started else { return }
+            Task { await reload() }
+        }
+    }
 
     public enum ViewMode: String, Sendable, Codable {
         case list
@@ -66,6 +81,11 @@ public final class PaneState {
                     .filter { !$0.isEmpty })
         }
     }
+
+    /// Transient popover visibility for the filter bar's custom-range editors
+    /// (no @State on this toolchain; deliberately NOT read by snapshot()).
+    public var showsCustomDatePopover = false
+    public var showsCustomSizePopover = false
 
     /// Filtered and sorted snapshot of `entries`. Stored rather than computed
     /// so SwiftUI body evaluations don't re-sort/re-filter large directories;
@@ -261,40 +281,26 @@ public final class PaneState {
     public func batchRename(_ urls: [URL], rules: RenameRules) async {
         let existing = Set(entries.map(\.name))
         let plan = RenamePlan.plan(urls: urls, rules: rules, existingNames: existing)
-        var pairs: [(from: URL, to: URL)] = []
-        var failures: [String] = []
-        for item in plan {
-            switch item.conflict {
-            case .unchanged:
-                continue
-            case .some(let conflict):
-                failures.append("“\(item.source.lastPathComponent)” skipped (\(conflict)).")
-            case nil:
-                switch FileOperationService.rename(item.source, to: item.newName) {
-                case .success(let newURL):
-                    pairs.append((from: item.source, to: newURL))
-                case .failure(let error):
-                    failures.append(error.message)
-                }
-            }
-        }
-        if let undoManager, !pairs.isEmpty {
-            UndoRecorder.recordMove(pairs, actionName: "Batch Rename",
+        let outcome = RenameExecutor.execute(plan)
+        if let undoManager, !outcome.pairs.isEmpty {
+            UndoRecorder.recordMove(outcome.pairs, actionName: "Batch Rename",
                                     on: undoManager, pane: self)
         }
         await reload()
-        opErrorMessage = failures.isEmpty
+        opErrorMessage = outcome.failures.isEmpty
             ? nil
-            : failures.prefix(3).joined(separator: " ")
-                + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
-        if !pairs.isEmpty {
-            selection = Set(pairs.map { $0.to.standardizedFileURL })
+            : outcome.failures.prefix(3).joined(separator: " ")
+                + (outcome.failures.count > 3 ? " (+\(outcome.failures.count - 3) more)" : "")
+        if !outcome.pairs.isEmpty {
+            selection = Set(outcome.pairs.map { $0.to.standardizedFileURL })
         }
     }
 
-    public func convertSelected(_ urls: [URL], to format: ImageConverter.Format) async {
+    public func convertSelected(_ urls: [URL], to format: ImageConverter.Format,
+                                jpegQuality: Double = 0.85) async {
+        let quality = jpegQuality
         let results = await Task.detached(priority: .userInitiated) {
-            ImageConverter.convert(urls, to: format)
+            ImageConverter.convert(urls, to: format, jpegQuality: quality)
         }.value
         let created = results.compactMap { result -> URL? in
             if case .success(let url) = result.outcome { return url }
@@ -313,6 +319,9 @@ public final class PaneState {
             ? nil
             : failures.prefix(3).joined(separator: " ")
                 + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
+        if !created.isEmpty {
+            selection = Set(created.map { $0.standardizedFileURL })
+        }
     }
 
     public func compressSelected(_ urls: [URL]) async {
@@ -331,6 +340,24 @@ public final class PaneState {
             selection = [archive.standardizedFileURL]
         case .failure(let error):
             opErrorMessage = error.message
+        }
+    }
+
+    /// Icon-grid click handling: Finder-style plain/⌘/⇧ semantics plus
+    /// anchor+pivot bookkeeping. A ⇧-click whose anchor is missing or stale
+    /// degrades to a plain click AND establishes the anchor, so a range can
+    /// start from a shift-click.
+    public func clickSelect(_ url: URL, commandDown: Bool, shiftDown: Bool) {
+        let ordered = visibleEntries.map(\.url)
+        let anchorUsable = shiftDown && !commandDown
+            && selectionAnchor.map(ordered.contains) == true
+        selection = SelectionResolver.resolve(
+            clicked: url, in: ordered, current: selection,
+            baseline: selectionPivot, anchor: selectionAnchor,
+            commandDown: commandDown, shiftDown: shiftDown)
+        if !anchorUsable {
+            selectionAnchor = url
+            selectionPivot = selection
         }
     }
 

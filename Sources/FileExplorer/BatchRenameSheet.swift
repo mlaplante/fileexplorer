@@ -7,6 +7,7 @@ final class BatchRenameModel {
     var targets: [URL] = []
     var rules = RenameRules()
     var existingNames: Set<String> = []
+    @ObservationIgnored weak var pane: PaneState?
 
     var isPresented: Bool { !targets.isEmpty }
 
@@ -18,7 +19,8 @@ final class BatchRenameModel {
         preview.filter { $0.conflict == nil }.count
     }
 
-    func present(targets: [URL], existingNames: Set<String>) {
+    func present(targets: [URL], existingNames: Set<String>, in pane: PaneState) {
+        self.pane = pane
         rules = RenameRules()
         self.existingNames = existingNames
         self.targets = targets
@@ -26,6 +28,7 @@ final class BatchRenameModel {
 
     func dismiss() {
         targets = []
+        pane = nil
     }
 }
 
@@ -98,8 +101,8 @@ struct BatchRenameSheet: View {
                 Button("Rename \(model.applicableCount)") {
                     let targets = model.targets
                     let rules = model.rules
-                    model.dismiss()
                     onConfirm(targets, rules)
+                    model.dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(model.applicableCount == 0)

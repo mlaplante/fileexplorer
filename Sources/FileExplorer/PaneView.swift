@@ -1,12 +1,13 @@
 import SwiftUI
 import FileExplorerCore
+import AppKit
 
 struct PaneView: View {
     @Bindable var pane: PaneState
     var otherPane: PaneState?
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
-    private let hoverModel = HoverPreviewModel()
+    var settings: SettingsModel
     @Environment(\.undoManager) private var undoManager
 
     var body: some View {
@@ -21,7 +22,8 @@ struct PaneView: View {
                         pane: pane,
                         actions: FileActions(pane: pane, otherPane: otherPane,
                                              renameModel: renameModel,
-                                             batchRenameModel: batchRenameModel)) { open($0) }
+                                             batchRenameModel: batchRenameModel,
+                                             settings: settings)) { open($0) }
                 } else {
                     table
                 }
@@ -55,7 +57,19 @@ struct PaneView: View {
                     $0.deletingLastPathComponent().standardizedFileURL != pane.currentURL
                 }
                 guard !outside.isEmpty else { return false }
-                Task { await pane.copySelected(outside, into: pane.currentURL) }
+                let optionDown = NSEvent.modifierFlags.contains(.option)
+                let sameVolume = outside.allSatisfy {
+                    DropDecision.sameVolume($0, pane.currentURL)
+                }
+                Task {
+                    switch DropDecision.decide(optionDown: optionDown,
+                                               sameVolume: sameVolume) {
+                    case .move:
+                        await pane.moveSelected(outside, into: pane.currentURL)
+                    case .copy:
+                        await pane.copySelected(outside, into: pane.currentURL)
+                    }
+                }
                 return true
             }
             Divider()
@@ -100,20 +114,25 @@ struct PaneView: View {
                         .frame(width: 16, height: 16)
                     Text(entry.name)
                         .lineLimit(1)
+                    if entry.isSymlink {
+                        Image(systemName: "arrow.triangle.turn.up.right.circle")
+                            .foregroundStyle(.secondary)
+                            .help("Symbolic link")
+                    }
                 }
                 .draggable(entry.url)
                 .onHover { hovering in
                     if hovering {
-                        hoverModel.hoverBegan(entry)
+                        pane.hoverPreview.hoverBegan(entry)
                     } else {
-                        hoverModel.hoverEnded()
+                        pane.hoverPreview.hoverEnded()
                     }
                 }
                 .popover(isPresented: Binding(
-                    get: { hoverModel.presented?.url == entry.url },
-                    set: { if !$0 { hoverModel.hoverEnded() } }),
+                    get: { pane.hoverPreview.presented?.url == entry.url },
+                    set: { if !$0 { pane.hoverPreview.hoverEnded() } }),
                     arrowEdge: .trailing) {
-                    HoverPreviewView(model: hoverModel)
+                    HoverPreviewView(model: pane.hoverPreview)
                 }
             }
             TableColumn("Size", value: \.size) { entry in
@@ -147,7 +166,8 @@ struct PaneView: View {
         .contextMenu(forSelectionType: URL.self) { urls in
             FileActions(pane: pane, otherPane: otherPane,
                         renameModel: renameModel,
-                        batchRenameModel: batchRenameModel).menu(for: urls)
+                        batchRenameModel: batchRenameModel,
+                        settings: settings).menu(for: urls)
         } primaryAction: { urls in
             open(urls)
         }

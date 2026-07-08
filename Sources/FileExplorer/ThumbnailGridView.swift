@@ -18,9 +18,20 @@ final class ThumbnailStore {
     @ObservationIgnored private let cache = NSCache<NSString, NSImage>()
     @ObservationIgnored private var inFlight = Set<String>()
     @ObservationIgnored private var failed = Set<String>()
+    @ObservationIgnored private var bumpScheduled = false
 
     private init() {
         cache.countLimit = 500
+    }
+
+    private func scheduleGenerationBump() {
+        guard !bumpScheduled else { return }
+        bumpScheduled = true
+        Task {
+            try? await Task.sleep(for: .milliseconds(50))
+            bumpScheduled = false
+            generation += 1
+        }
     }
 
     private static func key(_ entry: FileEntry) -> String {
@@ -57,7 +68,7 @@ final class ThumbnailStore {
             let nsImage = NSImage(cgImage: cgImage,
                                   size: CGSize(width: side, height: side))
             cache.setObject(nsImage, forKey: key as NSString)
-            generation += 1
+            scheduleGenerationBump()
         }
     }
 }
@@ -77,6 +88,13 @@ struct ThumbnailCell: View {
                 }
             }
             .frame(width: 96, height: 96)
+            .overlay(alignment: .bottomLeading) {
+                if entry.isSymlink {
+                    Image(systemName: "arrow.triangle.turn.up.right.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .background(.background, in: Circle())
+                }
+            }
             Text(entry.name)
                 .font(.caption)
                 .lineLimit(2)
@@ -108,7 +126,10 @@ struct ThumbnailGridView: View {
                             open([entry.url])
                         })
                         .simultaneousGesture(TapGesture(count: 1).onEnded {
-                            pane.selection = [entry.url]
+                            let flags = NSEvent.modifierFlags
+                            pane.clickSelect(entry.url,
+                                             commandDown: flags.contains(.command),
+                                             shiftDown: flags.contains(.shift))
                         })
                         .contextMenu {
                             actions.menu(for: pane.selection.contains(entry.url)

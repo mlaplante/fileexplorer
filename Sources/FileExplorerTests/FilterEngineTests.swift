@@ -64,4 +64,43 @@ func filterEngineTests() async {
         expectEqual(none.map(\.name), ["folder"],
                     "no image is over 100MB — only the folder passes")
     }
+
+    await test("custom date range overrides preset and filters entries") {
+        var f = FilterState()
+        f.datePreset = .today   // preset alone would pass anything from today
+        f.customDateRange = now.addingTimeInterval(-7_200)...now.addingTimeInterval(-3_600)
+        let inRange = entry("mid.png", size: 10,
+                            modified: now.addingTimeInterval(-5_400))
+        let tooNew = entry("new.png", size: 10, modified: now)
+        let result = FilterEngine.apply(f, to: [inRange, tooNew], now: now)
+        expectEqual(result.map(\.name), ["mid.png"],
+                    "custom range wins over the preset")
+    }
+
+    await test("custom size range filters entries; folders pass") {
+        var f = FilterState()
+        f.customSizeRange = Int64(1_000)...Int64(5_000)
+        let result = FilterEngine.apply(
+            f, to: [entry("dir", dir: true), entry("small.txt", size: 500),
+                    entry("mid.txt", size: 3_000), entry("big.txt", size: 10_000)],
+            now: now)
+        expectEqual(result.map(\.name).sorted(), ["dir", "mid.txt"],
+                    "only the in-range file and the folder pass")
+    }
+
+    await test("megabytes field parsing clamps overflow and negatives") {
+        expectEqual(FilterState.megabytesFieldToBytes("100"), 104_857_600,
+                    "plain MB value converts")
+        expectEqual(FilterState.megabytesFieldToBytes(" 5 "), 5_242_880,
+                    "whitespace trimmed")
+        expectEqual(FilterState.megabytesFieldToBytes(""), 0, "empty → 0")
+        expectEqual(FilterState.megabytesFieldToBytes("abc"), 0, "garbage → 0")
+        expectEqual(FilterState.megabytesFieldToBytes("-5"), 0,
+                    "negative clamps to 0")
+        expectEqual(FilterState.megabytesFieldToBytes("8796093022208"),
+                    (Int64.max / 1_048_576) * 1_048_576,
+                    "overflow-scale input clamps instead of trapping")
+        expectEqual(FilterState.megabytesFieldToBytes("999999999999999999999999"),
+                    0, "beyond-Int64 digits parse to nil → 0")
+    }
 }

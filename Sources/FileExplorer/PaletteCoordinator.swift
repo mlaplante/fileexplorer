@@ -105,7 +105,6 @@ enum PaletteCoordinator {
             },
             AppCommand(id: "hidden", name: "Toggle Hidden Files", shortcut: "⇧⌘.") {
                 session.activePane.showHidden.toggle()
-                Task { await session.activePane.reload() }
             },
             AppCommand(id: "clearfilters", name: "Clear Filters", shortcut: "") {
                 session.activePane.clearFilters()
