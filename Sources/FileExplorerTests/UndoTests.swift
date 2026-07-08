@@ -139,4 +139,61 @@ func undoTests() async {
                "moved file stays put when restore collides")
         expect(pane.opErrorMessage != nil, "undo failure surfaced")
     }
+
+    await test("undo/redo of a batch-rename name handoff relocates via two-phase staging") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let a = dir.appendingPathComponent("a.txt")
+        let ax = dir.appendingPathComponent("ax.txt")
+        let axx = dir.appendingPathComponent("axx.txt")
+        try Data("ONE".utf8).write(to: a)
+        try Data("TWO".utf8).write(to: ax)
+
+        let undoManager = UndoManager()
+        let pane = PaneState(url: dir)
+        pane.undoManager = undoManager
+        await pane.reload()
+
+        var rules = RenameRules()
+        rules.suffix = "x"
+        // Order matters here: batchRename's outcome.pairs (and thus the
+        // recorded undo `moves`) follow input order. With [ax, a] the undo
+        // loop processes (ax.txt→axx.txt) BEFORE (a.txt→ax.txt), so its
+        // restore target (ax.txt) is still occupied by the OTHER pair when
+        // it's attempted — the exact collision a naive pair-by-pair undo
+        // hits. [a, ax] would restore collision-free by luck of ordering
+        // and wouldn't exercise the bug.
+        await pane.batchRename([ax, a], rules: rules)
+
+        expect(fm.fileExists(atPath: ax.path), "a.txt -> ax.txt")
+        expect(fm.fileExists(atPath: axx.path), "ax.txt -> axx.txt")
+        expectEqual(try? String(contentsOf: ax, encoding: .utf8), "ONE",
+                    "ax.txt holds a.txt's original content")
+        expectEqual(try? String(contentsOf: axx, encoding: .utf8), "TWO",
+                    "axx.txt holds ax.txt's original content")
+        expect(pane.opErrorMessage == nil, "no failure from the rename itself")
+        expect(undoManager.canUndo, "undo registered")
+
+        undoManager.undo()
+        try await Task.sleep(for: .milliseconds(400))
+        expect(fm.fileExists(atPath: a.path), "a.txt restored")
+        expect(fm.fileExists(atPath: ax.path), "ax.txt restored")
+        expect(!fm.fileExists(atPath: axx.path), "axx.txt gone after undo")
+        expectEqual(try? String(contentsOf: a, encoding: .utf8), "ONE",
+                    "a.txt has its original content back")
+        expectEqual(try? String(contentsOf: ax, encoding: .utf8), "TWO",
+                    "ax.txt has its original content back")
+        expect(pane.opErrorMessage == nil, "undo reported no failure")
+        expect(undoManager.canRedo, "redo available")
+
+        undoManager.redo()
+        try await Task.sleep(for: .milliseconds(400))
+        expect(fm.fileExists(atPath: ax.path), "redo re-applies a.txt -> ax.txt")
+        expect(fm.fileExists(atPath: axx.path), "redo re-applies ax.txt -> axx.txt")
+        expectEqual(try? String(contentsOf: ax, encoding: .utf8), "ONE",
+                    "ax.txt has a.txt's content again after redo")
+        expectEqual(try? String(contentsOf: axx, encoding: .utf8), "TWO",
+                    "axx.txt has ax.txt's content again after redo")
+        expect(pane.opErrorMessage == nil, "redo reported no failure")
+    }
 }

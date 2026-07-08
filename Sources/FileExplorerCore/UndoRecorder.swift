@@ -21,24 +21,26 @@ public enum UndoRecorder {
                 // would re-derive the target from `move.to`'s current
                 // basename — wrong for same-directory renames, where that
                 // resolves back to the file's own current path).
-                var restored: [(from: URL, to: URL)] = []
-                var failures: [String] = []
-                for move in moves {
-                    switch FileOperationService.relocate(move.to, toExactly: move.from) {
-                    case .success:
-                        restored.append(move)
-                    case .failure(let error):
-                        failures.append(error.message)
-                    }
-                }
-                if !restored.isEmpty {
+                //
+                // All pairs are restored via ONE relocate() call so a
+                // swapped/cycled set of names (e.g. a batch-rename handoff)
+                // stages every item through a temp name first — restoring
+                // pair-by-pair would collide when a restore target is
+                // currently occupied by another item in the same batch.
+                // relocate's outcome.pairs are already (from: move.to,
+                // to: move.from) — exactly the shape recordMove needs to
+                // re-register the redo (move it back from move.from to
+                // move.to when redo fires).
+                let outcome = RenameExecutor.relocate(
+                    moves.map { (from: $0.to, to: $0.from) })
+                if !outcome.pairs.isEmpty {
                     UndoRecorder.recordMove(
-                        restored.map { (from: $0.to, to: $0.from) },
+                        outcome.pairs,
                         actionName: actionName,
                         on: undoManager, pane: pane)
                 }
-                if !failures.isEmpty {
-                    pane.reportOpFailure(Self.aggregate(failures))
+                if !outcome.failures.isEmpty {
+                    pane.reportOpFailure(Self.aggregate(outcome.failures))
                 }
                 Task { await pane.reload() }
             }
