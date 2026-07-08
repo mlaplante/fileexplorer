@@ -68,7 +68,7 @@ final class ShortcutRecorderModel {
     }
 
     // isolated: a nonisolated deinit can't touch the non-Sendable monitor
-    // (same pattern as VolumesModel's observer teardown).
+    // (same pattern as LocationsModel's observer teardown).
     isolated deinit {
         if let monitor {
             NSEvent.removeMonitor(monitor)

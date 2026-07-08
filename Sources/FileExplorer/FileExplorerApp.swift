@@ -13,7 +13,7 @@ struct FileExplorerApp: App {
     private let operationQueue = OperationQueueModel()
     private let workspaceProfileModel = WorkspaceProfileModel()
     private let connectServerModel = ConnectServerModel()
-    private let volumesModel = VolumesModel()
+    private let locationsModel = LocationsModel()
     private let settings: SettingsModel
     private let trashRegistry: TrashRegistryModel
     private let infoModel = GetInfoModel()
@@ -69,7 +69,7 @@ struct FileExplorerApp: App {
         Window("FileExplorer", id: "main") {
             ZStack(alignment: .top) {
                 NavigationSplitView {
-                    SidebarView(session: session, volumesModel: volumesModel,
+                    SidebarView(session: session, locationsModel: locationsModel,
                                 settings: settings)
                         .navigationSplitViewColumnWidth(min: 160, ideal: 200)
                 } detail: {
