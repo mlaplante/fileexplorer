@@ -296,6 +296,20 @@ struct FileExplorerApp: App {
                         .keyboardShortcut("3", modifiers: [.command, .option])
                 }
                 .pickerStyle(.inline)
+                Menu("Sort By") {
+                    ForEach(SortMenu.Axis.allCases, id: \.self) { axis in
+                        Toggle(axis.title, isOn: Binding(
+                            get: {
+                                SortMenu.axis(of: session.activePane.sortOrder) == axis
+                            },
+                            set: { isOn in
+                                guard isOn else { return }
+                                let pane = session.activePane
+                                pane.sortOrder = SortMenu.toggledOrder(
+                                    current: pane.sortOrder, selecting: axis)
+                            }))
+                    }
+                }
                 Button("Quick Look") {
                     QuickLookController.shared.toggle(for: session.activePane)
                 }
