@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import AppKit
 
 @MainActor
 @Observable
@@ -105,6 +106,7 @@ public final class PaneState {
     /// deliberately NOT read by snapshot()).
     public var showsNewTagPopover = false
     public var newTagDraft = ""
+    @ObservationIgnored public weak var shareAnchor: NSView?
     /// Targets captured when "New Tag…" is chosen — the grid's context menu
     /// doesn't sync `selection` to the right-clicked item, so the popover
     /// must not re-read `selection` at Add-click time.

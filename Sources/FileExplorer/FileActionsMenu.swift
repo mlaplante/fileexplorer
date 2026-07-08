@@ -13,6 +13,7 @@ struct FileActions {
     let batchRenameModel: BatchRenameModel
     let settings: SettingsModel
     let trashRegistry: TrashRegistryModel?
+    let share: (@MainActor ([URL]) -> Void)?
 
     @ViewBuilder
     func menu(for urls: Set<URL>) -> some View {
@@ -64,6 +65,10 @@ struct FileActions {
             }
         }
         .disabled(targets.isEmpty)
+        Button("Share…") {
+            share?(targets)
+        }
+        .disabled(targets.isEmpty || share == nil)
         Button("Reveal in Finder") {
             NSWorkspace.shared.activateFileViewerSelecting(targets)
         }

@@ -32,7 +32,8 @@ struct PaneView: View {
                                              renameModel: renameModel,
                                              batchRenameModel: batchRenameModel,
                                              settings: settings,
-                                             trashRegistry: trashRegistry)) { open($0) }
+                                             trashRegistry: trashRegistry,
+                                             share: share)) { open($0) }
                 } else if pane.viewMode == .columns {
                     ColumnBrowserView(
                         pane: pane,
@@ -41,7 +42,8 @@ struct PaneView: View {
                                              renameModel: renameModel,
                                              batchRenameModel: batchRenameModel,
                                              settings: settings,
-                                             trashRegistry: trashRegistry)) { open($0) }
+                                             trashRegistry: trashRegistry,
+                                             share: share)) { open($0) }
                 } else {
                     table
                 }
@@ -140,6 +142,14 @@ struct PaneView: View {
             renameModel.present(for: url, in: pane)
             pane.pendingRenameURL = nil
         }
+        .background(ShareAnchor { view in
+            pane.shareAnchor = view
+        }.frame(width: 0, height: 0))
+    }
+
+    private func share(_ targets: [URL]) {
+        guard let anchor = pane.shareAnchor else { return }
+        ShareBridge.shared.present(urls: targets, from: anchor)
     }
 
     /// Prominent folder heading over the content area (the breadcrumb stays
@@ -273,7 +283,8 @@ struct PaneView: View {
                         renameModel: renameModel,
                         batchRenameModel: batchRenameModel,
                         settings: settings,
-                        trashRegistry: trashRegistry).menu(for: urls)
+                        trashRegistry: trashRegistry,
+                        share: share).menu(for: urls)
         } primaryAction: { urls in
             open(urls)
         }
