@@ -22,6 +22,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
 /// any kind (missing, corrupt, wrong shape) degrade to nil/defaults — the
 /// app must never fail to launch over a bad state file. Save failures are
 /// logged and swallowed.
+/// (Valid-but-empty JSON decodes to a non-nil, all-defaults snapshot; the
+/// session restore inits absorb that shape safely downstream.)
 public struct SessionPersister: Sendable {
     public let directory: URL
 

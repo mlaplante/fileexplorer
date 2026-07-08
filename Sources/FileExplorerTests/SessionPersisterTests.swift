@@ -56,4 +56,16 @@ func sessionPersisterTests() async {
         expectEqual(persister.loadSettings(), AppSettings(),
                     "corrupt settings → defaults, no crash")
     }
+
+    await test("SessionPersister swallows write failures when directory is a file") {
+        let dir = makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(
+            at: dir.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data().write(to: dir)   // dir path now occupied by a plain file
+        let persister = SessionPersister(directory: dir)
+        persister.saveSettings(AppSettings(jpegQuality: 0.5))   // must not crash
+        expectEqual(persister.loadSettings(), AppSettings(),
+                    "failed save leaves defaults")
+    }
 }
