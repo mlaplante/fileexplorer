@@ -240,9 +240,20 @@ struct PaneView: View {
             }
             .width(min: 120, ideal: 160)
         } rows: {
-            ForEach(pane.visibleEntries) { entry in
-                TableRow(entry)
-                    .itemProvider { NSItemProvider(object: entry.url as NSURL) }
+            if pane.groupBy == .none {
+                ForEach(pane.visibleEntries) { entry in
+                    TableRow(entry)
+                        .itemProvider { NSItemProvider(object: entry.url as NSURL) }
+                }
+            } else {
+                ForEach(Array(pane.groupedEntries.enumerated()), id: \.offset) { _, group in
+                    Section(group.title ?? "") {
+                        ForEach(group.entries) { entry in
+                            TableRow(entry)
+                                .itemProvider { NSItemProvider(object: entry.url as NSURL) }
+                        }
+                    }
+                }
             }
         }
         .contextMenu(forSelectionType: URL.self) { urls in

@@ -310,6 +310,16 @@ struct FileExplorerApp: App {
                             }))
                     }
                 }
+                Menu("Group By") {
+                    ForEach(Grouper.Axis.allCases, id: \.self) { axis in
+                        Toggle(axis.title, isOn: Binding(
+                            get: { session.activePane.groupBy == axis },
+                            set: { isOn in
+                                guard isOn else { return }
+                                session.activePane.groupBy = axis
+                            }))
+                    }
+                }
                 Button("Quick Look") {
                     QuickLookController.shared.toggle(for: session.activePane)
                 }

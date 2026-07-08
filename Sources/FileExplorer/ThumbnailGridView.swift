@@ -174,30 +174,26 @@ struct ThumbnailGridView: View {
         ScrollViewReader { proxy in
             ScrollView {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
-                ForEach(pane.visibleEntries) { entry in
-                    ThumbnailCell(entry: entry,
-                                  isSelected: pane.selection.contains(entry.url))
-                        .id(entry.url)
-                        .onGeometryChange(for: CGRect.self) { proxy in
-                            proxy.frame(in: .named("fxGrid"))
-                        } action: { frame in
-                            pane.rubberBandFrames[entry.url] = frame
+                if pane.groupBy == .none {
+                    ForEach(pane.visibleEntries) { entry in
+                        cell(for: entry)
+                    }
+                } else {
+                    ForEach(Array(pane.groupedEntries.enumerated()), id: \.offset) { _, group in
+                        Section {
+                            ForEach(group.entries) { entry in
+                                cell(for: entry)
+                            }
+                        } header: {
+                            if let title = group.title {
+                                Text(title)
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.top, 8)
+                            }
                         }
-                        .contentShape(Rectangle())
-                        .draggable(entry.url)
-                        .gesture(TapGesture(count: 2).onEnded {
-                            open([entry.url])
-                        })
-                        .simultaneousGesture(TapGesture(count: 1).onEnded {
-                            let flags = NSEvent.modifierFlags
-                            pane.clickSelect(entry.url,
-                                             commandDown: flags.contains(.command),
-                                             shiftDown: flags.contains(.shift))
-                        })
-                        .contextMenu {
-                            actions.menu(for: pane.selection.contains(entry.url)
-                                         ? pane.selection : [entry.url])
-                        }
+                    }
                 }
             }
             .padding(16)
@@ -236,6 +232,32 @@ struct ThumbnailGridView: View {
                 .onEnded { _ in pane.rubberBandRect = nil }
             )
         }
+    }
+
+    private func cell(for entry: FileEntry) -> some View {
+        ThumbnailCell(entry: entry,
+                      isSelected: pane.selection.contains(entry.url))
+            .id(entry.url)
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .named("fxGrid"))
+            } action: { frame in
+                pane.rubberBandFrames[entry.url] = frame
+            }
+            .contentShape(Rectangle())
+            .draggable(entry.url)
+            .gesture(TapGesture(count: 2).onEnded {
+                open([entry.url])
+            })
+            .simultaneousGesture(TapGesture(count: 1).onEnded {
+                let flags = NSEvent.modifierFlags
+                pane.clickSelect(entry.url,
+                                 commandDown: flags.contains(.command),
+                                 shiftDown: flags.contains(.shift))
+            })
+            .contextMenu {
+                actions.menu(for: pane.selection.contains(entry.url)
+                             ? pane.selection : [entry.url])
+            }
     }
 
     private func moveSelection(_ direction: MoveCommandDirection,

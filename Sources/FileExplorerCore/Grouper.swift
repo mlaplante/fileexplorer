@@ -16,6 +16,15 @@ public enum Grouper {
         case kind
         case dateModified
         case size
+
+        public var title: String {
+            switch self {
+            case .none: "None"
+            case .kind: "Kind"
+            case .dateModified: "Date Modified"
+            case .size: "Size"
+            }
+        }
     }
 
     public static func group(
