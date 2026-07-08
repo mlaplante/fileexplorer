@@ -103,6 +103,11 @@ public final class PaneState {
     /// must not re-read `selection` at Add-click time.
     public var newTagTargets: [URL] = []
 
+    /// Transient save-preset popover state (no @State on this toolchain;
+    /// deliberately NOT read by snapshot()).
+    public var showsSavePresetPopover = false
+    public var savePresetNameDraft = ""
+
     /// Filtered and sorted snapshot of `entries`. Stored rather than computed
     /// so SwiftUI body evaluations don't re-sort/re-filter large directories;
     /// refreshed when `entries`, `sortOrder`, or `filter` changes.

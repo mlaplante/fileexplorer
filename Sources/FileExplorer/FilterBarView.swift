@@ -3,6 +3,7 @@ import FileExplorerCore
 
 struct FilterBarView: View {
     @Bindable var pane: PaneState
+    var settings: SettingsModel
 
     var body: some View {
         HStack(spacing: 6) {
@@ -163,6 +164,30 @@ struct FilterBarView: View {
             Spacer()
 
             if pane.filter.isActive {
+                Button("Save Preset…") {
+                    pane.savePresetNameDraft = ""
+                    pane.showsSavePresetPopover = true
+                }
+                .controlSize(.small)
+                .popover(isPresented: Binding(
+                    get: { pane.showsSavePresetPopover },
+                    set: { pane.showsSavePresetPopover = $0 })) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("Preset name", text: Binding(
+                            get: { pane.savePresetNameDraft },
+                            set: { pane.savePresetNameDraft = $0 }))
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 180)
+                        Button("Save") {
+                            settings.savePreset(name: pane.savePresetNameDraft,
+                                                filter: pane.filter)
+                            pane.showsSavePresetPopover = false
+                        }
+                        .disabled(pane.savePresetNameDraft
+                            .trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                    .padding(12)
+                }
                 Button("Clear") { pane.clearFilters() }
                     .controlSize(.small)
             }

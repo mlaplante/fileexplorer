@@ -14,7 +14,7 @@ struct PaneView: View {
         VStack(spacing: 0) {
             BreadcrumbView(pane: pane)
             Divider()
-            FilterBarView(pane: pane)
+            FilterBarView(pane: pane, settings: settings)
             Divider()
             Group {
                 if pane.viewMode == .icons {

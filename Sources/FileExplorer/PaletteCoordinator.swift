@@ -37,15 +37,16 @@ enum PaletteCoordinator {
         }
     }
 
-    static func openCommands(_ palette: PaletteModel, session: SessionState) {
+    static func openCommands(_ palette: PaletteModel, session: SessionState,
+                             settings: SettingsModel) {
         palette.present(mode: .commands)
-        palette.setItems(commands(for: session).map {
+        palette.setItems(commands(for: session, settings: settings).map {
             PaletteItem(id: $0.id, title: $0.name, subtitle: $0.shortcut)
         })
     }
 
     static func confirm(_ item: PaletteItem, palette: PaletteModel,
-                        session: SessionState) {
+                        session: SessionState, settings: SettingsModel) {
         // Capture the mode and the palette's opening-time pane before
         // dismiss() clears targetPane — folder/file confirms must land on
         // the pane the palette was opened for, not whatever pane is active
@@ -66,7 +67,7 @@ enum PaletteCoordinator {
         case .commands:
             // Commands intentionally target whatever pane is active at
             // confirm time (e.g. "Toggle Dual Pane" acts on the current tab).
-            commands(for: session).first { $0.id == item.id }?.action()
+            commands(for: session, settings: settings).first { $0.id == item.id }?.action()
         }
     }
 
@@ -77,8 +78,9 @@ enum PaletteCoordinator {
         let action: @MainActor () -> Void
     }
 
-    static func commands(for session: SessionState) -> [AppCommand] {
-        [
+    static func commands(for session: SessionState,
+                         settings: SettingsModel) -> [AppCommand] {
+        ([
             AppCommand(id: "back", name: "Back", shortcut: "⌘[") {
                 Task { await session.activePane.goBack() }
             },
@@ -113,7 +115,16 @@ enum PaletteCoordinator {
                 NSWorkspace.shared.activateFileViewerSelecting(
                     [session.activePane.currentURL])
             },
-        ]
+        ])
+        + settings.settings.filterPresets.map { preset in
+            AppCommand(id: "preset:\(preset.name)",
+                       name: "Apply Preset: \(preset.name)", shortcut: "") {
+                let pane = session.activePane
+                pane.filter = preset.filter
+                pane.filterExtensionsText = preset.filter.extensions.sorted()
+                    .joined(separator: ", ")
+            }
+        }
     }
 
     private nonisolated static func dedupe(_ urls: [URL]) -> [URL] {

@@ -56,7 +56,8 @@ struct FileExplorerApp: App {
         Window("FileExplorer", id: "main") {
             ZStack(alignment: .top) {
                 NavigationSplitView {
-                    SidebarView(session: session, volumesModel: volumesModel)
+                    SidebarView(session: session, volumesModel: volumesModel,
+                                settings: settings)
                         .navigationSplitViewColumnWidth(min: 160, ideal: 200)
                 } detail: {
                     TabContentView(session: session, renameModel: renameModel,
@@ -91,7 +92,8 @@ struct FileExplorerApp: App {
                         .onTapGesture { palette.dismiss() }
                     PaletteOverlayView(palette: palette) { item in
                         PaletteCoordinator.confirm(item, palette: palette,
-                                                   session: session)
+                                                   session: session,
+                                                   settings: settings)
                     }
                     .padding(.top, 60)
                 }
@@ -263,7 +265,8 @@ struct FileExplorerApp: App {
             }
             CommandGroup(after: .windowArrangement) {
                 Button("Command Palette…") {
-                    PaletteCoordinator.openCommands(palette, session: session)
+                    PaletteCoordinator.openCommands(palette, session: session,
+                                                    settings: settings)
                 }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
             }
