@@ -10,6 +10,7 @@ struct FileActions {
     let otherPane: PaneState?
     let renameModel: RenameSheetModel
     let batchRenameModel: BatchRenameModel
+    let settings: SettingsModel
 
     @ViewBuilder
     func menu(for urls: Set<URL>) -> some View {
@@ -49,8 +50,22 @@ struct FileActions {
         }
         Divider()
         Menu("Convert Image To") {
-            Button("JPG") { Task { await pane.convertSelected(targets, to: .jpeg) } }
-            Button("PNG") { Task { await pane.convertSelected(targets, to: .png) } }
+            Button("JPG") {
+                Task { await pane.convertSelected(
+                    targets, to: .jpeg,
+                    jpegQuality: settings.settings.jpegQuality) }
+            }
+            Button("PNG") {
+                Task { await pane.convertSelected(targets, to: .png) }
+            }
+            Divider()
+            Menu("JPG Quality") {
+                ForEach([0.6, 0.8, 0.9, 1.0], id: \.self) { quality in
+                    Toggle("\(Int((quality * 100).rounded()))", isOn: Binding(
+                        get: { settings.settings.jpegQuality == quality },
+                        set: { if $0 { settings.setJPEGQuality(quality) } }))
+                }
+            }
         }
         .disabled(targets.isEmpty)
         Button("Compress") {

@@ -299,9 +299,11 @@ public final class PaneState {
         }
     }
 
-    public func convertSelected(_ urls: [URL], to format: ImageConverter.Format) async {
+    public func convertSelected(_ urls: [URL], to format: ImageConverter.Format,
+                                jpegQuality: Double = 0.85) async {
+        let quality = jpegQuality
         let results = await Task.detached(priority: .userInitiated) {
-            ImageConverter.convert(urls, to: format)
+            ImageConverter.convert(urls, to: format, jpegQuality: quality)
         }.value
         let created = results.compactMap { result -> URL? in
             if case .success(let url) = result.outcome { return url }
@@ -320,6 +322,9 @@ public final class PaneState {
             ? nil
             : failures.prefix(3).joined(separator: " ")
                 + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
+        if !created.isEmpty {
+            selection = Set(created.map { $0.standardizedFileURL })
+        }
     }
 
     public func compressSelected(_ urls: [URL]) async {

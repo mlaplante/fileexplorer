@@ -108,4 +108,20 @@ func paneBatchToolsTests() async {
         expectEqual(opened.count, 1, "file opened externally")
         expectEqual(pane.currentURL, dir.standardizedFileURL, "no navigation for a file")
     }
+
+    await test("convertSelected selects its outputs") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let png = dir.appendingPathComponent("shot.png")
+        try writeTestPNG(to: png, width: 16, height: 16)
+
+        let pane = PaneState(url: dir)
+        await pane.reload()
+        await pane.convertSelected([png], to: .jpeg, jpegQuality: 0.9)
+
+        expectEqual(pane.selection,
+                    [dir.appendingPathComponent("shot.jpg").standardizedFileURL],
+                    "converted output selected")
+        expect(pane.opErrorMessage == nil, "no error on clean conversion")
+    }
 }

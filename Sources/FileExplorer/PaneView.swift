@@ -7,6 +7,7 @@ struct PaneView: View {
     var otherPane: PaneState?
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
+    var settings: SettingsModel
     private let hoverModel = HoverPreviewModel()
     @Environment(\.undoManager) private var undoManager
 
@@ -22,7 +23,8 @@ struct PaneView: View {
                         pane: pane,
                         actions: FileActions(pane: pane, otherPane: otherPane,
                                              renameModel: renameModel,
-                                             batchRenameModel: batchRenameModel)) { open($0) }
+                                             batchRenameModel: batchRenameModel,
+                                             settings: settings)) { open($0) }
                 } else {
                     table
                 }
@@ -160,7 +162,8 @@ struct PaneView: View {
         .contextMenu(forSelectionType: URL.self) { urls in
             FileActions(pane: pane, otherPane: otherPane,
                         renameModel: renameModel,
-                        batchRenameModel: batchRenameModel).menu(for: urls)
+                        batchRenameModel: batchRenameModel,
+                        settings: settings).menu(for: urls)
         } primaryAction: { urls in
             open(urls)
         }

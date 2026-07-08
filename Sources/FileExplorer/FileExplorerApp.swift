@@ -8,10 +8,13 @@ struct FileExplorerApp: App {
     private let palette = PaletteModel()
     private let renameModel = RenameSheetModel()
     private let batchRenameModel = BatchRenameModel()
+    private let settings: SettingsModel
 
     init() {
         let persister = SessionPersister(
             directory: SessionPersister.defaultDirectory)
+        let settings = SettingsModel(persister: persister)
+        self.settings = settings
         let home = FileManager.default.homeDirectoryForCurrentUser
         let session: SessionState
         if let snapshot = persister.loadSession() {
@@ -55,7 +58,7 @@ struct FileExplorerApp: App {
                         .navigationSplitViewColumnWidth(min: 160, ideal: 200)
                 } detail: {
                     TabContentView(session: session, renameModel: renameModel,
-                                   batchRenameModel: batchRenameModel)
+                                   batchRenameModel: batchRenameModel, settings: settings)
                         .navigationTitle(session.activePane.currentURL.lastPathComponent)
                         .toolbar {
                             ToolbarItemGroup(placement: .navigation) {

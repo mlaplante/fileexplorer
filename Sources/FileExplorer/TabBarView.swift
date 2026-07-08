@@ -55,13 +55,14 @@ struct TabContentView: View {
     @Bindable var session: SessionState
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
+    var settings: SettingsModel
 
     var body: some View {
         VStack(spacing: 0) {
             TabBarView(session: session)
             Divider()
             PaneAreaView(tab: session.activeTab, renameModel: renameModel,
-                         batchRenameModel: batchRenameModel)
+                         batchRenameModel: batchRenameModel, settings: settings)
         }
         .onChange(of: session.activeTabIndex) { _, _ in
             if QuickLookController.shared.isVisible {
@@ -76,6 +77,7 @@ struct PaneAreaView: View {
     @Bindable var tab: TabState
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
+    var settings: SettingsModel
 
     var body: some View {
         Group {
@@ -105,7 +107,8 @@ struct PaneAreaView: View {
             PaneView(pane: paneState,
                      otherPane: tab.isDual ? tab.panes[1 - index] : nil,
                      renameModel: renameModel,
-                     batchRenameModel: batchRenameModel)
+                     batchRenameModel: batchRenameModel,
+                     settings: settings)
         }
         .frame(minWidth: 300)
         .simultaneousGesture(TapGesture().onEnded {
