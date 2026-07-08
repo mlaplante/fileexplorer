@@ -8,6 +8,7 @@ struct FileExplorerApp: App {
     private let palette = PaletteModel()
     private let renameModel = RenameSheetModel()
     private let batchRenameModel = BatchRenameModel()
+    private let syncPreviewModel = SyncPreviewModel()
     private let volumesModel = VolumesModel()
     private let settings: SettingsModel
     private let infoModel = GetInfoModel()
@@ -61,7 +62,8 @@ struct FileExplorerApp: App {
                         .navigationSplitViewColumnWidth(min: 160, ideal: 200)
                 } detail: {
                     TabContentView(session: session, renameModel: renameModel,
-                                   batchRenameModel: batchRenameModel, settings: settings)
+                                   batchRenameModel: batchRenameModel,
+                                   syncPreview: syncPreviewModel, settings: settings)
                         .navigationTitle(session.activePane.currentURL.lastPathComponent)
                         .toolbar {
                             ToolbarItemGroup(placement: .navigation) {
@@ -114,6 +116,11 @@ struct FileExplorerApp: App {
                     let pane = batchRenameModel.pane ?? session.activePane
                     Task { await pane.batchRename(targets, rules: rules) }
                 }
+            }
+            .sheet(isPresented: Binding(
+                get: { syncPreviewModel.isPresented },
+                set: { if !$0 { syncPreviewModel.dismiss() } })) {
+                SyncPreviewSheet(model: syncPreviewModel)
             }
         }
         .commands {
@@ -253,6 +260,11 @@ struct FileExplorerApp: App {
                     .keyboardShortcut(".", modifiers: [.command, .shift])
                 Button("Toggle Dual Pane") { session.activeTab.toggleDual() }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
+                Button("Compare Panes") {
+                    Task { await session.activeTab.runCompare() }
+                }
+                .keyboardShortcut("k", modifiers: [.command, .shift])
+                .disabled(!session.activeTab.isDual)
                 Picker("View", selection: Binding(
                     get: { session.activePane.viewMode },
                     set: { session.activePane.viewMode = $0 })) {
