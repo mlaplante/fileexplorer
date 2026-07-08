@@ -110,8 +110,12 @@ enum PaletteCoordinator {
         case .files, .contents:
             if item.id == deepScanID {
                 // An in-palette action, not a navigation: reopen and swap in
-                // scanner results under the same token.
+                // scanner results. dismiss() above cleared targetPane and
+                // bumped the token — restore the pane so confirming a scan
+                // result lands on the pane the palette was opened for, and
+                // scan under the CURRENT token so setItems isn't dropped.
                 palette.undismiss()
+                palette.targetPane = pane
                 runDeepScan(palette, pane: pane)
                 return
             }

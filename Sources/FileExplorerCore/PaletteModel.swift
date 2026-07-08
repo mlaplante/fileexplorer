@@ -75,6 +75,11 @@ public final class PaletteModel {
         isLoading = false
         targetPane = nil
         onQueryChange = nil
+        // Invalidate in-flight async providers (debounced Spotlight
+        // completions, deep scans): their captured token no longer matches,
+        // so late results are dropped instead of landing in a closed —
+        // or worse, a subsequently reopened — palette.
+        presentToken += 1
     }
 
     /// Re-opens the palette after a confirm that turned out to be an
