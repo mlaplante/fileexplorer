@@ -49,5 +49,6 @@ await updateCheckerTests()
 await shortcutTests()
 await columnsModelTests()
 await rubberBandTests()
+await gridNavigatorTests()
 
 finish()
