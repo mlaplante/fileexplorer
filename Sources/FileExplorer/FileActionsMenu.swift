@@ -25,13 +25,14 @@ struct FileActions {
         .disabled(targets.isEmpty)
         Divider()
         Button("Rename…") {
-            if let url = targets.first { renameModel.present(for: url) }
+            if let url = targets.first { renameModel.present(for: url, in: pane) }
         }
         .disabled(targets.count != 1)
         Button("Batch Rename…") {
             batchRenameModel.present(
                 targets: targets.sorted { $0.lastPathComponent < $1.lastPathComponent },
-                existingNames: Set(pane.entries.map(\.name)))
+                existingNames: Set(pane.entries.map(\.name)),
+                in: pane)
         }
         .disabled(targets.count < 2)
         Button("New Folder") {

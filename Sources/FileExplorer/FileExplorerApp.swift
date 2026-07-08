@@ -99,14 +99,16 @@ struct FileExplorerApp: App {
                 get: { renameModel.isPresented },
                 set: { if !$0 { renameModel.dismiss() } })) {
                 RenameSheet(model: renameModel) { url, newName in
-                    Task { await session.activePane.renameSelected(url, to: newName) }
+                    let pane = renameModel.pane ?? session.activePane
+                    Task { await pane.renameSelected(url, to: newName) }
                 }
             }
             .sheet(isPresented: Binding(
                 get: { batchRenameModel.isPresented },
                 set: { if !$0 { batchRenameModel.dismiss() } })) {
                 BatchRenameSheet(model: batchRenameModel) { targets, rules in
-                    Task { await session.activePane.batchRename(targets, rules: rules) }
+                    let pane = batchRenameModel.pane ?? session.activePane
+                    Task { await pane.batchRename(targets, rules: rules) }
                 }
             }
         }
@@ -128,7 +130,7 @@ struct FileExplorerApp: App {
                 Button("Rename…") {
                     if let url = session.activePane.selection.first,
                        session.activePane.selection.count == 1 {
-                        renameModel.present(for: url)
+                        renameModel.present(for: url, in: session.activePane)
                     }
                 }
                 .keyboardShortcut(.return, modifiers: [])

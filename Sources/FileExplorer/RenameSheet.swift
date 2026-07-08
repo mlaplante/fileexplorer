@@ -7,10 +7,12 @@ import FileExplorerCore
 final class RenameSheetModel {
     var target: URL?
     var draftName = ""
+    @ObservationIgnored weak var pane: PaneState?
 
     var isPresented: Bool { target != nil }
 
-    func present(for url: URL) {
+    func present(for url: URL, in pane: PaneState) {
+        self.pane = pane
         target = url
         draftName = url.lastPathComponent
     }
@@ -18,6 +20,7 @@ final class RenameSheetModel {
     func dismiss() {
         target = nil
         draftName = ""
+        pane = nil
     }
 }
 
@@ -48,7 +51,7 @@ struct RenameSheet: View {
     private func confirm() {
         guard let target = model.target, !model.draftName.isEmpty else { return }
         let newName = model.draftName
-        model.dismiss()
         onConfirm(target, newName)
+        model.dismiss()
     }
 }
