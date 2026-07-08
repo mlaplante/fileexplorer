@@ -57,7 +57,10 @@ public final class PaneState {
 
     /// List vs thumbnail-grid presentation; per pane, remembered per tab.
     public var viewMode: ViewMode = .list {
-        didSet { persistFolderViewSettings() }
+        didSet {
+            recomputeVisible()
+            persistFolderViewSettings()
+        }
     }
     public var errorMessage: String?
     public var availableSpaceText: String?
@@ -90,6 +93,32 @@ public final class PaneState {
     /// On-demand recursive folder sizes (context menu → Calculate Size),
     /// keyed by standardized URL; cleared on navigation.
     public private(set) var folderSizes: [URL: Int64] = [:]
+
+    // MARK: - List-view tree expansion
+    // All tree keys are standardized PATH STRINGS (`treeKey(_:)`), never
+    // URLs: directory URLs from contentsOfDirectory carry a trailing slash,
+    // URLs built via appendingPathComponent don't, and Set<URL> membership
+    // compares absolute strings — URL keys would silently never match.
+
+    /// Folders disclosed in the list view. Collapsing a parent does NOT
+    /// remove descendants — re-expanding the parent restores the subtree
+    /// (Finder behavior); the flattener simply stops producing their rows.
+    public private(set) var expandedFolders: Set<String> = []
+    /// Raw loaded children per expanded folder (unfiltered/unsorted; the
+    /// pane's filter+sort applies per level at flatten time).
+    @ObservationIgnored private var childEntries: [String: [FileEntry]] = [:]
+    /// One kqueue watcher per expanded folder so disclosed rows live-update.
+    @ObservationIgnored private var childWatchers: [String: DirectoryWatcher] = [:]
+    /// Depth per visible row URL (0 = top level), rebuilt with visibleEntries.
+    public private(set) var rowDepths: [URL: Int] = [:]
+    /// Top-level row count — the status bar's "N items" must not grow when
+    /// folders are merely disclosed.
+    public private(set) var rootVisibleCount = 0
+
+    /// Canonical tree key: trailing-slash-insensitive standardized path.
+    private static func treeKey(_ url: URL) -> String {
+        url.standardizedFileURL.path
+    }
 
     public var filter = FilterState() {
         didSet { recomputeVisible() }
@@ -239,6 +268,7 @@ public final class PaneState {
             availableSpaceText = spaceText
             errorMessage = nil
             hasLoadedOnce = true
+            await refreshExpandedChildren()
         } catch {
             guard myID == reloadID else { return }
             if hasLoadedOnce,
@@ -253,6 +283,127 @@ public final class PaneState {
             errorMessage = Self.describe(error)
             hasLoadedOnce = true
         }
+    }
+
+    public func isExpanded(_ url: URL) -> Bool {
+        expandedFolders.contains(Self.treeKey(url))
+    }
+
+    public func depth(of url: URL) -> Int { rowDepths[url] ?? 0 }
+
+    public func toggleExpansion(of url: URL, recursively: Bool = false) async {
+        if isExpanded(url) {
+            collapse(url)
+        } else if recursively {
+            await expandRecursively(url)
+        } else {
+            await expand(url)
+        }
+    }
+
+    public func expand(_ url: URL) async {
+        let key = Self.treeKey(url)
+        guard !expandedFolders.contains(key) else { return }
+        expandedFolders.insert(key)
+        watchChildren(of: key)
+        await loadChildren(of: key)
+        recomputeVisible()
+    }
+
+    /// Opens the folder and every descendant folder, breadth-first, capped
+    /// at 512 folders so a giant tree can't hang the pane.
+    public func expandRecursively(_ url: URL) async {
+        var queue = [Self.treeKey(url)]
+        var visited = Set<String>()
+        var opened = 0
+        while !queue.isEmpty, opened < 512 {
+            let key = queue.removeFirst()
+            // Resolve symlinks so a link cycle can't re-enqueue forever.
+            let resolved = URL(fileURLWithPath: key)
+                .resolvingSymlinksInPath().path
+            guard visited.insert(resolved).inserted else { continue }
+            expandedFolders.insert(key)
+            watchChildren(of: key)
+            await loadChildren(of: key)
+            opened += 1
+            for child in childEntries[key] ?? [] where child.isDirectory {
+                queue.append(Self.treeKey(child.url))
+            }
+        }
+        recomputeVisible()
+    }
+
+    public func collapse(_ url: URL) {
+        let key = Self.treeKey(url)
+        guard expandedFolders.remove(key) != nil else { return }
+        // An invisible selection must never feed file operations: fold any
+        // selected rows hidden by this collapse into selecting the folder.
+        // Insert the folder's ROW url (visibleEntries), not the caller's —
+        // Table selection matches by URL equality, and the row URL may carry
+        // a trailing slash the caller's doesn't.
+        let prefix = key + "/"
+        let hidden = selection.filter {
+            Self.treeKey($0).hasPrefix(prefix)
+        }
+        if !hidden.isEmpty {
+            selection.subtract(hidden)
+            let rowURL = visibleEntries.first {
+                Self.treeKey($0.url) == key
+            }?.url ?? url
+            selection.insert(rowURL)
+        }
+        recomputeVisible()
+    }
+
+    /// Loads (or reloads) one expanded folder's children off the main actor.
+    /// Unreadable or vanished folders silently drop their expansion — the
+    /// row itself disappears via the parent's reload, so no error surface.
+    private func loadChildren(of key: String) async {
+        let includeHidden = showHidden
+        let folder = URL(fileURLWithPath: key, isDirectory: true)
+        let loaded = try? await Task.detached(priority: .userInitiated) {
+            try DirectoryLoader.load(folder, includeHidden: includeHidden)
+        }.value
+        guard expandedFolders.contains(key) else { return } // collapsed mid-flight
+        if let loaded {
+            childEntries[key] = loaded
+            settingsModel?.mergeKnownTags(loaded.flatMap(\.tags))
+        } else {
+            expandedFolders.remove(key)
+            childEntries.removeValue(forKey: key)
+            childWatchers.removeValue(forKey: key)?.stop()
+        }
+    }
+
+    private func watchChildren(of key: String) {
+        guard childWatchers[key] == nil else { return }
+        let watcher = DirectoryWatcher()
+        watcher.watch(URL(fileURLWithPath: key, isDirectory: true)) { [weak self] in
+            guard let self, self.expandedFolders.contains(key) else { return }
+            Task {
+                await self.loadChildren(of: key)
+                self.recomputeVisible()
+            }
+        }
+        childWatchers[key] = watcher
+    }
+
+    /// Re-reads every expanded folder after a pane reload; folders that
+    /// vanished drop out inside loadChildren.
+    private func refreshExpandedChildren() async {
+        for key in expandedFolders {
+            await loadChildren(of: key)
+            watchChildren(of: key)
+        }
+        recomputeVisible()
+    }
+
+    private func clearTreeState() {
+        expandedFolders.removeAll()
+        childEntries.removeAll()
+        for watcher in childWatchers.values { watcher.stop() }
+        childWatchers.removeAll()
+        rowDepths.removeAll()
     }
 
     // NOTE: in each wrapper below, `reload()` runs BEFORE the error/undo
@@ -797,13 +948,31 @@ public final class PaneState {
     }
 
     private func recomputeVisible() {
-        visibleEntries = FileSorter.sort(
+        let prepared = FileSorter.sort(
             FilterEngine.apply(filter, to: entries), using: sortOrder)
+        rootVisibleCount = prepared.count
+        if viewMode == .list, groupBy == .none, !expandedFolders.isEmpty {
+            let rows = TreeFlattener.flatten(
+                roots: entries,
+                children: childEntries,
+                expanded: expandedFolders) { [filter, sortOrder] level in
+                FileSorter.sort(FilterEngine.apply(filter, to: level),
+                                using: sortOrder)
+            }
+            visibleEntries = rows.map(\.entry)
+            rowDepths = Dictionary(uniqueKeysWithValues: rows.map {
+                ($0.entry.url, $0.depth)
+            })
+        } else {
+            visibleEntries = prepared
+            rowDepths = [:]
+        }
         groupedEntries = Grouper.group(visibleEntries, by: groupBy, now: Date())
     }
 
     private func afterNavigation() async {
         selection.removeAll()
+        clearTreeState()
         opErrorMessage = nil
         folderSizes.removeAll()
         applyStoredFolderViewSettings()

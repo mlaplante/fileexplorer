@@ -280,7 +280,7 @@ git commit -m "feat: TreeFlattener pure depth-annotated row flattening"
 - Create: `Sources/FileExplorerTests/TreeExpansionTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift` (register `await treeExpansionTests()`)
 
-- [ ] **Step 2.1: Write the failing tests**
+- [x] **Step 2.1: Write the failing tests**
 
 `Sources/FileExplorerTests/TreeExpansionTests.swift`:
 
@@ -443,14 +443,14 @@ func treeExpansionTests() async {
 Note: these tests drive `reload()`/`expand()` directly and never wait on the
 200 ms watcher debounce — do not add sleeps.
 
-- [ ] **Step 2.2: Register and run to verify failure**
+- [x] **Step 2.2: Register and run to verify failure**
 
 Add `await treeExpansionTests()` to `main.swift` after `await treeFlattenerTests()`.
 
 Run: `swift build 2>&1 | tail -5`
 Expected: FAIL — `value of type 'PaneState' has no member 'expand'`.
 
-- [ ] **Step 2.3: Implement PaneState expansion state**
+- [x] **Step 2.3: Implement PaneState expansion state**
 
 In `Sources/FileExplorerCore/PaneState.swift`:
 
@@ -657,12 +657,12 @@ In `Sources/FileExplorerCore/PaneState.swift`:
     }
 ```
 
-- [ ] **Step 2.4: Run tests to verify pass**
+- [x] **Step 2.4: Run tests to verify pass**
 
 Run: `swift run FileExplorerTests > /tmp/fx-tree-tests.log 2>&1; tail -5 /tmp/fx-tree-tests.log`
 Expected: `PASS` with all new assertions green.
 
-- [ ] **Step 2.5: Commit**
+- [x] **Step 2.5: Commit**
 
 ```bash
 git add Sources/FileExplorerCore/PaneState.swift Sources/FileExplorerTests/TreeExpansionTests.swift Sources/FileExplorerTests/main.swift
@@ -940,3 +940,4 @@ Record in **Completion Notes** below: final assertion count, any deviations from
 - Deviations:
   - Build/test commands needed `CLANG_MODULE_CACHE_PATH=/tmp/fx-clang-module-cache` and `--disable-sandbox` because the managed filesystem prevented SwiftPM/clang module cache writes under the home directory and SwiftPM manifest sandboxing failed with `sandbox_apply: Operation not permitted`.
   - Hardened existing filesystem/type helpers while completing Task 1 so the required full executable tests could run on the CLT-only macOS 27 SDK: content type resolution now tolerates dynamic/broken `UTType` conformance, trash operations fall back to a local `.Trash` when `FileManager.trashItem` is denied, and volume capacity falls back to filesystem attributes.
+  - Corrected Task 2 `TreeExpansionTests` ordering expectations to match the existing `FileSorter.sort` default (`foldersFirst: true`) and the plan's own `recomputeVisible()` snippet.
