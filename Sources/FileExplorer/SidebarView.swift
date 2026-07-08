@@ -9,6 +9,7 @@ import AppKit
 @Observable
 final class VolumesModel {
     private(set) var volumes: [StandardPlaces.Place] = []
+    private(set) var ejectableVolumes = Set<URL>()
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
 
     init() {
@@ -32,15 +33,43 @@ final class VolumesModel {
     }
 
     private func refresh() {
-        let keys: [URLResourceKey] = [.volumeNameKey]
+        let keys: [URLResourceKey] = [
+            .volumeNameKey,
+            .volumeIsEjectableKey,
+            .volumeIsRemovableKey,
+        ]
         let urls = FileManager.default.mountedVolumeURLs(
             includingResourceValuesForKeys: keys,
             options: [.skipHiddenVolumes]) ?? []
+        var ejectable = Set<URL>()
         volumes = urls.map { url in
-            let name = (try? url.resourceValues(forKeys: [.volumeNameKey]))?
-                .volumeName ?? url.lastPathComponent
+            let values = try? url.resourceValues(forKeys: Set(keys))
+            let name = values?.volumeName ?? url.lastPathComponent
+            let isRoot = url.standardizedFileURL.path == "/"
+            if !isRoot,
+               values?.volumeIsEjectable == true || values?.volumeIsRemovable == true {
+                ejectable.insert(url.standardizedFileURL)
+            }
             return StandardPlaces.Place(name: name, url: url,
                                         systemImage: "externaldrive")
+        }
+        ejectableVolumes = ejectable
+    }
+
+    func isEjectable(_ url: URL) -> Bool {
+        ejectableVolumes.contains(url.standardizedFileURL)
+    }
+
+    func eject(_ url: URL, reportingTo pane: PaneState) {
+        let name = FileManager.default.displayName(atPath: url.path)
+        Task.detached(priority: .userInitiated) {
+            do {
+                try NSWorkspace.shared.unmountAndEjectDevice(at: url)
+            } catch {
+                await MainActor.run {
+                    pane.reportTagFailure("Couldn't eject \(name): \(error.localizedDescription)")
+                }
+            }
         }
     }
 }
@@ -80,7 +109,17 @@ struct SidebarView: View {
                 }
             }
             Section("Volumes") {
-                ForEach(volumesModel.volumes) { place in row(place) }
+                ForEach(volumesModel.volumes) { place in
+                    row(place)
+                        .contextMenu {
+                            if volumesModel.isEjectable(place.url) {
+                                Button("Eject") {
+                                    volumesModel.eject(place.url,
+                                                       reportingTo: session.activePane)
+                                }
+                            }
+                        }
+                }
             }
             if !settings.settings.filterPresets.isEmpty {
                 Section("Presets") {
