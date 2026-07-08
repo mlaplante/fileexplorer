@@ -58,6 +58,13 @@ public final class PaneState {
     func reportOpFailure(_ message: String) {
         opErrorMessage = message
     }
+
+    /// Same channel, callable from the app layer's tag submenu (tag writes
+    /// happen outside PaneState's own operation wrappers).
+    public func reportTagFailure(_ message: String) {
+        opErrorMessage = message
+    }
+
     /// False until the first reload attempt finishes; lets the UI avoid
     /// flashing an "empty" state while the initial load is in flight.
     public private(set) var hasLoadedOnce = false
@@ -86,6 +93,11 @@ public final class PaneState {
     /// (no @State on this toolchain; deliberately NOT read by snapshot()).
     public var showsCustomDatePopover = false
     public var showsCustomSizePopover = false
+
+    /// Transient new-tag popover state (context submenu → free-text entry;
+    /// deliberately NOT read by snapshot()).
+    public var showsNewTagPopover = false
+    public var newTagDraft = ""
 
     /// Filtered and sorted snapshot of `entries`. Stored rather than computed
     /// so SwiftUI body evaluations don't re-sort/re-filter large directories;

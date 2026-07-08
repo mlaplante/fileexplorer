@@ -95,6 +95,12 @@ struct ThumbnailCell: View {
                         .background(.background, in: Circle())
                 }
             }
+            .overlay(alignment: .bottomTrailing) {
+                if !entry.tags.isEmpty {
+                    TagDotsView(tags: entry.tags)
+                        .padding(2)
+                }
+            }
             Text(entry.name)
                 .font(.caption)
                 .lineLimit(2)

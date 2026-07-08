@@ -52,6 +52,38 @@ struct PaneView: View {
                 }
                 return .handled
             }
+            .popover(isPresented: Binding(
+                get: { pane.showsNewTagPopover },
+                set: { pane.showsNewTagPopover = $0 })) {
+                VStack(alignment: .leading, spacing: 8) {
+                    TextField("New tag name", text: Binding(
+                        get: { pane.newTagDraft },
+                        set: { pane.newTagDraft = $0 }))
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 180)
+                    Button("Add Tag to Selection") {
+                        let tag = pane.newTagDraft
+                            .trimmingCharacters(in: .whitespaces)
+                        let targets = pane.entries.filter {
+                            pane.selection.contains($0.url)
+                        }
+                        pane.showsNewTagPopover = false
+                        guard !tag.isEmpty, !targets.isEmpty else { return }
+                        Task {
+                            for entry in targets {
+                                _ = TagWriter.setTags(
+                                    TagWriter.toggledTags(current: entry.tags,
+                                                          tag: tag, removing: false),
+                                    on: entry.url)
+                            }
+                            await pane.reload()
+                        }
+                    }
+                    .disabled(pane.newTagDraft
+                        .trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                .padding(12)
+            }
             .dropDestination(for: URL.self) { urls, _ in
                 let outside = urls.filter {
                     $0.deletingLastPathComponent().standardizedFileURL != pane.currentURL
@@ -118,6 +150,9 @@ struct PaneView: View {
                         Image(systemName: "arrow.triangle.turn.up.right.circle")
                             .foregroundStyle(.secondary)
                             .help("Symbolic link")
+                    }
+                    if !entry.tags.isEmpty {
+                        TagDotsView(tags: entry.tags)
                     }
                 }
                 .draggable(entry.url)

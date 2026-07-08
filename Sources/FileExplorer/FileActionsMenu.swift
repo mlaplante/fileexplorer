@@ -68,6 +68,31 @@ struct FileActions {
             }
         }
         .disabled(targets.isEmpty)
+        Menu("Tags") {
+            let selectedEntries = pane.entries.filter { targets.contains($0.url) }
+            let visibleTags = Set(pane.entries.flatMap(\.tags))
+            let standardLabels = NSWorkspace.shared.fileLabels
+                .filter { $0 != "None" }
+            let allTags = Array(Set(standardLabels).union(visibleTags)).sorted()
+            ForEach(allTags, id: \.self) { tag in
+                let allHave = !selectedEntries.isEmpty
+                    && selectedEntries.allSatisfy { $0.tags.contains(tag) }
+                Toggle(isOn: Binding(
+                    get: { allHave },
+                    set: { _ in
+                        Task { await applyTagToggle(tag, removing: allHave,
+                                                    entries: selectedEntries) }
+                    })) {
+                    Label(tag, systemImage: "circle.fill")
+                }
+            }
+            Divider()
+            Button("New Tag…") {
+                pane.newTagDraft = ""
+                pane.showsNewTagPopover = true
+            }
+        }
+        .disabled(targets.isEmpty)
         Divider()
         Button("Rename…") {
             if let url = targets.first { renameModel.present(for: url, in: pane) }
@@ -150,5 +175,22 @@ struct FileActions {
     private func openWith(_ urls: [URL], app: URL) {
         NSWorkspace.shared.open(urls, withApplicationAt: app,
                                 configuration: NSWorkspace.OpenConfiguration())
+    }
+
+    private func applyTagToggle(_ tag: String, removing: Bool,
+                                entries: [FileEntry]) async {
+        var failures: [String] = []
+        for entry in entries {
+            let newTags = TagWriter.toggledTags(current: entry.tags, tag: tag,
+                                                removing: removing)
+            if case .failure(let error) = TagWriter.setTags(newTags, on: entry.url) {
+                failures.append(error.message)
+            }
+        }
+        await pane.reload()
+        if !failures.isEmpty {
+            pane.reportTagFailure(failures.prefix(3).joined(separator: " ")
+                + (failures.count > 3 ? " (+\(failures.count - 3) more)" : ""))
+        }
     }
 }

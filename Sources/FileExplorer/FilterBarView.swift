@@ -134,6 +134,27 @@ struct FilterBarView: View {
                 .frame(width: 160)
             }
 
+            Menu {
+                Button("Any Tags") { pane.filter.tags = nil }
+                Divider()
+                ForEach(Array(Set(pane.entries.flatMap(\.tags))).sorted(),
+                        id: \.self) { tag in
+                    Toggle(tag, isOn: Binding(
+                        get: { pane.filter.tags?.contains(tag) == true },
+                        set: { isOn in
+                            var tags = pane.filter.tags ?? []
+                            if isOn { tags.insert(tag) } else { tags.remove(tag) }
+                            pane.filter.tags = tags.isEmpty ? nil : tags
+                        }))
+                }
+            } label: {
+                Label(pane.filter.tags.map { "\($0.count) Tag\($0.count == 1 ? "" : "s")" }
+                          ?? "Tags",
+                      systemImage: "tag")
+            }
+            .controlSize(.small)
+            .fixedSize()
+
             TextField("ext, ext…", text: $pane.filterExtensionsText)
                 .textFieldStyle(.roundedBorder)
                 .controlSize(.small)
