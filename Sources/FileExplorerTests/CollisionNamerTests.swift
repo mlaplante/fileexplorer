@@ -38,4 +38,19 @@ func collisionNamerTests() async {
                         base: "untitled", existing: ["untitled", "untitled 2"]),
                     "untitled 3", "keeps climbing")
     }
+
+    await test("copyName does not stack ' copy' suffixes") {
+        expectEqual(CollisionNamer.copyName(
+                        for: "photo copy.jpg",
+                        existing: ["photo.jpg", "photo copy.jpg"]),
+                    "photo copy 2.jpg", "duplicating a duplicate counts up")
+        expectEqual(CollisionNamer.copyName(
+                        for: "photo copy 2.jpg",
+                        existing: ["photo copy.jpg", "photo copy 2.jpg"]),
+                    "photo copy 3.jpg", "numbered copy keeps counting")
+        expectEqual(CollisionNamer.copyName(
+                        for: "photo copy 2.jpg",
+                        existing: ["photo copy 2.jpg"]),
+                    "photo copy.jpg", "gap left by a deleted copy is reused")
+    }
 }
