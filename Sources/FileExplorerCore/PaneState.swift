@@ -364,9 +364,11 @@ public final class PaneState {
 
     /// Applies the plan's clean items; conflicted items are skipped and
     /// reported, `.unchanged` items are skipped silently. One undo step.
-    public func batchRename(_ urls: [URL], rules: RenameRules) async {
+    public func batchRename(_ urls: [URL], rules: RenameRules,
+                            metadata: [URL: RenameTokenMetadata] = [:]) async {
         let existing = Set(entries.map(\.name))
-        let plan = RenamePlan.plan(urls: urls, rules: rules, existingNames: existing)
+        let plan = RenamePlan.plan(urls: urls, rules: rules,
+                                   existingNames: existing, metadata: metadata)
         let outcome = RenameExecutor.execute(plan)
         if let undoManager, !outcome.pairs.isEmpty {
             UndoRecorder.recordMove(outcome.pairs, actionName: "Batch Rename",
@@ -398,6 +400,34 @@ public final class PaneState {
         }
         if let undoManager, !created.isEmpty {
             UndoRecorder.recordCreation(created, actionName: "Convert Image",
+                                        on: undoManager, pane: self)
+        }
+        await reload()
+        opErrorMessage = failures.isEmpty
+            ? nil
+            : failures.prefix(3).joined(separator: " ")
+                + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
+        if !created.isEmpty {
+            selection = Set(created.map { $0.standardizedFileURL })
+        }
+    }
+
+    public func resizeSelected(_ urls: [URL], mode: ImageResizer.Mode,
+                               jpegQuality: Double = 0.85) async {
+        let quality = jpegQuality
+        let results = await Task.detached(priority: .userInitiated) {
+            ImageResizer.resize(urls, mode: mode, jpegQuality: quality)
+        }.value
+        let created = results.compactMap { result -> URL? in
+            if case .success(let url) = result.outcome { return url }
+            return nil
+        }
+        let failures = results.compactMap { result -> String? in
+            if case .failure(let error) = result.outcome { return error.message }
+            return nil
+        }
+        if let undoManager, !created.isEmpty {
+            UndoRecorder.recordCreation(created, actionName: "Resize Image",
                                         on: undoManager, pane: self)
         }
         await reload()

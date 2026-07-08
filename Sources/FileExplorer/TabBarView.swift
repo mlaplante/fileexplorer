@@ -55,6 +55,7 @@ struct TabContentView: View {
     @Bindable var session: SessionState
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
+    var syncPreview: SyncPreviewModel
     var settings: SettingsModel
 
     var body: some View {
@@ -62,7 +63,8 @@ struct TabContentView: View {
             TabBarView(session: session)
             Divider()
             PaneAreaView(tab: session.activeTab, renameModel: renameModel,
-                         batchRenameModel: batchRenameModel, settings: settings)
+                         batchRenameModel: batchRenameModel,
+                         syncPreview: syncPreview, settings: settings)
         }
         .onChange(of: session.activeTabIndex) { _, _ in
             if QuickLookController.shared.isVisible {
@@ -77,14 +79,20 @@ struct PaneAreaView: View {
     @Bindable var tab: TabState
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
+    var syncPreview: SyncPreviewModel
     var settings: SettingsModel
 
     var body: some View {
         Group {
             if tab.isDual {
-                HSplitView {
-                    pane(at: 0)
-                    pane(at: 1)
+                VStack(spacing: 0) {
+                    if tabCompareActive {
+                        CompareBannerView(tab: tab, syncPreview: syncPreview)
+                    }
+                    HSplitView {
+                        pane(at: 0)
+                        pane(at: 1)
+                    }
                 }
             } else {
                 pane(at: 0)
@@ -97,8 +105,17 @@ struct PaneAreaView: View {
         }
     }
 
+    // Badges are only valid while both panes remain at the compared roots.
+    private var tabCompareActive: Bool {
+        tab.isDual
+            && tab.compareResult != nil
+            && tab.compareLeftRoot == tab.panes[0].currentURL.standardizedFileURL
+            && tab.compareRightRoot == tab.panes[1].currentURL.standardizedFileURL
+    }
+
     private func pane(at index: Int) -> some View {
         let paneState = tab.panes[index]
+        let compareActive = tabCompareActive
         return VStack(spacing: 0) {
             Rectangle()
                 .fill(tab.isDual && index == tab.activePaneIndex
@@ -108,7 +125,9 @@ struct PaneAreaView: View {
                      otherPane: tab.isDual ? tab.panes[1 - index] : nil,
                      renameModel: renameModel,
                      batchRenameModel: batchRenameModel,
-                     settings: settings)
+                     settings: settings,
+                     compareSide: compareActive ? (index == 0 ? .left : .right) : nil,
+                     compareResult: compareActive ? tab.compareResult : nil)
         }
         .frame(minWidth: 300)
         .simultaneousGesture(TapGesture().onEnded {

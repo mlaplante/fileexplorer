@@ -8,6 +8,8 @@ public struct RenameRules: Equatable, Sendable {
     public var numbering = false
     public var numberStart = 1
     public var numberPadding = 2
+    public var useRegex = false
+    public var caseTransform: RenameTokens.CaseTransform?
 
     public init() {}
 }
@@ -19,6 +21,7 @@ public enum RenamePlan {
         case duplicateTarget   // two items in the batch map to the same name
         case existingFile      // target name already taken in the folder
         case invalidName       // empty, "/", ".", ".."
+        case invalidPattern    // regex mode with an uncompilable pattern
         case unchanged         // rules produce the same name — skip on apply
     }
 
@@ -35,15 +38,43 @@ public enum RenamePlan {
     }
 
     public static func plan(urls: [URL], rules: RenameRules,
-                            existingNames: Set<String>) -> [Item] {
+                            existingNames: Set<String>,
+                            metadata: [URL: RenameTokenMetadata] = [:]) -> [Item] {
+        // Regex mode with an uncompilable pattern poisons the whole batch:
+        // surface it on every item so the UI disables commit.
+        var regex: NSRegularExpression?
+        if rules.useRegex, !rules.find.isEmpty {
+            guard let compiled = try? NSRegularExpression(pattern: rules.find) else {
+                return urls.map {
+                    Item(source: $0, newName: $0.lastPathComponent,
+                         conflict: .invalidPattern)
+                }
+            }
+            regex = compiled
+        }
+
         var counter = rules.numberStart
+        let fallbackMetadata = RenameTokenMetadata(modified: .distantPast,
+                                                   exifDate: nil)
         let proposals: [(URL, String)] = urls.map { url in
+            let fileMetadata = metadata[url] ?? fallbackMetadata
             let ext = url.pathExtension
             var base = url.deletingPathExtension().lastPathComponent
-            if !rules.find.isEmpty {
-                base = base.replacingOccurrences(of: rules.find, with: rules.replace)
+            let find = RenameTokens.expand(rules.find, metadata: fileMetadata)
+            let replace = RenameTokens.expand(rules.replace, metadata: fileMetadata)
+            if let regex {
+                let range = NSRange(base.startIndex..., in: base)
+                base = regex.stringByReplacingMatches(
+                    in: base, range: range, withTemplate: replace)
+            } else if !find.isEmpty {
+                base = base.replacingOccurrences(of: find, with: replace)
             }
-            base = rules.prefix + base + rules.suffix
+            if let transform = rules.caseTransform {
+                base = transform.apply(to: base)
+            }
+            base = RenameTokens.expand(rules.prefix, metadata: fileMetadata)
+                + base
+                + RenameTokens.expand(rules.suffix, metadata: fileMetadata)
             if rules.numbering {
                 let number = String(counter)
                 let padded = String(repeating: "0",

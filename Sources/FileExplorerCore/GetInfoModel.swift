@@ -8,6 +8,8 @@ import Observation
 @Observable
 public final class GetInfoModel {
     public private(set) var infos: [ItemInfo] = []
+    public private(set) var sha256: String?
+    public private(set) var isHashing = false
     /// Sum of regular-file sizes across the selection (folders excluded).
     public var totalFileSize: Int64 {
         infos.compactMap(\.size).reduce(0, +)
@@ -19,6 +21,8 @@ public final class GetInfoModel {
 
     public func update(for urls: [URL]) {
         generation += 1
+        sha256 = nil
+        isHashing = false
         let myGeneration = generation
         let targets = urls.sorted { $0.path < $1.path }
         Task {
@@ -27,6 +31,22 @@ public final class GetInfoModel {
             }.value
             guard myGeneration == self.generation else { return }
             self.infos = gathered
+        }
+    }
+
+    public func computeChecksum() {
+        guard infos.count == 1, let info = infos.first, !info.isDirectory else { return }
+        let url = info.url
+        generation += 1
+        let myGeneration = generation
+        isHashing = true
+        Task {
+            let result = await Task.detached(priority: .userInitiated) {
+                FileHasher.sha256(of: url)
+            }.value
+            guard myGeneration == self.generation else { return }
+            isHashing = false
+            if case .success(let hash) = result { sha256 = hash }
         }
     }
 }

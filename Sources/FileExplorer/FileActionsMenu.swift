@@ -68,6 +68,23 @@ struct FileActions {
             }
         }
         .disabled(targets.isEmpty)
+        Button("Copy SHA-256") {
+            guard let url = targets.first else { return }
+            Task {
+                let result = await Task.detached(priority: .userInitiated) {
+                    FileHasher.sha256(of: url)
+                }.value
+                switch result {
+                case .success(let hash):
+                    PasteboardOps.copyString(hash)
+                case .failure(let error):
+                    pane.reportTagFailure(error.message)
+                }
+            }
+        }
+        .disabled(targets.count != 1 || targets.first.map { url in
+            pane.entries.first { $0.url == url }?.isDirectory == true
+        } == true)
         Menu("Tags") {
             let selectedEntries = pane.entries.filter { targets.contains($0.url) }
             let visibleTags = Set(pane.entries.flatMap(\.tags))
@@ -140,6 +157,26 @@ struct FileActions {
                         get: { settings.settings.jpegQuality == quality },
                         set: { if $0 { settings.setJPEGQuality(quality) } }))
                 }
+            }
+        }
+        .disabled(targets.isEmpty)
+        Menu("Resize Image") {
+            Button("25%") {
+                Task { await pane.resizeSelected(targets, mode: .percent(25),
+                                                 jpegQuality: settings.settings.jpegQuality) }
+            }
+            Button("50%") {
+                Task { await pane.resizeSelected(targets, mode: .percent(50),
+                                                 jpegQuality: settings.settings.jpegQuality) }
+            }
+            Divider()
+            Button("Max 1024 px") {
+                Task { await pane.resizeSelected(targets, mode: .maxEdge(1024),
+                                                 jpegQuality: settings.settings.jpegQuality) }
+            }
+            Button("Max 2048 px") {
+                Task { await pane.resizeSelected(targets, mode: .maxEdge(2048),
+                                                 jpegQuality: settings.settings.jpegQuality) }
             }
         }
         .disabled(targets.isEmpty)

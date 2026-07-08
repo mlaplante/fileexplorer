@@ -8,6 +8,10 @@ struct PaneView: View {
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
     var settings: SettingsModel
+    /// Compare-mode context: this pane's side and the shared result, valid
+    /// only while the pane is still at the compared root.
+    var compareSide: FolderComparator.Side? = nil
+    var compareResult: FolderComparator.Result? = nil
     @Environment(\.undoManager) private var undoManager
 
     var body: some View {
@@ -154,6 +158,17 @@ struct PaneView: View {
                     if !entry.tags.isEmpty {
                         TagDotsView(tags: entry.tags)
                     }
+                    if let compareResult, let compareSide,
+                       let badge = FolderComparator.badge(
+                           for: entry.url.standardizedFileURL.path.replacingOccurrences(
+                               of: pane.currentURL.standardizedFileURL.path + "/",
+                               with: ""),
+                           isDirectory: entry.isDirectory,
+                           side: compareSide, in: compareResult) {
+                        Image(systemName: badgeSymbol(badge))
+                            .foregroundStyle(badgeColor(badge))
+                            .help(badgeHelp(badge))
+                    }
                 }
                 .draggable(entry.url)
                 .onHover { hovering in
@@ -232,6 +247,30 @@ struct PaneView: View {
             Task { await pane.navigate(to: url) }
         } else {
             for url in urls { NSWorkspace.shared.open(url) }
+        }
+    }
+
+    private func badgeSymbol(_ badge: FolderComparator.Badge) -> String {
+        switch badge {
+        case .onlyHere: "plus.circle.fill"
+        case .differs: "arrow.triangle.2.circlepath.circle.fill"
+        case .containsChanges: "ellipsis.circle"
+        }
+    }
+
+    private func badgeColor(_ badge: FolderComparator.Badge) -> Color {
+        switch badge {
+        case .onlyHere: .green
+        case .differs: .orange
+        case .containsChanges: .secondary
+        }
+    }
+
+    private func badgeHelp(_ badge: FolderComparator.Badge) -> String {
+        switch badge {
+        case .onlyHere: "Only in this pane"
+        case .differs: "Differs from the other pane"
+        case .containsChanges: "Contains differences"
         }
     }
 }

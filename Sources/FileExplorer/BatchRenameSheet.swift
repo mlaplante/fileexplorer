@@ -7,12 +7,14 @@ final class BatchRenameModel {
     var targets: [URL] = []
     var rules = RenameRules()
     var existingNames: Set<String> = []
+    var metadata: [URL: RenameTokenMetadata] = [:]
     @ObservationIgnored weak var pane: PaneState?
 
     var isPresented: Bool { !targets.isEmpty }
 
     var preview: [RenamePlan.Item] {
-        RenamePlan.plan(urls: targets, rules: rules, existingNames: existingNames)
+        RenamePlan.plan(urls: targets, rules: rules,
+                        existingNames: existingNames, metadata: metadata)
     }
 
     var applicableCount: Int {
@@ -24,6 +26,24 @@ final class BatchRenameModel {
         rules = RenameRules()
         self.existingNames = existingNames
         self.targets = targets
+        let gatherTargets = targets
+        metadata = [:]
+        Task {
+            let gathered = await Task.detached(priority: .userInitiated) {
+                var map: [URL: RenameTokenMetadata] = [:]
+                for url in gatherTargets {
+                    let modified = (try? url.resourceValues(
+                        forKeys: [.contentModificationDateKey]))?
+                        .contentModificationDate ?? .distantPast
+                    map[url] = RenameTokenMetadata(
+                        modified: modified,
+                        exifDate: ExifDateReader.captureDate(of: url))
+                }
+                return map
+            }.value
+            guard self.targets == gatherTargets else { return }
+            self.metadata = gathered
+        }
     }
 
     func dismiss() {
@@ -55,6 +75,19 @@ struct BatchRenameSheet: View {
                     TextField("", text: $model.rules.suffix)
                 }
                 GridRow {
+                    Toggle("Regex", isOn: $model.rules.useRegex)
+                    Picker("Case", selection: Binding(
+                        get: { model.rules.caseTransform },
+                        set: { model.rules.caseTransform = $0 })) {
+                        Text("Unchanged").tag(RenameTokens.CaseTransform?.none)
+                        ForEach(RenameTokens.CaseTransform.allCases, id: \.self) { transform in
+                            Text(transform.rawValue)
+                                .tag(RenameTokens.CaseTransform?.some(transform))
+                        }
+                    }
+                    .gridCellColumns(3)
+                }
+                GridRow {
                     Toggle("Number sequentially", isOn: $model.rules.numbering)
                         .gridCellColumns(2)
                     Stepper("Start: \(model.rules.numberStart)",
@@ -64,6 +97,10 @@ struct BatchRenameSheet: View {
                 }
             }
             .textFieldStyle(.roundedBorder)
+
+            Text("Tokens: {modified:yyyy-MM-dd} and {exif:yyyy-MM-dd} work in Find, Replace, Prefix, and Suffix. Regex replace supports $1 captures.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
 
             Divider()
 
@@ -117,6 +154,7 @@ struct BatchRenameSheet: View {
         case .duplicateTarget: return "duplicate"
         case .existingFile: return "exists"
         case .invalidName: return "invalid"
+        case .invalidPattern: return "bad regex"
         case .unchanged: return "unchanged"
         }
     }

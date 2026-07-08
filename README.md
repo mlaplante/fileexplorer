@@ -3,7 +3,8 @@
 A personal, keyboard-driven macOS file manager: fast
 dual-pane browsing, fuzzy palettes for navigation, commands, and
 file-content search, previews, saved filter presets, Finder tags,
-batch tools (rename / convert / compress / extract), and full undo — built with Swift 6
+batch tools (rename with regex & date tokens / convert / resize /
+compress / extract), folder compare & sync, checksums, and full undo — built with Swift 6
 and SwiftUI on top of Swift Package Manager.
 
 ## Building
@@ -56,6 +57,7 @@ All assertions should report PASS.
 | ⇧⌘A | Command Palette… |
 | ⇧⌘. | Toggle hidden files |
 | ⇧⌘D | Toggle dual pane |
+| ⇧⌘K | Compare panes |
 | ⌥⌘1 | View as List |
 | ⌥⌘2 | View as Icons |
 | ⌘Y / Space | Quick Look |
