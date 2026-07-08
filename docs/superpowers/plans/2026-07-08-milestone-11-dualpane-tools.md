@@ -502,13 +502,18 @@ Read the file first (`rg -n "final class TabState" Sources/FileExplorerCore/TabS
         }.value
         if let undoManager = targetPane.undoManager,
            !outcome.copied.isEmpty || !outcome.trashed.isEmpty {
+            // ORDER IS LOAD-BEARING (review-caught): grouped registrations
+            // fire LIFO on undo, so recordTrash goes FIRST — the creation-
+            // undo then vacates overwrite paths before the trash-restore
+            // relocates old files back. No setActionName after
+            // endUndoGrouping (needs an OPEN group; raises under manual
+            // grouping) — the recorders set it in-group.
             undoManager.beginUndoGrouping()
-            UndoRecorder.recordCreation(outcome.copied, actionName: "Sync Folders",
-                                        on: undoManager, pane: targetPane)
             UndoRecorder.recordTrash(outcome.trashed, actionName: "Sync Folders",
                                      on: undoManager, pane: targetPane)
+            UndoRecorder.recordCreation(outcome.copied, actionName: "Sync Folders",
+                                        on: undoManager, pane: targetPane)
             undoManager.endUndoGrouping()
-            undoManager.setActionName("Sync Folders")
         }
         await targetPane.reload()
         if !outcome.failures.isEmpty {
@@ -1629,4 +1634,23 @@ Feature blurb: extend "batch tools (rename / convert / compress / extract)" to "
 
 ## Completion Notes
 
-(filled in at the end of the milestone)
+**Completed 2026-07-08.** All 7 implementation tasks done (Codex implementer + Claude reviewers, controller builds/tests/commits). Final suite: **606 assertions, PASS** (549 at start).
+
+**Review caught pre-merge (the big one):** sync undo of overwrite items stranded BOTH file versions in the Trash — grouped undo registrations fire LIFO, so the trash-restore ran while the new copy still occupied the path, failed loudly, and then the creation-undo trashed the new copy too. Fixed by registering recordTrash first; a full sync→undo→redo regression test now covers it. The fix also removed a `setActionName`-after-`endUndoGrouping` call that raises under manual grouping (only survivable in-app due to the implicit event group).
+
+**Plan bugs fixed at execution time (plan text updated to match):** `SyncOperation` lacked a public init; `FileHasher`'s `try?` read collapsed error-vs-EOF optionality (explicit do/catch now).
+
+**Environment note:** the RTK output-filtering hook can garble/dedupe piped `swift run … | grep` output badly enough to hide a SIGABRT. Verification runs now redirect to a file and read that.
+
+**Deferred / accepted:**
+- `badge(for:)` is O(affected × visible dirs) per render — fine at personal scale; a prefix-set precompute is the fix if large trees ever lag.
+- `Dictionary(uniqueKeysWithValues:)` in `compare()` assumes unique relative paths (guaranteed by the enumerator today).
+- `TabState.runCompare` uses the left pane's `showHidden` for both listings (documented decision).
+- WebP encode dropped (verified unsupported at plan time).
+
+**MANUAL walkthrough (human, ~10 min):**
+- [ ] ⇧⌘K in dual pane: banner counts sane; only/differs/contains-changes badges render; navigating either pane away hides them.
+- [ ] Sync preview lists exact operations; Sync applies; overwritten file is in Trash; **one ⌘Z restores the old file and removes the copy; one ⇧⌘Z re-applies** (the review-caught path).
+- [ ] Batch rename: regex with $1; bad regex shows "bad regex" and disables commit; case transforms; {modified:}/{exif:} tokens against a real photo.
+- [ ] Resize 50% / Max 1024 px produce `name@50pct.ext` / `name@1024px.ext`; ⌘Z removes them.
+- [ ] Copy SHA-256 matches `shasum -a 256`; Get Info Compute shows the same and resets when selection changes.
