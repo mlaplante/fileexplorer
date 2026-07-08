@@ -49,6 +49,20 @@ struct GetInfoView: View {
             }
             LabeledContent("Permissions",
                            value: "\(info.permissions)  \(info.owner):\(info.group)")
+            if !info.isDirectory {
+                LabeledContent("SHA-256") {
+                    if let hash = model.sha256 {
+                        Text(hash)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                    } else if model.isHashing {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Button("Compute") { model.computeChecksum() }
+                            .controlSize(.small)
+                    }
+                }
+            }
             if let target = info.symlinkTarget {
                 LabeledContent("Links To", value: target)
             }

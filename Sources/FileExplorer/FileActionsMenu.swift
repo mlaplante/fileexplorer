@@ -68,6 +68,23 @@ struct FileActions {
             }
         }
         .disabled(targets.isEmpty)
+        Button("Copy SHA-256") {
+            guard let url = targets.first else { return }
+            Task {
+                let result = await Task.detached(priority: .userInitiated) {
+                    FileHasher.sha256(of: url)
+                }.value
+                switch result {
+                case .success(let hash):
+                    PasteboardOps.copyString(hash)
+                case .failure(let error):
+                    pane.reportTagFailure(error.message)
+                }
+            }
+        }
+        .disabled(targets.count != 1 || targets.first.map { url in
+            pane.entries.first { $0.url == url }?.isDirectory == true
+        } == true)
         Menu("Tags") {
             let selectedEntries = pane.entries.filter { targets.contains($0.url) }
             let visibleTags = Set(pane.entries.flatMap(\.tags))

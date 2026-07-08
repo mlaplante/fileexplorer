@@ -40,5 +40,6 @@ await folderComparatorTests()
 await syncExecutorTests()
 await renameTokensTests()
 await imageResizerTests()
+await fileHasherTests()
 
 finish()
