@@ -76,6 +76,48 @@ struct PaneView: View {
                 }
                 return .handled
             }
+            .onKeyPress(.rightArrow, phases: .down) { press in
+                guard pane.viewMode == .list, pane.groupBy == .none,
+                      !pane.selection.isEmpty else { return .ignored }
+                let folders = pane.visibleEntries.filter {
+                    pane.selection.contains($0.url) && $0.isDirectory
+                        && !pane.isExpanded($0.url)
+                }
+                guard !folders.isEmpty else { return .ignored }
+                let recursive = press.modifiers.contains(.option)
+                Task {
+                    for folder in folders {
+                        await pane.toggleExpansion(of: folder.url,
+                                                   recursively: recursive)
+                    }
+                }
+                return .handled
+            }
+            .onKeyPress(.leftArrow, phases: .down) { _ in
+                guard pane.viewMode == .list, pane.groupBy == .none,
+                      !pane.selection.isEmpty else { return .ignored }
+                let expanded = pane.visibleEntries.filter {
+                    pane.selection.contains($0.url) && pane.isExpanded($0.url)
+                }
+                if !expanded.isEmpty {
+                    for folder in expanded { pane.collapse(folder.url) }
+                    return .handled
+                }
+                // Nothing to collapse: a single nested selection jumps to
+                // its parent row (Finder behavior).
+                if pane.selection.count == 1, let sole = pane.selection.first,
+                   pane.depth(of: sole) > 0 {
+                    let parentPath = sole.deletingLastPathComponent()
+                        .standardizedFileURL.path
+                    if let row = pane.visibleEntries.first(where: {
+                        $0.url.standardizedFileURL.path == parentPath
+                    }) {
+                        pane.selection = [row.url]
+                        return .handled
+                    }
+                }
+                return .ignored
+            }
             .popover(isPresented: Binding(
                 get: { pane.showsNewTagPopover },
                 set: { pane.showsNewTagPopover = $0 })) {
@@ -88,7 +130,7 @@ struct PaneView: View {
                     Button("Add Tag to Selection") {
                         let tag = pane.newTagDraft
                             .trimmingCharacters(in: .whitespaces)
-                        let targets = pane.entries.filter {
+                        let targets = pane.visibleEntries.filter {
                             pane.newTagTargets.contains($0.url)
                         }
                         pane.showsNewTagPopover = false
@@ -197,9 +239,9 @@ struct PaneView: View {
     private var statusBar: some View {
         HStack {
             if pane.filter.isActive {
-                Text("\(pane.visibleEntries.count) of \(pane.totalCount) items")
+                Text("\(pane.rootVisibleCount) of \(pane.totalCount) items")
             } else {
-                Text("\(pane.visibleEntries.count) items")
+                Text("\(pane.rootVisibleCount) items")
             }
             if !pane.selection.isEmpty {
                 Text("· \(pane.selection.count) selected")
@@ -232,6 +274,11 @@ struct PaneView: View {
               sortOrder: $pane.sortOrder) {
             TableColumn("Name", value: \.name) { entry in
                 HStack(spacing: 6) {
+                    if pane.groupBy == .none {
+                        disclosureChevron(for: entry)
+                            .padding(.leading,
+                                     CGFloat(pane.depth(of: entry.url)) * 14)
+                    }
                     FileEntryLabel(entry: entry)
                     if let compareResult, let compareSide,
                        let badge = FolderComparator.badge(
@@ -342,7 +389,7 @@ struct PaneView: View {
         // Double-clicking exactly one folder navigates into it;
         // anything else opens with the default app.
         if urls.count == 1, let url = urls.first,
-           pane.entries.first(where: { $0.url == url })?.isDirectory == true {
+           pane.visibleEntries.first(where: { $0.url == url })?.isDirectory == true {
             Task { await pane.navigate(to: url) }
         } else {
             for url in urls { NSWorkspace.shared.open(url) }
@@ -380,6 +427,32 @@ struct PaneView: View {
             }
         }
         return true
+    }
+
+    /// Finder-style disclosure triangle; files get an equal-width spacer so
+    /// names align. ⌥-click discloses the entire subtree.
+    @ViewBuilder
+    private func disclosureChevron(for entry: FileEntry) -> some View {
+        if entry.isDirectory {
+            Button {
+                let recursive = NSEvent.modifierFlags.contains(.option)
+                Task {
+                    await pane.toggleExpansion(of: entry.url,
+                                               recursively: recursive)
+                }
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .rotationEffect(.degrees(pane.isExpanded(entry.url) ? 90 : 0))
+                    .frame(width: 12, height: 12)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Expand (⌥-click for all levels)")
+        } else {
+            Color.clear.frame(width: 12, height: 12)
+        }
     }
 
     private func badgeSymbol(_ badge: FolderComparator.Badge) -> String {

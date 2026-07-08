@@ -146,14 +146,14 @@ struct FileActions {
             }
         }
         .disabled(targets.count != 1 || targets.first.map { url in
-            pane.entries.first { $0.url == url }?.isDirectory == true
+            pane.visibleEntries.first { $0.url == url }?.isDirectory == true
         } == true)
     }
 
     @ViewBuilder
     private func tagsSection(targets: [URL]) -> some View {
         Menu("Tags") {
-            let selectedEntries = pane.entries.filter { targets.contains($0.url) }
+            let selectedEntries = pane.visibleEntries.filter { targets.contains($0.url) }
             let visibleTags = Set(pane.entries.flatMap(\.tags))
             let standardLabels = NSWorkspace.shared.fileLabels
                 .filter { $0 != "None" }
@@ -319,7 +319,7 @@ struct FileActions {
             Task { await pane.calculateFolderSizes(targets) }
         }
         .disabled(!targets.contains { url in
-            pane.entries.first(where: { $0.url == url })?.isDirectory == true
+            pane.visibleEntries.first(where: { $0.url == url })?.isDirectory == true
         })
     }
 

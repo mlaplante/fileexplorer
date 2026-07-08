@@ -753,7 +753,7 @@ git commit -m "feat: persist list-view expansion state in session snapshot"
 
 No new Core logic here, so no new tests — but the full suite must stay green and the build warning-clean for the changed files.
 
-- [ ] **Step 4.1: Chevron + indent in the Name cell**
+- [x] **Step 4.1: Chevron + indent in the Name cell**
 
 In `PaneView.swift`, the Name column's cell currently starts:
 
@@ -806,7 +806,7 @@ and add this helper to `PaneView` (near `badgeSymbol`):
     }
 ```
 
-- [ ] **Step 4.2: Arrow-key expand/collapse**
+- [x] **Step 4.2: Arrow-key expand/collapse**
 
 In `PaneView.body`, alongside the existing `.onKeyPress` modifiers on the `Group`, add:
 
@@ -855,7 +855,7 @@ In `PaneView.body`, alongside the existing `.onKeyPress` modifiers on the `Group
             }
 ```
 
-- [ ] **Step 4.3: Status bar counts top-level rows only**
+- [x] **Step 4.3: Status bar counts top-level rows only**
 
 In `PaneView.statusBar`, replace the two count lines:
 
@@ -867,7 +867,7 @@ In `PaneView.statusBar`, replace the two count lines:
             }
 ```
 
-- [ ] **Step 4.4: Act-on-row lookups must see nested rows**
+- [x] **Step 4.4: Act-on-row lookups must see nested rows**
 
 Nested entries live in `visibleEntries`, not `entries`. Change exactly these lookups from `pane.entries` to `pane.visibleEntries`:
 
@@ -879,12 +879,12 @@ Nested entries live in `visibleEntries`, not `entries`. Change exactly these loo
 
 Leave alone (root-scoped on purpose): `FileActionsMenu.swift` ~line 157 (`visibleTags` summary), ~line 192 (`existingNames` for New Folder with Selection — creation happens in `currentURL`), `FilterBarView.swift` tag list, `TabBarView.swift`, `ColumnBrowserView.swift`.
 
-- [ ] **Step 4.5: Build and run full suite**
+- [x] **Step 4.5: Build and run full suite**
 
 Run: `swift build 2>&1 | tail -5` — expect `Build complete!`.
 Run: `swift run FileExplorerTests > /tmp/fx-tree-tests.log 2>&1; tail -5 /tmp/fx-tree-tests.log` — expect `PASS`.
 
-- [ ] **Step 4.6: Commit**
+- [x] **Step 4.6: Commit**
 
 ```bash
 git add Sources/FileExplorer/PaneView.swift Sources/FileExplorer/FileActionsMenu.swift Sources/FileExplorer/PreviewPaneView.swift

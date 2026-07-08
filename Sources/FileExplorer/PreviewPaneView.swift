@@ -16,11 +16,11 @@ struct PreviewPaneView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .background(.regularMaterial)
-        .onAppear { model.update(selection: pane.selection, entries: pane.entries) }
+        .onAppear { model.update(selection: pane.selection, entries: pane.visibleEntries) }
         .onChange(of: pane.selection) { _, selection in
-            model.update(selection: selection, entries: pane.entries)
+            model.update(selection: selection, entries: pane.visibleEntries)
         }
-        .onChange(of: pane.entries) { _, entries in
+        .onChange(of: pane.visibleEntries) { _, entries in
             model.update(selection: pane.selection, entries: entries)
         }
     }
@@ -68,7 +68,7 @@ struct PreviewPaneView: View {
                     metadata("Modified", modified.formatted(date: .abbreviated,
                                                             time: .shortened))
                 }
-                if let entry = pane.entries.first(where: {
+                if let entry = pane.visibleEntries.first(where: {
                     $0.url.standardizedFileURL == info.url.standardizedFileURL
                 }), !entry.tags.isEmpty {
                     LabeledContent("Tags") {
