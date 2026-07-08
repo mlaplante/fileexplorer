@@ -110,6 +110,13 @@ public final class PaneState {
     public var showsSavePresetPopover = false
     public var savePresetNameDraft = ""
 
+    /// Transient rubber-band drag state for the icon grid (view-layer
+    /// geometry; deliberately NOT read by snapshot()).
+    @ObservationIgnored public var rubberBandFrames: [URL: CGRect] = [:]
+    public var rubberBandRect: CGRect?
+    @ObservationIgnored public var rubberBandBase = Set<URL>()
+    @ObservationIgnored public var rubberBandUnion = false
+
     /// Filtered and sorted snapshot of `entries`. Stored rather than computed
     /// so SwiftUI body evaluations don't re-sort/re-filter large directories;
     /// refreshed when `entries`, `sortOrder`, or `filter` changes.

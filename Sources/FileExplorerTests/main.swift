@@ -44,5 +44,6 @@ await fileHasherTests()
 await updateCheckerTests()
 await shortcutTests()
 await columnsModelTests()
+await rubberBandTests()
 
 finish()

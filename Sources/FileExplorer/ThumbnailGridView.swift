@@ -126,6 +126,11 @@ struct ThumbnailGridView: View {
                 ForEach(pane.visibleEntries) { entry in
                     ThumbnailCell(entry: entry,
                                   isSelected: pane.selection.contains(entry.url))
+                        .onGeometryChange(for: CGRect.self) { proxy in
+                            proxy.frame(in: .named("fxGrid"))
+                        } action: { frame in
+                            pane.rubberBandFrames[entry.url] = frame
+                        }
                         .contentShape(Rectangle())
                         .draggable(entry.url)
                         .gesture(TapGesture(count: 2).onEnded {
@@ -144,6 +149,35 @@ struct ThumbnailGridView: View {
                 }
             }
             .padding(8)
+            .overlay {
+                if let rect = pane.rubberBandRect {
+                    Rectangle()
+                        .fill(Color.accentColor.opacity(0.15))
+                        .border(Color.accentColor.opacity(0.6), width: 1)
+                        .frame(width: rect.width, height: rect.height)
+                        .position(x: rect.midX, y: rect.midY)
+                        .allowsHitTesting(false)
+                }
+            }
         }
+        .coordinateSpace(name: "fxGrid")
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 6, coordinateSpace: .named("fxGrid"))
+                .onChanged { value in
+                    if pane.rubberBandRect == nil {
+                        let flags = NSEvent.modifierFlags
+                        pane.rubberBandUnion = flags.contains(.shift)
+                            || flags.contains(.command)
+                        pane.rubberBandBase = pane.selection
+                    }
+                    let rect = RubberBand.normalizedRect(
+                        from: value.startLocation, to: value.location)
+                    pane.rubberBandRect = rect
+                    pane.selection = RubberBand.select(
+                        frames: pane.rubberBandFrames, rect: rect,
+                        base: pane.rubberBandBase, union: pane.rubberBandUnion)
+                }
+                .onEnded { _ in pane.rubberBandRect = nil }
+        )
     }
 }
