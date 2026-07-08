@@ -364,9 +364,11 @@ public final class PaneState {
 
     /// Applies the plan's clean items; conflicted items are skipped and
     /// reported, `.unchanged` items are skipped silently. One undo step.
-    public func batchRename(_ urls: [URL], rules: RenameRules) async {
+    public func batchRename(_ urls: [URL], rules: RenameRules,
+                            metadata: [URL: RenameTokenMetadata] = [:]) async {
         let existing = Set(entries.map(\.name))
-        let plan = RenamePlan.plan(urls: urls, rules: rules, existingNames: existing)
+        let plan = RenamePlan.plan(urls: urls, rules: rules,
+                                   existingNames: existing, metadata: metadata)
         let outcome = RenameExecutor.execute(plan)
         if let undoManager, !outcome.pairs.isEmpty {
             UndoRecorder.recordMove(outcome.pairs, actionName: "Batch Rename",

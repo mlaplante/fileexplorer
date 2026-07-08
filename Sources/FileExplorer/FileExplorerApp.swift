@@ -114,7 +114,9 @@ struct FileExplorerApp: App {
                 set: { if !$0 { batchRenameModel.dismiss() } })) {
                 BatchRenameSheet(model: batchRenameModel) { targets, rules in
                     let pane = batchRenameModel.pane ?? session.activePane
-                    Task { await pane.batchRename(targets, rules: rules) }
+                    let metadata = batchRenameModel.metadata
+                    Task { await pane.batchRename(targets, rules: rules,
+                                                  metadata: metadata) }
                 }
             }
             .sheet(isPresented: Binding(
