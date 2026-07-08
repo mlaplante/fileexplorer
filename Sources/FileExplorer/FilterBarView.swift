@@ -3,6 +3,7 @@ import FileExplorerCore
 
 struct FilterBarView: View {
     @Bindable var pane: PaneState
+    var settings: SettingsModel
 
     var body: some View {
         HStack(spacing: 6) {
@@ -134,6 +135,27 @@ struct FilterBarView: View {
                 .frame(width: 160)
             }
 
+            Menu {
+                Button("Any Tags") { pane.filter.tags = nil }
+                Divider()
+                ForEach(Array(Set(pane.entries.flatMap(\.tags))).sorted(),
+                        id: \.self) { tag in
+                    Toggle(tag, isOn: Binding(
+                        get: { pane.filter.tags?.contains(tag) == true },
+                        set: { isOn in
+                            var tags = pane.filter.tags ?? []
+                            if isOn { tags.insert(tag) } else { tags.remove(tag) }
+                            pane.filter.tags = tags.isEmpty ? nil : tags
+                        }))
+                }
+            } label: {
+                Label(pane.filter.tags.map { "\($0.count) Tag\($0.count == 1 ? "" : "s")" }
+                          ?? "Tags",
+                      systemImage: "tag")
+            }
+            .controlSize(.small)
+            .fixedSize()
+
             TextField("ext, ext…", text: $pane.filterExtensionsText)
                 .textFieldStyle(.roundedBorder)
                 .controlSize(.small)
@@ -142,6 +164,30 @@ struct FilterBarView: View {
             Spacer()
 
             if pane.filter.isActive {
+                Button("Save Preset…") {
+                    pane.savePresetNameDraft = ""
+                    pane.showsSavePresetPopover = true
+                }
+                .controlSize(.small)
+                .popover(isPresented: Binding(
+                    get: { pane.showsSavePresetPopover },
+                    set: { pane.showsSavePresetPopover = $0 })) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("Preset name", text: Binding(
+                            get: { pane.savePresetNameDraft },
+                            set: { pane.savePresetNameDraft = $0 }))
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 180)
+                        Button("Save") {
+                            settings.savePreset(name: pane.savePresetNameDraft,
+                                                filter: pane.filter)
+                            pane.showsSavePresetPopover = false
+                        }
+                        .disabled(pane.savePresetNameDraft
+                            .trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                    .padding(12)
+                }
                 Button("Clear") { pane.clearFilters() }
                     .controlSize(.small)
             }

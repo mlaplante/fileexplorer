@@ -16,6 +16,8 @@ public struct FileEntry: Identifiable, Hashable, Sendable {
     public let created: Date?
     public let modified: Date
     public let contentType: UTType?
+    /// Finder tag names (com.apple.metadata:_kMDItemUserTags), empty when none.
+    public let tags: [String]
 
     public var id: URL { url }
 
@@ -29,7 +31,7 @@ public struct FileEntry: Identifiable, Hashable, Sendable {
 
     public init(url: URL, name: String, isDirectory: Bool, isHidden: Bool,
                 isSymlink: Bool, size: Int64, created: Date?, modified: Date,
-                contentType: UTType?) {
+                contentType: UTType?, tags: [String] = []) {
         self.url = url
         self.name = name
         self.isDirectory = isDirectory
@@ -39,5 +41,6 @@ public struct FileEntry: Identifiable, Hashable, Sendable {
         self.created = created
         self.modified = modified
         self.contentType = contentType
+        self.tags = tags
     }
 }

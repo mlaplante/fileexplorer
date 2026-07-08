@@ -48,6 +48,7 @@ final class VolumesModel {
 struct SidebarView: View {
     @Bindable var session: SessionState
     var volumesModel: VolumesModel
+    var settings: SettingsModel
 
     var body: some View {
         List {
@@ -56,6 +57,24 @@ struct SidebarView: View {
             }
             Section("Volumes") {
                 ForEach(volumesModel.volumes) { place in row(place) }
+            }
+            if !settings.settings.filterPresets.isEmpty {
+                Section("Presets") {
+                    ForEach(settings.settings.filterPresets) { preset in
+                        Button {
+                            apply(preset)
+                        } label: {
+                            Label(preset.name,
+                                  systemImage: "line.3.horizontal.decrease.circle")
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button("Delete Preset") {
+                                settings.deletePreset(name: preset.name)
+                            }
+                        }
+                    }
+                }
             }
         }
         .listStyle(.sidebar)
@@ -72,5 +91,15 @@ struct SidebarView: View {
         }
         .buttonStyle(.plain)
         .listRowBackground(isCurrent ? Color.accentColor.opacity(0.12) : nil)
+    }
+
+    /// Order matters: filter first, then the extensions draft text — the
+    /// text field's didSet re-derives filter.extensions (source of truth,
+    /// same convention as PaneState.init(snapshot:)).
+    private func apply(_ preset: FilterPreset) {
+        let pane = session.activePane
+        pane.filter = preset.filter
+        pane.filterExtensionsText = preset.filter.extensions.sorted()
+            .joined(separator: ", ")
     }
 }

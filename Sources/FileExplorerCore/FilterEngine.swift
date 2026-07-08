@@ -24,6 +24,10 @@ public enum FilterEngine {
             if let sizeRange, !sizeRange.contains(entry.size) {
                 return false
             }
+            if let tags = filter.tags,
+               entry.tags.allSatisfy({ !tags.contains($0) }) {
+                return false
+            }
             return true
         }
     }

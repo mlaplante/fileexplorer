@@ -5,6 +5,13 @@ import FileExplorerCore
 /// Wires palette modes to their data providers and confirm actions.
 @MainActor
 enum PaletteCoordinator {
+    /// Content-search machinery: one searcher app-wide (a new palette
+    /// presentation cancels the previous query), debounce so we don't fire
+    /// a Spotlight query per keystroke.
+    private static let spotlight = SpotlightSearcher()
+    private static var debounce: Task<Void, Never>?
+    private static let deepScanID = "__deep_scan__"
+
     static func openFolders(_ palette: PaletteModel, session: SessionState) {
         palette.present(mode: .folders)
         let pane = session.activePane
@@ -37,15 +44,58 @@ enum PaletteCoordinator {
         }
     }
 
-    static func openCommands(_ palette: PaletteModel, session: SessionState) {
+    static func openContents(_ palette: PaletteModel, session: SessionState) {
+        palette.present(mode: .contents)
+        let pane = session.activePane
+        palette.targetPane = pane
+        let scope = pane.currentURL
+        palette.onQueryChange = { term, token in
+            debounce?.cancel()
+            debounce = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(300))
+                guard !Task.isCancelled, token == palette.presentToken else { return }
+                spotlight.search(term: term, in: scope) { urls in
+                    guard token == palette.presentToken else { return }
+                    var items = urls.prefix(PaletteModel.maxResults).map {
+                        PaletteItem(id: $0.path, title: $0.lastPathComponent,
+                                    subtitle: abbreviate($0.deletingLastPathComponent()))
+                    }
+                    if items.isEmpty, !term.trimmingCharacters(in: .whitespaces).isEmpty {
+                        items = [PaletteItem(
+                            id: deepScanID,
+                            title: "Deep Scan this folder…",
+                            subtitle: "Spotlight found nothing — read text files directly")]
+                    }
+                    palette.setItems(Array(items), token: token)
+                }
+            }
+        }
+    }
+
+    private static func runDeepScan(_ palette: PaletteModel, pane: PaneState) {
+        let token = palette.presentToken
+        let scope = pane.currentURL
+        let term = palette.query
+        Task.detached(priority: .userInitiated) {
+            let urls = ContentScanner.scan(root: scope, query: term)
+            let items = urls.map {
+                PaletteItem(id: $0.path, title: $0.lastPathComponent,
+                            subtitle: abbreviate($0.deletingLastPathComponent()))
+            }
+            await palette.setItems(items, token: token)
+        }
+    }
+
+    static func openCommands(_ palette: PaletteModel, session: SessionState,
+                             settings: SettingsModel) {
         palette.present(mode: .commands)
-        palette.setItems(commands(for: session).map {
+        palette.setItems(commands(for: session, settings: settings).map {
             PaletteItem(id: $0.id, title: $0.name, subtitle: $0.shortcut)
         })
     }
 
     static func confirm(_ item: PaletteItem, palette: PaletteModel,
-                        session: SessionState) {
+                        session: SessionState, settings: SettingsModel) {
         // Capture the mode and the palette's opening-time pane before
         // dismiss() clears targetPane — folder/file confirms must land on
         // the pane the palette was opened for, not whatever pane is active
@@ -57,7 +107,18 @@ enum PaletteCoordinator {
         case .folders:
             let url = URL(fileURLWithPath: item.id)
             Task { await pane.navigate(to: url) }
-        case .files:
+        case .files, .contents:
+            if item.id == deepScanID {
+                // An in-palette action, not a navigation: reopen and swap in
+                // scanner results. dismiss() above cleared targetPane and
+                // bumped the token — restore the pane so confirming a scan
+                // result lands on the pane the palette was opened for, and
+                // scan under the CURRENT token so setItems isn't dropped.
+                palette.undismiss()
+                palette.targetPane = pane
+                runDeepScan(palette, pane: pane)
+                return
+            }
             let url = URL(fileURLWithPath: item.id)
             Task {
                 await pane.navigate(to: url.deletingLastPathComponent())
@@ -66,7 +127,7 @@ enum PaletteCoordinator {
         case .commands:
             // Commands intentionally target whatever pane is active at
             // confirm time (e.g. "Toggle Dual Pane" acts on the current tab).
-            commands(for: session).first { $0.id == item.id }?.action()
+            commands(for: session, settings: settings).first { $0.id == item.id }?.action()
         }
     }
 
@@ -77,8 +138,9 @@ enum PaletteCoordinator {
         let action: @MainActor () -> Void
     }
 
-    static func commands(for session: SessionState) -> [AppCommand] {
-        [
+    static func commands(for session: SessionState,
+                         settings: SettingsModel) -> [AppCommand] {
+        ([
             AppCommand(id: "back", name: "Back", shortcut: "⌘[") {
                 Task { await session.activePane.goBack() }
             },
@@ -113,7 +175,16 @@ enum PaletteCoordinator {
                 NSWorkspace.shared.activateFileViewerSelecting(
                     [session.activePane.currentURL])
             },
-        ]
+        ])
+        + settings.settings.filterPresets.map { preset in
+            AppCommand(id: "preset:\(preset.name)",
+                       name: "Apply Preset: \(preset.name)", shortcut: "") {
+                let pane = session.activePane
+                pane.filter = preset.filter
+                pane.filterExtensionsText = preset.filter.extensions.sorted()
+                    .joined(separator: ", ")
+            }
+        }
     }
 
     private nonisolated static func dedupe(_ urls: [URL]) -> [URL] {

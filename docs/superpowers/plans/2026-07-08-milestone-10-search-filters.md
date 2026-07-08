@@ -220,19 +220,52 @@ and pass tags in the `FileEntry` construction:
 
 - [ ] **Step 4: Implement — `Sources/FileExplorerCore/TagWriter.swift`**
 
+**Implementation-time discovery:** `URLResourceValues.tagNames`'s SETTER is
+`@available(macOS 26, *)` — it fails the macOS 15 deployment target. Write the
+underlying xattr directly in Finder's own format instead (works everywhere,
+Finder renders the colors):
+
 ```swift
 import Foundation
 
-/// Writes Finder tags via URLResourceValues. Blocking (tiny xattr write);
-/// callable from any actor. Read-only volumes surface the underlying error.
+/// Writes Finder tags. Blocking (tiny xattr write); callable from any actor.
+/// Read-only volumes surface the underlying error.
+///
+/// `URLResourceValues.tagNames` only became SETTABLE in macOS 26, so with a
+/// macOS 15 deployment target we write the underlying xattr directly in
+/// Finder's own format: a binary plist array of "Name\nColorIndex" strings.
+/// Reading back via the `.tagNamesKey` resource value (DirectoryLoader)
+/// returns plain names — the color suffix is the xattr encoding, not part
+/// of the tag name.
 public enum TagWriter {
+    private static let xattrName = "com.apple.metadata:_kMDItemUserTags"
+
+    /// Finder's color indices for the standard label names; unknown tags get
+    /// 0 (no color) and render as gray dots.
+    private static let colorIndex: [String: Int] = [
+        "Gray": 1, "Grey": 1, "Green": 2, "Purple": 3, "Blue": 4,
+        "Yellow": 5, "Red": 6, "Orange": 7,
+    ]
+
     public static func setTags(_ tags: [String], on url: URL)
         -> Result<Void, FileOperationService.FileOpError> {
-        var target = url
-        var values = URLResourceValues()
-        values.tagNames = tags
         do {
-            try target.setResourceValues(values)
+            if tags.isEmpty {
+                // Removing a never-set attribute is success, not an error.
+                if removexattr(url.path, xattrName, 0) != 0, errno != ENOATTR {
+                    throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+                }
+                return .success(())
+            }
+            let payload = tags.map { "\($0)\n\(colorIndex[$0] ?? 0)" }
+            let data = try PropertyListSerialization.data(
+                fromPropertyList: payload, format: .binary, options: 0)
+            let status = data.withUnsafeBytes {
+                setxattr(url.path, xattrName, $0.baseAddress, $0.count, 0, 0)
+            }
+            guard status == 0 else {
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
             return .success(())
         } catch {
             return .failure(.init(error))
@@ -1050,6 +1083,13 @@ public final class SpotlightSearcher {
             forName: .NSMetadataQueryDidFinishGathering, object: query,
             queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
+                // Read the query back through self: capturing the local
+                // NSMetadataQuery (non-Sendable) in this @Sendable closure
+                // trips Swift 6 region isolation; the @MainActor class is
+                // Sendable, so hopping through it is legal and equivalent
+                // (cancel() replaced/cleared it iff a newer search started,
+                // in which case this stale gather must be dropped anyway).
+                guard let self, let query = self.query else { return }
                 query.disableUpdates()
                 let urls = (0..<query.resultCount).compactMap { index -> URL? in
                     guard let item = query.result(at: index) as? NSMetadataItem,
@@ -1058,7 +1098,7 @@ public final class SpotlightSearcher {
                     else { return nil }
                     return URL(fileURLWithPath: path)
                 }
-                self?.cancel()
+                self.cancel()
                 completion(urls)
             }
         }
@@ -1238,4 +1278,27 @@ git commit -m "docs: milestone 10 README updates and completion notes"
 
 ## Completion Notes
 
-(filled in at the end of the milestone)
+**Completed 2026-07-08.** All 7 implementation tasks done (Codex implementer + Claude reviewers, controller builds/tests/commits). Final suite: **549 assertions, PASS** (522 at start).
+
+**Implementation-time discoveries (already folded into the plan text above):**
+- `URLResourceValues.tagNames` setter is macOS 26+; TagWriter writes the `_kMDItemUserTags` xattr directly (binary plist, "Name\nColorIndex").
+- Swift 6 region isolation rejects capturing a local `NSMetadataQuery` in the observer closure; SpotlightSearcher reads it back through the Sendable @MainActor self.
+
+**Review loop caught pre-merge:** New Tag popover mistargeting in grid view (targets captured at menu-click via `newTagTargets`); deep-scan confirm losing `targetPane` (restored after undismiss); `dismiss()` now bumps `presentToken` so in-flight Spotlight/scan results can't land in a closed/reopened palette.
+
+**Deferred / accepted:**
+- After a deep scan, editing the query requires reopening ⇧⌘F (documented limitation).
+- The uncancelled NSMetadataQuery keeps gathering briefly after Escape (results dropped by token; bounded, folder-scoped).
+- `deletePreset` doesn't trim its argument (all current callers pass stored, pre-trimmed names).
+- Tag-dot stroke may show a faint seam on alternating table-row stripes (cosmetic).
+
+**MANUAL walkthrough (human, ~10 min — TCC blocks agent UI automation):**
+- [ ] Tag dots render in list and grid for a Finder-tagged file; assigning/removing via the context submenu shows up in Finder **with correct colors** (xattr write path).
+- [ ] "New Tag…" free-text entry adds a novel tag — including via right-click on an UNSELECTED grid item (the mistarget fix).
+- [ ] Tag filter menu lists visible tags; selecting narrows the listing; persists across relaunch (session).
+- [ ] Save Preset… names and saves the active filter; sidebar Presets section applies it (extensions field updates too); right-click deletes; "Apply Preset: name" appears in ⇧⌘A.
+- [ ] Old settings.json/session.json from M9 load cleanly.
+- [ ] ⇧⌘F: typing searches file contents under the current folder via Spotlight; confirm navigates + selects on the pane the palette was opened for (try switching tabs mid-search).
+- [ ] Zero-hit query shows "Deep Scan this folder…"; running it surfaces scanner hits; picking a hit lands on the original pane.
+- [ ] Unindexed location (e.g. a `.noindex` folder) → deep scan path works there.
+- [ ] Escape mid-search: no late results reappear when reopening the palette.

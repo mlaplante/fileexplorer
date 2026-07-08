@@ -23,6 +23,7 @@ public final class PaletteModel {
         case folders = "Go to Folder"
         case files = "Find File"
         case commands = "Commands"
+        case contents = "Search File Contents"
     }
 
     public static let maxResults = 50
@@ -36,10 +37,21 @@ public final class PaletteModel {
     public weak var targetPane: PaneState?
     public private(set) var isLoading = false
     public var query = "" {
-        didSet { rerank() }
+        didSet {
+            if ranksLocally {
+                rerank()
+            } else {
+                onQueryChange?(query, presentToken)
+            }
+        }
     }
     public private(set) var results: [PaletteItem] = []
     public var selectedIndex = 0
+    /// When false (contents mode), typing does not fuzzy-rank preloaded
+    /// items; instead each query edit invokes `onQueryChange` and results
+    /// arrive via setItems in provider order.
+    public private(set) var ranksLocally = true
+    @ObservationIgnored public var onQueryChange: (@MainActor (String, Int) -> Void)?
 
     private var allItems: [PaletteItem] = []
     private var prepared: [FuzzyCandidate] = []
@@ -48,12 +60,13 @@ public final class PaletteModel {
 
     public func present(mode: Mode) {
         self.mode = mode
+        ranksLocally = mode != .contents
         presentToken += 1
         query = ""
         allItems = []
         results = []
         selectedIndex = 0
-        isLoading = true
+        isLoading = mode != .contents
         isPresented = true
     }
 
@@ -61,6 +74,19 @@ public final class PaletteModel {
         isPresented = false
         isLoading = false
         targetPane = nil
+        onQueryChange = nil
+        // Invalidate in-flight async providers (debounced Spotlight
+        // completions, deep scans): their captured token no longer matches,
+        // so late results are dropped instead of landing in a closed —
+        // or worse, a subsequently reopened — palette.
+        presentToken += 1
+    }
+
+    /// Re-opens the palette after a confirm that turned out to be an
+    /// in-palette action (deep scan). Keeps token, mode, and query.
+    public func undismiss() {
+        isPresented = true
+        isLoading = true
     }
 
     /// Providers pass the token captured at present time; without it (UI
@@ -70,7 +96,12 @@ public final class PaletteModel {
         allItems = items
         prepared = items.map { FuzzyCandidate($0.title) }
         isLoading = false
-        rerank()
+        if ranksLocally {
+            rerank()
+        } else {
+            results = Array(items.prefix(Self.maxResults))
+            selectedIndex = 0
+        }
     }
 
     public func moveSelection(_ delta: Int) {

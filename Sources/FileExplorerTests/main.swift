@@ -33,5 +33,8 @@ await collisionNamerTests()
 await dailyOpsTests()
 await archiveTests()
 await infoGathererTests()
+await tagFilterTests()
+await filterPresetTests()
+await contentScannerTests()
 
 finish()

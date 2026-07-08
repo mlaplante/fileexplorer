@@ -18,4 +18,18 @@ public final class SettingsModel {
         settings.jpegQuality = AppSettings(jpegQuality: quality).jpegQuality
         persister.saveSettings(settings)
     }
+
+    /// Saving under an existing name replaces that preset (name = identity).
+    public func savePreset(name: String, filter: FilterState) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        settings.filterPresets.removeAll { $0.name == trimmed }
+        settings.filterPresets.append(FilterPreset(name: trimmed, filter: filter))
+        persister.saveSettings(settings)
+    }
+
+    public func deletePreset(name: String) {
+        settings.filterPresets.removeAll { $0.name == name }
+        persister.saveSettings(settings)
+    }
 }

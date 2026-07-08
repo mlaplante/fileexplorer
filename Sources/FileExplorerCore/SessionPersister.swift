@@ -4,17 +4,21 @@ import Foundation
 /// with a default so files written by any version keep loading.
 public struct AppSettings: Codable, Equatable, Sendable {
     public var jpegQuality: Double
+    public var filterPresets: [FilterPreset]
 
-    public init(jpegQuality: Double = 0.85) {
+    public init(jpegQuality: Double = 0.85, filterPresets: [FilterPreset] = []) {
         self.jpegQuality = min(max(jpegQuality, 0.1), 1.0)
+        self.filterPresets = filterPresets
     }
 
-    enum CodingKeys: String, CodingKey { case jpegQuality }
+    enum CodingKeys: String, CodingKey { case jpegQuality, filterPresets }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let raw = try container.decodeIfPresent(Double.self, forKey: .jpegQuality) ?? 0.85
         jpegQuality = min(max(raw, 0.1), 1.0)
+        filterPresets = try container.decodeIfPresent(
+            [FilterPreset].self, forKey: .filterPresets) ?? []
     }
 }
 

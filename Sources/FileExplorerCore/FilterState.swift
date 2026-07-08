@@ -11,12 +11,18 @@ public struct FilterState: Equatable, Sendable, Codable {
     /// which keeps M7-era session.json files loading.
     public var customDateRange: ClosedRange<Date>?
     public var customSizeRange: ClosedRange<Int64>?
+    /// Finder-tag filter: entry passes if it carries ANY of these tags.
+    /// OPTIONAL for the same forward-compat contract as the custom ranges:
+    /// synthesized Codable decodes a missing key as nil, so session.json
+    /// files written before M10 keep loading.
+    public var tags: Set<String>?
 
     public init() {}
 
     public var isActive: Bool {
         preset != nil || !extensions.isEmpty || datePreset != nil
             || sizePreset != nil || customDateRange != nil || customSizeRange != nil
+            || tags != nil
     }
 }
 
