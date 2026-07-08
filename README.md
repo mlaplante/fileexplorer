@@ -60,6 +60,7 @@ All assertions should report PASS.
 | ⇧⌘K | Compare panes |
 | ⌥⌘1 | View as List |
 | ⌥⌘2 | View as Icons |
+| ⌥⌘3 | View as Columns |
 | ⌘Y / Space | Quick Look |
 | ⌘O / ⌘↓ | Open |
 | ⇧⌘N | New folder |
@@ -70,6 +71,10 @@ All assertions should report PASS.
 | ⌘⌫ | Move to Trash |
 | Return | Rename selected item |
 | ⌘Z | Undo (⇧⌘Z to redo) |
+
+Shortcuts for the character-key commands are customizable in Settings (⌘,)
+→ Shortcuts. The app checks GitHub releases for updates once a day
+(toggleable in Settings → General); it never auto-installs.
 
 ## Terminal helper (`fx`)
 
