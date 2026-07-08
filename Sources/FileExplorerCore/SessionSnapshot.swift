@@ -141,19 +141,26 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
     public struct Tab: Codable, Equatable, Sendable {
         public var panes: [Pane]
         public var activePaneIndex: Int
+        public var showsPreviewPane: Bool
 
-        public init(panes: [Pane], activePaneIndex: Int = 0) {
+        public init(panes: [Pane], activePaneIndex: Int = 0,
+                    showsPreviewPane: Bool = false) {
             self.panes = panes
             self.activePaneIndex = activePaneIndex
+            self.showsPreviewPane = showsPreviewPane
         }
 
-        enum CodingKeys: String, CodingKey { case panes, activePaneIndex }
+        enum CodingKeys: String, CodingKey {
+            case panes, activePaneIndex, showsPreviewPane
+        }
 
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             panes = try container.decodeIfPresent([Pane].self, forKey: .panes) ?? []
             activePaneIndex = try container.decodeIfPresent(
                 Int.self, forKey: .activePaneIndex) ?? 0
+            showsPreviewPane = try container.decodeIfPresent(
+                Bool.self, forKey: .showsPreviewPane) ?? false
         }
     }
 

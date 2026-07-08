@@ -327,6 +327,10 @@ struct FileExplorerApp: App {
                     QuickLookController.shared.toggle(for: session.activePane)
                 }
                 .keyboardShortcut(settings.chord(for: .quickLook).keyboardShortcut)
+                Button("Preview Pane") {
+                    session.activeTab.showsPreviewPane.toggle()
+                }
+                .keyboardShortcut(settings.chord(for: .previewPane).keyboardShortcut)
             }
             CommandGroup(after: .windowArrangement) {
                 Button("Command Palette…") {

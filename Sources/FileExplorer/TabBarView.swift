@@ -88,25 +88,36 @@ struct PaneAreaView: View {
     var trashRegistry: TrashRegistryModel?
 
     var body: some View {
-        Group {
-            if tab.isDual {
-                VStack(spacing: 0) {
-                    if tabCompareActive {
-                        CompareBannerView(tab: tab, syncPreview: syncPreview)
-                    }
-                    HSplitView {
-                        pane(at: 0)
-                        pane(at: 1)
-                    }
-                }
-            } else {
-                pane(at: 0)
+        HSplitView {
+            browserArea
+            if tab.showsPreviewPane {
+                PreviewPaneView(pane: tab.activePane, model: tab.previewPane)
+                    .frame(width: 280)
             }
         }
         .onChange(of: tab.activePaneIndex) { _, _ in
             if QuickLookController.shared.isVisible {
                 QuickLookController.shared.refresh(from: tab.activePane)
             }
+            tab.previewPane.update(selection: tab.activePane.selection,
+                                   entries: tab.activePane.entries)
+        }
+    }
+
+    @ViewBuilder
+    private var browserArea: some View {
+        if tab.isDual {
+            VStack(spacing: 0) {
+                if tabCompareActive {
+                    CompareBannerView(tab: tab, syncPreview: syncPreview)
+                }
+                HSplitView {
+                    pane(at: 0)
+                    pane(at: 1)
+                }
+            }
+        } else {
+            pane(at: 0)
         }
     }
 

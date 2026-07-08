@@ -165,6 +165,10 @@ enum PaletteCoordinator {
             AppCommand(id: "dual", name: "Toggle Dual Pane", shortcut: "⇧⌘D") {
                 session.activeTab.toggleDual()
             },
+            AppCommand(id: "preview", name: "Preview Pane",
+                       shortcut: settings.chord(for: .previewPane).display) {
+                session.activeTab.showsPreviewPane.toggle()
+            },
             AppCommand(id: "hidden", name: "Toggle Hidden Files", shortcut: "⇧⌘.") {
                 session.activePane.showHidden.toggle()
             },

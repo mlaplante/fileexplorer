@@ -155,6 +155,7 @@ func sessionSnapshotTests() async {
             c.order = .reverse
             return [c]
         }()
+        original.activeTab.showsPreviewPane = true
 
         let restored = SessionState(snapshot: original.snapshot(), fallback: home)
         expectEqual(restored.tabs.count, 2, "tabs restored")
@@ -173,6 +174,15 @@ func sessionSnapshotTests() async {
         expect(pane.sortOrder[0].keyPath == \FileEntry.modified,
                "sort field restored")
         expectEqual(pane.sortOrder[0].order, .reverse, "sort direction restored")
+        expect(restored.activeTab.showsPreviewPane, "preview pane restored")
+    }
+
+    await test("tab snapshot decodes missing preview pane field as false") {
+        let json = #"{"tabs":[{"panes":[{"path":"/tmp"}],"activePaneIndex":0}]}"#
+        let decoded = try JSONDecoder().decode(
+            SessionSnapshot.self, from: Data(json.utf8))
+        expect(!decoded.tabs[0].showsPreviewPane,
+               "missing showsPreviewPane defaults false")
     }
 
     await test("restore rebuilds favorite folders and drops invalid entries") {
