@@ -5,13 +5,20 @@ import Foundation
 public struct AppSettings: Codable, Equatable, Sendable {
     public var jpegQuality: Double
     public var filterPresets: [FilterPreset]
+    public var updateCheckEnabled: Bool
+    public var lastUpdateCheckAt: Date?
 
-    public init(jpegQuality: Double = 0.85, filterPresets: [FilterPreset] = []) {
+    public init(jpegQuality: Double = 0.85, filterPresets: [FilterPreset] = [],
+                updateCheckEnabled: Bool = true, lastUpdateCheckAt: Date? = nil) {
         self.jpegQuality = min(max(jpegQuality, 0.1), 1.0)
         self.filterPresets = filterPresets
+        self.updateCheckEnabled = updateCheckEnabled
+        self.lastUpdateCheckAt = lastUpdateCheckAt
     }
 
-    enum CodingKeys: String, CodingKey { case jpegQuality, filterPresets }
+    enum CodingKeys: String, CodingKey {
+        case jpegQuality, filterPresets, updateCheckEnabled, lastUpdateCheckAt
+    }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -19,6 +26,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
         jpegQuality = min(max(raw, 0.1), 1.0)
         filterPresets = try container.decodeIfPresent(
             [FilterPreset].self, forKey: .filterPresets) ?? []
+        updateCheckEnabled = try container.decodeIfPresent(
+            Bool.self, forKey: .updateCheckEnabled) ?? true
+        lastUpdateCheckAt = try container.decodeIfPresent(
+            Date.self, forKey: .lastUpdateCheckAt)
     }
 }
 

@@ -32,4 +32,14 @@ public final class SettingsModel {
         settings.filterPresets.removeAll { $0.name == name }
         persister.saveSettings(settings)
     }
+
+    public func setUpdateCheckEnabled(_ enabled: Bool) {
+        settings.updateCheckEnabled = enabled
+        persister.saveSettings(settings)
+    }
+
+    public func markUpdateCheck(at date: Date = Date()) {
+        settings.lastUpdateCheckAt = date
+        persister.saveSettings(settings)
+    }
 }

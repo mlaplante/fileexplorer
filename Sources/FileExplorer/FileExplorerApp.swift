@@ -12,6 +12,7 @@ struct FileExplorerApp: App {
     private let volumesModel = VolumesModel()
     private let settings: SettingsModel
     private let infoModel = GetInfoModel()
+    private let updateModel = UpdateModel()
 
     init() {
         let persister = SessionPersister(
@@ -37,9 +38,13 @@ struct FileExplorerApp: App {
 
         // When launched from `swift run` (no bundle), become a regular
         // foreground app so the window appears and takes focus.
+        // Locals, not properties: an escaping closure in a struct's init
+        // can't capture mutating self.
+        let updateModel = self.updateModel
         DispatchQueue.main.async {
             NSApplication.shared.setActivationPolicy(.regular)
             NSApplication.shared.activate(ignoringOtherApps: true)
+            updateModel.checkIfDue(settings: settings)
         }
     }
 
@@ -98,6 +103,18 @@ struct FileExplorerApp: App {
                                                    settings: settings)
                     }
                     .padding(.top, 60)
+                }
+
+                if let version = updateModel.availableVersion {
+                    HStack(spacing: 8) {
+                        Text("FileExplorer \(version) is available.")
+                        Button("View Release") { updateModel.openReleasePage() }
+                        Button("Dismiss") { updateModel.dismiss() }
+                    }
+                    .font(.callout)
+                    .padding(8)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    .padding(.top, 8)
                 }
             }
             .frame(minWidth: 760, minHeight: 400)

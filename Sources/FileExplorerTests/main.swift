@@ -41,5 +41,6 @@ await syncExecutorTests()
 await renameTokensTests()
 await imageResizerTests()
 await fileHasherTests()
+await updateCheckerTests()
 
 finish()
