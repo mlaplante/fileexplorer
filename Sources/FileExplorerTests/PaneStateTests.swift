@@ -157,4 +157,36 @@ func paneStateTests() async {
         expect(pane.errorMessage?.contains("Full Disk Access") == true,
                "permission failure mentions Full Disk Access [got: \(pane.errorMessage ?? "nil")]")
     }
+
+    await test("toggling showHidden reloads without a manual reload call") {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory
+            .appendingPathComponent("m8-hidden-\(UUID().uuidString)")
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+        try Data().write(to: dir.appendingPathComponent("visible.txt"))
+        try Data().write(to: dir.appendingPathComponent(".hidden"))
+
+        let pane = PaneState(url: dir)
+        pane.startIfNeeded()
+        for _ in 0..<200 where pane.entries.isEmpty {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        expectEqual(pane.entries.map(\.name), ["visible.txt"],
+                    "hidden file excluded initially")
+
+        pane.showHidden = true   // no manual reload()
+        for _ in 0..<200 where pane.entries.count < 2 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        expect(pane.entries.map(\.name).contains(".hidden"),
+               "hidden file appears after toggle alone")
+
+        pane.showHidden = false
+        for _ in 0..<200 where pane.entries.count > 1 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        expect(!pane.entries.map(\.name).contains(".hidden"),
+               "hidden file disappears after toggle back")
+    }
 }

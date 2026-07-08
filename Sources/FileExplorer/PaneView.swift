@@ -8,7 +8,6 @@ struct PaneView: View {
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
     var settings: SettingsModel
-    private let hoverModel = HoverPreviewModel()
     @Environment(\.undoManager) private var undoManager
 
     var body: some View {
@@ -124,16 +123,16 @@ struct PaneView: View {
                 .draggable(entry.url)
                 .onHover { hovering in
                     if hovering {
-                        hoverModel.hoverBegan(entry)
+                        pane.hoverPreview.hoverBegan(entry)
                     } else {
-                        hoverModel.hoverEnded()
+                        pane.hoverPreview.hoverEnded()
                     }
                 }
                 .popover(isPresented: Binding(
-                    get: { hoverModel.presented?.url == entry.url },
-                    set: { if !$0 { hoverModel.hoverEnded() } }),
+                    get: { pane.hoverPreview.presented?.url == entry.url },
+                    set: { if !$0 { pane.hoverPreview.hoverEnded() } }),
                     arrowEdge: .trailing) {
-                    HoverPreviewView(model: hoverModel)
+                    HoverPreviewView(model: pane.hoverPreview)
                 }
             }
             TableColumn("Size", value: \.size) { entry in

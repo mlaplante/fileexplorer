@@ -68,4 +68,13 @@ func sessionPersisterTests() async {
         expectEqual(persister.loadSettings(), AppSettings(),
                     "failed save leaves defaults")
     }
+
+    await test("out-of-range persisted jpegQuality clamps on decode") {
+        let high = try JSONDecoder().decode(
+            AppSettings.self, from: Data(#"{"jpegQuality": 50}"#.utf8))
+        expectEqual(high.jpegQuality, 1.0, "decode clamps high values")
+        let low = try JSONDecoder().decode(
+            AppSettings.self, from: Data(#"{"jpegQuality": -3}"#.utf8))
+        expectEqual(low.jpegQuality, 0.1, "decode clamps negative values")
+    }
 }

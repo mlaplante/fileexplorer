@@ -147,7 +147,7 @@ struct FileExplorerApp: App {
                     .keyboardShortcut("t", modifiers: .command)
                 Button("Close Tab") {
                     if session.tabs.count == 1 {
-                        NSApp.keyWindow?.performClose(nil)
+                        NSApp.mainWindow?.performClose(nil)
                     } else {
                         session.closeTab(at: session.activeTabIndex)
                     }
@@ -185,10 +185,7 @@ struct FileExplorerApp: App {
             CommandGroup(after: .toolbar) {
                 Toggle("Show Hidden Files", isOn: Binding(
                     get: { session.activePane.showHidden },
-                    set: { newValue in
-                        session.activePane.showHidden = newValue
-                        Task { await session.activePane.reload() }
-                    }))
+                    set: { session.activePane.showHidden = $0 }))
                     .keyboardShortcut(".", modifiers: [.command, .shift])
                 Button("Toggle Dual Pane") { session.activeTab.toggleDual() }
                     .keyboardShortcut("d", modifiers: [.command, .shift])

@@ -4,6 +4,9 @@ import Observation
 @MainActor
 @Observable
 public final class PaneState {
+    /// Hover-preview state; owned here because view structs are re-inited on
+    /// every parent render on this toolchain (M5 deferred hoisting).
+    public let hoverPreview = HoverPreviewModel()
     public private(set) var history: NavigationHistory
     /// Invoked after every completed navigation (navigate/back/forward/up)
     /// with the new current URL; used by the session layer to record recents.
@@ -26,7 +29,12 @@ public final class PaneState {
     ] {
         didSet { recomputeVisible() }
     }
-    public var showHidden = false
+    public var showHidden = false {
+        didSet {
+            guard oldValue != showHidden, started else { return }
+            Task { await reload() }
+        }
+    }
 
     public enum ViewMode: String, Sendable, Codable {
         case list

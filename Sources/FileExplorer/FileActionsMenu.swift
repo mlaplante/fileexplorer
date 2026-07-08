@@ -76,7 +76,9 @@ struct FileActions {
         Button("Calculate Size") {
             Task { await pane.calculateFolderSizes(targets) }
         }
-        .disabled(targets.isEmpty)
+        .disabled(!targets.contains { url in
+            pane.entries.first(where: { $0.url == url })?.isDirectory == true
+        })
         Divider()
         Button("Move to Trash") {
             Task { await pane.trashSelected(targets) }

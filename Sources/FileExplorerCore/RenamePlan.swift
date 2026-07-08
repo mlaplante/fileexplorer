@@ -10,10 +10,6 @@ public struct RenameRules: Equatable, Sendable {
     public var numberPadding = 2
 
     public init() {}
-
-    public var isNoOp: Bool {
-        find.isEmpty && prefix.isEmpty && suffix.isEmpty && !numbering
-    }
 }
 
 /// Pure batch-rename planner: computes before→after names and flags conflicts
