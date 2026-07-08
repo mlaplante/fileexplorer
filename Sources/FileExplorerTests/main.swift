@@ -31,5 +31,6 @@ await renameExecutorTests()
 await fuzzyMatcherTests()
 await collisionNamerTests()
 await dailyOpsTests()
+await archiveTests()
 
 finish()

@@ -121,6 +121,15 @@ struct FileActions {
             Task { await pane.compressSelected(targets) }
         }
         .disabled(targets.isEmpty)
+        Button("Extract") {
+            let archives = targets.filter {
+                ArchiveKind.detect($0.lastPathComponent) != nil
+            }
+            Task { await pane.extractSelected(archives) }
+        }
+        .disabled(!targets.contains {
+            ArchiveKind.detect($0.lastPathComponent) != nil
+        })
         Button("Calculate Size") {
             Task { await pane.calculateFolderSizes(targets) }
         }

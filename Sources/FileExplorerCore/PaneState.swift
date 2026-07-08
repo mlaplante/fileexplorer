@@ -401,6 +401,32 @@ public final class PaneState {
         }
     }
 
+    public func extractSelected(_ urls: [URL]) async {
+        let results = await Task.detached(priority: .userInitiated) {
+            urls.map { (source: $0, result: Unarchiver.extract($0)) }
+        }.value
+        await reload()
+        let created = results.compactMap { item -> URL? in
+            if case .success(let url) = item.result { return url }
+            return nil
+        }
+        let failures = results.compactMap { item -> String? in
+            if case .failure(let error) = item.result { return error.message }
+            return nil
+        }
+        if let undoManager, !created.isEmpty {
+            UndoRecorder.recordCreation(created, actionName: "Extract",
+                                        on: undoManager, pane: self)
+        }
+        opErrorMessage = failures.isEmpty
+            ? nil
+            : failures.prefix(3).joined(separator: " ")
+                + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
+        if !created.isEmpty {
+            selection = Set(created.map { $0.standardizedFileURL })
+        }
+    }
+
     /// Icon-grid click handling: Finder-style plain/⌘/⇧ semantics plus
     /// anchor+pivot bookkeeping. A ⇧-click whose anchor is missing or stale
     /// degrades to a plain click AND establishes the anchor, so a range can
