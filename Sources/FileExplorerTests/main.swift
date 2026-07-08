@@ -22,6 +22,7 @@ await renamePlanTests()
 await batchToolsTests()
 await paneBatchToolsTests()
 await sessionSnapshotTests()
+await sessionPersisterTests()
 await fuzzyMatcherTests()
 
 finish()
