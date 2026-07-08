@@ -52,10 +52,36 @@ public enum RenameExecutor {
                 pairs.append((from: stage.originalURL, to: stage.finalURL))
             } catch {
                 failures.append("Couldn't rename “\(stage.originalURL.lastPathComponent)” to “\(stage.finalURL.lastPathComponent)”: \(error.localizedDescription)")
-                try? fm.moveItem(at: stage.tempURL, to: stage.originalURL)
+                if let recoveryFailure = recoverFromFailedRollback(
+                    tempURL: stage.tempURL, originalURL: stage.originalURL, fm: fm) {
+                    failures.append(recoveryFailure)
+                }
             }
         }
         return Outcome(pairs: pairs, failures: failures)
+    }
+
+    /// Attempts to move `tempURL` back to `originalURL`. If that name is now
+    /// occupied (e.g. by another item's successful phase-2 move), tries a
+    /// "(restored)" sibling name instead so the file is never silently
+    /// stranded at a hidden temp name. Returns a distinct failure message
+    /// describing the fallback that was used, or nil if the plain rollback
+    /// succeeded.
+    private static func recoverFromFailedRollback(
+        tempURL: URL, originalURL: URL, fm: FileManager
+    ) -> String? {
+        if (try? fm.moveItem(at: tempURL, to: originalURL)) != nil {
+            return nil
+        }
+        let dir = originalURL.deletingLastPathComponent()
+        let ext = originalURL.pathExtension
+        let stem = originalURL.deletingPathExtension().lastPathComponent
+        let restoredName = ext.isEmpty ? "\(stem) (restored)" : "\(stem) (restored).\(ext)"
+        let restoredURL = dir.appendingPathComponent(restoredName)
+        if (try? fm.moveItem(at: tempURL, to: restoredURL)) != nil {
+            return "“\(originalURL.lastPathComponent)” couldn't be restored to its original name; its contents are at “\(restoredName)”."
+        }
+        return "“\(originalURL.lastPathComponent)” couldn't be restored to its original name; its contents are at “\(tempURL.lastPathComponent)”."
     }
 
     /// Two-phase relocation to EXACT destination URLs (possibly in other
@@ -96,7 +122,10 @@ public enum RenameExecutor {
                 pairs.append((from: stage.originalURL, to: stage.finalURL))
             } catch {
                 failures.append("Couldn't move “\(stage.originalURL.lastPathComponent)” to “\(stage.finalURL.lastPathComponent)”: \(error.localizedDescription)")
-                try? fm.moveItem(at: stage.tempURL, to: stage.originalURL)
+                if let recoveryFailure = recoverFromFailedRollback(
+                    tempURL: stage.tempURL, originalURL: stage.originalURL, fm: fm) {
+                    failures.append(recoveryFailure)
+                }
             }
         }
         return Outcome(pairs: pairs, failures: failures)

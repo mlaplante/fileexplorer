@@ -115,4 +115,29 @@ func renameExecutorTests() async {
         expect(FileManager.default.fileExists(atPath: a.path),
                "source restored to its original URL")
     }
+
+    await test("rollback collision recovers loudly instead of stranding a hidden temp") {
+        let dir = try makeDir(["E.txt", "L.txt", "C.txt"])
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try Data("E-CONTENT".utf8).write(to: dir.appendingPathComponent("E.txt"))
+        try Data("L-CONTENT".utf8).write(to: dir.appendingPathComponent("L.txt"))
+        let items = [
+            RenamePlan.Item(source: dir.appendingPathComponent("E.txt"),
+                            newName: "L.txt", conflict: nil),
+            RenamePlan.Item(source: dir.appendingPathComponent("L.txt"),
+                            newName: "C.txt", conflict: nil),
+        ]
+        let outcome = RenameExecutor.execute(items)
+        expectEqual(outcome.pairs.count, 1, "E's rename succeeds")
+        expectEqual(outcome.failures.count, 2,
+                    "phase-2 failure AND loud recovery message")
+        let restored = dir.appendingPathComponent("L (restored).txt")
+        expect(FileManager.default.fileExists(atPath: restored.path),
+               "stranded file recovered to a visible name")
+        expectEqual(try String(contentsOf: restored, encoding: .utf8), "L-CONTENT",
+                    "recovered file holds L's content")
+        let hidden = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+            .filter { $0.hasPrefix(".fx-rename-") }
+        expect(hidden.isEmpty, "no hidden temp files left behind")
+    }
 }

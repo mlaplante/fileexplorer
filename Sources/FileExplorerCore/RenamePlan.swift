@@ -65,26 +65,49 @@ public enum RenamePlan {
             targetCounts[name, default: 0] += 1
         }
 
-        // Names the batch itself is renaming away; a target equal to one of
-        // these is legal (two-phase execution makes the handoff safe).
-        let vacated = Set(proposals.filter { $0.0.lastPathComponent != $0.1 }
-            .map { $0.0.lastPathComponent })
-
-        return proposals.map { source, newName in
-            let conflict: Conflict?
+        // Pre-conflicts that don't depend on which names actually vacate:
+        // invalidName and duplicateTarget precede existingFile regardless of
+        // in-batch handoffs, so they can be computed up front.
+        var preConflicts: [Conflict?] = proposals.map { source, newName in
             if newName.isEmpty || newName.contains("/")
                 || newName == "." || newName == ".." {
-                conflict = .invalidName
+                return .invalidName
             } else if newName == source.lastPathComponent {
-                conflict = .unchanged
+                return .unchanged
             } else if targetCounts[newName, default: 0] > 1 {
-                conflict = .duplicateTarget
-            } else if existingNames.contains(newName), !vacated.contains(newName) {
-                conflict = .existingFile
-            } else {
-                conflict = nil
+                return .duplicateTarget
             }
-            return Item(source: source, newName: newName, conflict: conflict)
+            return nil
+        }
+
+        // Names the batch itself is renaming away — but only from proposals
+        // that are actually going to move (no pre-conflict). A target equal
+        // to one of these is legal (two-phase execution makes the handoff
+        // safe). Iterate to a fixpoint: marking a proposal .existingFile
+        // means its source name no longer vacates, which can cascade to
+        // dependents that relied on that vacancy. Removing names from
+        // `vacated` only shrinks the set, so this terminates.
+        var vacated = Set(zip(proposals, preConflicts)
+            .filter { $0.1 == nil && $0.0.0.lastPathComponent != $0.0.1 }
+            .map { $0.0.0.lastPathComponent })
+
+        var changed = true
+        while changed {
+            changed = false
+            for (index, proposal) in proposals.enumerated() {
+                guard preConflicts[index] == nil else { continue }
+                let (source, newName) = proposal
+                if existingNames.contains(newName), !vacated.contains(newName) {
+                    preConflicts[index] = .existingFile
+                    if vacated.remove(source.lastPathComponent) != nil {
+                        changed = true
+                    }
+                }
+            }
+        }
+
+        return zip(proposals, preConflicts).map { proposal, conflict in
+            Item(source: proposal.0, newName: proposal.1, conflict: conflict)
         }
     }
 }

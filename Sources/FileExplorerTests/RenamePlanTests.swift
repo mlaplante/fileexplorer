@@ -82,4 +82,30 @@ func renamePlanTests() async {
         expectEqual(blocked[0].conflict, .existingFile,
                     "outside-holder target stays blocked")
     }
+
+    await test("vacated set excludes conflicted vacators (no execute-time surprises)") {
+        // E→L.txt is only legal if L.txt actually moves; here L→C.txt is
+        // blocked because C's own proposal is a duplicate-target skip.
+        let e = URL(fileURLWithPath: "/t/E.txt")
+        let l = URL(fileURLWithPath: "/t/L.txt")
+        let c = URL(fileURLWithPath: "/t/C.txt")
+        // Build rules-free expectations via direct plan invocation: use rules
+        // that produce these names. find/replace: E→L, L→C, C→D is not
+        // expressible in one rules pass — so instead assert through the
+        // fixpoint directly with a two-item chain that IS expressible:
+        // suffix "x" on [a.txt, ax.txt] with an OUTSIDE holder axx.txt:
+        // ax.txt→axx.txt is .existingFile (axx.txt exists outside the batch),
+        // so ax.txt never vacates, so a.txt→ax.txt must ALSO be .existingFile.
+        var rules = RenameRules()
+        rules.suffix = "x"
+        let a = URL(fileURLWithPath: "/t/a.txt")
+        let ax = URL(fileURLWithPath: "/t/ax.txt")
+        let chain = RenamePlan.plan(urls: [a, ax], rules: rules,
+                                    existingNames: ["a.txt", "ax.txt", "axx.txt"])
+        expectEqual(chain[1].conflict, .existingFile,
+                    "vacator blocked by outside holder")
+        expectEqual(chain[0].conflict, .existingFile,
+                    "dependent item blocked too — its target never vacates")
+        _ = (e, l, c)
+    }
 }
