@@ -131,4 +131,86 @@ func sessionSnapshotTests() async {
         expect(pane.sort.isEmpty, "missing sort defaults to empty tokens")
         expect(decoded.recentFolders.isEmpty, "missing recents default to empty")
     }
+
+    await test("restore rebuilds the session graph") {
+        let home = URL(fileURLWithPath: "/tmp")
+        let original = SessionState(url: home)
+        original.activeTab.toggleDual()
+        original.newTab()
+        original.activePane.showHidden = true
+        original.activePane.viewMode = .icons
+        original.activePane.filter.sizePreset = .under1MB
+        original.activePane.filterExtensionsText = "png"
+        original.activePane.sortOrder = {
+            var c = KeyPathComparator(\FileEntry.modified)
+            c.order = .reverse
+            return [c]
+        }()
+
+        let restored = SessionState(snapshot: original.snapshot(), fallback: home)
+        expectEqual(restored.tabs.count, 2, "tabs restored")
+        expectEqual(restored.activeTabIndex, 1, "active tab restored")
+        expect(restored.tabs[0].isDual, "dual pane restored")
+        expectEqual(restored.tabs[0].activePaneIndex, 1, "active pane restored")
+
+        let pane = restored.activePane
+        expectEqual(pane.currentURL.path, "/tmp", "pane folder restored")
+        expect(pane.showHidden, "showHidden restored")
+        expectEqual(pane.viewMode, .icons, "view mode restored")
+        expectEqual(pane.filter.sizePreset, .under1MB, "filter restored")
+        expectEqual(pane.filter.extensions, ["png"],
+                    "extensions re-derived from restored draft text")
+        expect(pane.sortOrder[0].keyPath == \FileEntry.modified,
+               "sort field restored")
+        expectEqual(pane.sortOrder[0].order, .reverse, "sort direction restored")
+    }
+
+    await test("restore falls back to nearest existing ancestor") {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory
+            .appendingPathComponent("m7-restore-\(UUID().uuidString)")
+        let sub = dir.appendingPathComponent("kept")
+        try fm.createDirectory(at: sub, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+
+        let home = URL(fileURLWithPath: "/tmp")
+        let vanished = sub.appendingPathComponent("gone/deeper").path
+        let snapshot = SessionSnapshot(tabs: [SessionSnapshot.Tab(
+            panes: [SessionSnapshot.Pane(path: vanished)])])
+        let restored = SessionState(snapshot: snapshot, fallback: home)
+        expectEqual(restored.activePane.currentURL.path,
+                    sub.standardizedFileURL.path,
+                    "vanished folder falls back to nearest existing ancestor")
+
+        let noAncestors = SessionSnapshot(tabs: [SessionSnapshot.Tab(
+            panes: [SessionSnapshot.Pane(path: "")])])
+        let fallbackOnly = SessionState(snapshot: noAncestors, fallback: home)
+        expectEqual(fallbackOnly.activePane.currentURL.path, "/tmp",
+                    "unresolvable path falls back to the fallback URL")
+    }
+
+    await test("restore clamps indices and survives empty snapshots") {
+        let home = URL(fileURLWithPath: "/tmp")
+        var snapshot = SessionSnapshot(tabs: [
+            SessionSnapshot.Tab(panes: [SessionSnapshot.Pane(path: "/tmp")],
+                                activePaneIndex: 7)],
+            activeTabIndex: 9)
+        let restored = SessionState(snapshot: snapshot, fallback: home)
+        expectEqual(restored.activeTabIndex, 0, "out-of-range tab index clamped")
+        expectEqual(restored.tabs[0].activePaneIndex, 0,
+                    "out-of-range pane index clamped")
+
+        snapshot = SessionSnapshot(tabs: [])
+        let empty = SessionState(snapshot: snapshot, fallback: home)
+        expectEqual(empty.tabs.count, 1, "empty snapshot yields one default tab")
+        expectEqual(empty.activePane.currentURL.path, "/tmp",
+                    "default tab opens at fallback")
+
+        let recents = SessionSnapshot(
+            tabs: [SessionSnapshot.Tab(panes: [SessionSnapshot.Pane(path: "/tmp")])],
+            recentFolders: ["/tmp", "/private"])
+        let withRecents = SessionState(snapshot: recents, fallback: home)
+        expectEqual(withRecents.recentFolders.map(\.path), ["/tmp", "/private"],
+                    "recent folders restored in order")
+    }
 }

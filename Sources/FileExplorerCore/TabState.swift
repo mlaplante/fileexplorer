@@ -17,6 +17,22 @@ public final class TabState: Identifiable {
         panes = [pane]
     }
 
+    /// Restore from a saved snapshot; empty/oversized pane lists and
+    /// out-of-range indices are clamped rather than trusted.
+    public init(snapshot: SessionSnapshot.Tab, fallback: URL,
+                onNavigated: (@MainActor (URL) -> Void)? = nil) {
+        self.onNavigated = onNavigated
+        let paneSnapshots = snapshot.panes.isEmpty
+            ? [SessionSnapshot.Pane(path: fallback.path)]
+            : Array(snapshot.panes.prefix(2))
+        panes = paneSnapshots.map { paneSnapshot in
+            let pane = PaneState(snapshot: paneSnapshot, fallback: fallback)
+            pane.onNavigated = onNavigated
+            return pane
+        }
+        activePaneIndex = max(0, min(snapshot.activePaneIndex, panes.count - 1))
+    }
+
     public var isDual: Bool { panes.count == 2 }
 
     public var activePane: PaneState {

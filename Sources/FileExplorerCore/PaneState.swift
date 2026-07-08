@@ -92,6 +92,18 @@ public final class PaneState {
         history = NavigationHistory(current: url.standardizedFileURL)
     }
 
+    /// Restore from a saved snapshot. Setting `filter` before
+    /// `filterExtensionsText` matters: the text's `didSet` re-derives
+    /// `filter.extensions`, making the draft field the source of truth.
+    public convenience init(snapshot: SessionSnapshot.Pane, fallback: URL) {
+        self.init(url: snapshot.resolvedURL(fallback: fallback))
+        showHidden = snapshot.showHidden
+        viewMode = ViewMode(rawValue: snapshot.viewMode) ?? .list
+        filter = snapshot.filter
+        filterExtensionsText = snapshot.filterExtensionsText
+        sortOrder = SortTokenCoder.comparators(from: snapshot.sort)
+    }
+
     // A window-scoped UndoManager outlives closed tabs' panes, and
     // registerUndo does NOT retain its target — without this, an undo/redo
     // invoked after a pane is deallocated would crash on a dangling target.

@@ -106,6 +106,31 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
             sort = try container.decodeIfPresent(
                 [SortToken].self, forKey: .sort) ?? []
         }
+
+        /// The saved folder if it still exists as a directory, else its
+        /// nearest existing directory ancestor, else `fallback`. Relative or
+        /// empty paths go straight to `fallback` — `URL(fileURLWithPath:)`
+        /// would resolve them against the process working directory, whose
+        /// ancestor chain always "exists" and would mask the bad data.
+        public func resolvedURL(fallback: URL) -> URL {
+            guard path.hasPrefix("/") else { return fallback.standardizedFileURL }
+            let fm = FileManager.default
+            var isDirectory: ObjCBool = false
+            let url = URL(fileURLWithPath: path)
+            if fm.fileExists(atPath: url.path, isDirectory: &isDirectory),
+               isDirectory.boolValue {
+                return url.standardizedFileURL
+            }
+            // ancestorChain is root-first ending with url itself; nearest first.
+            let ancestors = url.ancestorChain.dropLast().reversed()
+            if let existing = ancestors.first(where: {
+                fm.fileExists(atPath: $0.path, isDirectory: &isDirectory)
+                    && isDirectory.boolValue
+            }) {
+                return existing
+            }
+            return fallback.standardizedFileURL
+        }
     }
 
     public struct Tab: Codable, Equatable, Sendable {

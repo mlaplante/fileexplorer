@@ -18,6 +18,22 @@ public final class SessionState {
         tabs = [makeTab(url: url)]
     }
 
+    /// Restore from a saved snapshot; an empty snapshot degrades to the
+    /// default single tab at `fallback`.
+    public convenience init(snapshot: SessionSnapshot, fallback: URL) {
+        self.init(url: fallback)
+        if !snapshot.tabs.isEmpty {
+            tabs = snapshot.tabs.map { tabSnapshot in
+                TabState(snapshot: tabSnapshot, fallback: fallback) {
+                    [weak self] visited in
+                    self?.recordRecent(visited)
+                }
+            }
+            activeTabIndex = max(0, min(snapshot.activeTabIndex, tabs.count - 1))
+        }
+        recentFolders = snapshot.recentFolders.map { URL(fileURLWithPath: $0) }
+    }
+
     public var activeTab: TabState {
         tabs[min(activeTabIndex, tabs.count - 1)]
     }
