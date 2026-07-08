@@ -124,4 +124,64 @@ func paneBatchToolsTests() async {
                     "converted output selected")
         expect(pane.opErrorMessage == nil, "no error on clean conversion")
     }
+
+    await test("executeResolvedPlan copies and registers creation undo") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let src = dir.appendingPathComponent("src")
+        let dst = dir.appendingPathComponent("dst")
+        try fm.createDirectory(at: src, withIntermediateDirectories: false)
+        try fm.createDirectory(at: dst, withIntermediateDirectories: false)
+        let source = src.appendingPathComponent("a.txt")
+        let target = dst.appendingPathComponent("a.txt")
+        try Data("copy".utf8).write(to: source)
+
+        let undoManager = UndoManager()
+        let pane = PaneState(url: dst)
+        pane.undoManager = undoManager
+        await pane.reload()
+        let plan = OperationConflictPlanner.Plan(operation: .copy, destination: dst,
+                                                 items: [
+            .init(source: source, action: .write(to: target)),
+        ])
+
+        await pane.executeResolvedPlan(plan, actionName: "Copy")
+        expect(fm.fileExists(atPath: target.path), "planned copy created target")
+        expectEqual(pane.selection, [target.standardizedFileURL],
+                    "created target selected")
+        undoManager.undo()
+        try await Task.sleep(for: .milliseconds(400))
+        expect(!fm.fileExists(atPath: target.path), "undo removed copied target")
+        expect(fm.fileExists(atPath: source.path), "source remains after copy undo")
+    }
+
+    await test("executeResolvedPlan replace undo restores old destination") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let src = dir.appendingPathComponent("src")
+        let dst = dir.appendingPathComponent("dst")
+        try fm.createDirectory(at: src, withIntermediateDirectories: false)
+        try fm.createDirectory(at: dst, withIntermediateDirectories: false)
+        let source = src.appendingPathComponent("a.txt")
+        let target = dst.appendingPathComponent("a.txt")
+        try Data("new".utf8).write(to: source)
+        try Data("old".utf8).write(to: target)
+
+        let undoManager = UndoManager()
+        let pane = PaneState(url: dst)
+        pane.undoManager = undoManager
+        await pane.reload()
+        let plan = OperationConflictPlanner.Plan(operation: .copy, destination: dst,
+                                                 items: [
+            .init(source: source, action: .replace(existing: target)),
+        ])
+
+        await pane.executeResolvedPlan(plan, actionName: "Copy")
+        expectEqual(try String(contentsOf: target, encoding: .utf8), "new",
+                    "target replaced")
+        undoManager.undo()
+        try await Task.sleep(for: .milliseconds(500))
+        expectEqual(try String(contentsOf: target, encoding: .utf8), "old",
+                    "undo restores old destination")
+    }
 }

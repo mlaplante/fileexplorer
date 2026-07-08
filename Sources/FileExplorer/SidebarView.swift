@@ -139,6 +139,26 @@ struct SidebarView: View {
                     }
                 }
             }
+            if !settings.settings.smartFolders.isEmpty {
+                Section("Smart Folders") {
+                    ForEach(settings.settings.smartFolders) { smartFolder in
+                        Button {
+                            Task {
+                                await session.activePane.applySmartFolder(smartFolder)
+                            }
+                        } label: {
+                            Label(smartFolder.name,
+                                  systemImage: "folder.badge.gearshape")
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button("Delete Smart Folder") {
+                                settings.deleteSmartFolder(name: smartFolder.name)
+                            }
+                        }
+                    }
+                }
+            }
             if !sidebarTags.isEmpty {
                 Section("Tags") {
                     ForEach(sidebarTags, id: \.self) { tag in
@@ -213,10 +233,7 @@ struct SidebarView: View {
     /// text field's didSet re-derives filter.extensions (source of truth,
     /// same convention as PaneState.init(snapshot:)).
     private func apply(_ preset: FilterPreset) {
-        let pane = session.activePane
-        pane.filter = preset.filter
-        pane.filterExtensionsText = preset.filter.extensions.sorted()
-            .joined(separator: ", ")
+        session.activePane.applyFilter(preset.filter)
     }
 
     private func toggleTag(_ tag: String) {

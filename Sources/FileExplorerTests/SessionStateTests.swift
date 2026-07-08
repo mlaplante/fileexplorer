@@ -50,6 +50,35 @@ func sessionStateTests() async {
                "activePane follows new tab")
     }
 
+    await test("SessionState restores workspace profile tabs and panes") {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let left = dir.appendingPathComponent("left")
+        let right = dir.appendingPathComponent("right")
+        try FileManager.default.createDirectory(at: left,
+                                                withIntermediateDirectories: false)
+        try FileManager.default.createDirectory(at: right,
+                                                withIntermediateDirectories: false)
+        let snapshot = SessionSnapshot(
+            tabs: [SessionSnapshot.Tab(
+                panes: [SessionSnapshot.Pane(path: left.path),
+                        SessionSnapshot.Pane(path: right.path)],
+                activePaneIndex: 1,
+                showsPreviewPane: true)],
+            activeTabIndex: 0)
+        let profile = WorkspaceProfile(name: "Pair", snapshot: snapshot)
+        let session = SessionState(url: dir)
+
+        session.restoreWorkspace(profile, fallback: dir)
+
+        expectEqual(session.tabs.count, 1, "one restored tab")
+        expect(session.activeTab.isDual, "dual pane restored")
+        expectEqual(session.activePane.currentURL, right.standardizedFileURL,
+                    "active pane restored")
+        expectEqual(session.activeTab.showsPreviewPane, true,
+                    "preview pane state restored")
+    }
+
     await test("SessionState toggles and dedupes favorite folders") {
         let fm = FileManager.default
         let root = fm.temporaryDirectory

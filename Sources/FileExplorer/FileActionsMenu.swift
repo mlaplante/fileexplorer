@@ -13,6 +13,7 @@ struct FileActions {
     let batchRenameModel: BatchRenameModel
     let settings: SettingsModel
     let trashRegistry: TrashRegistryModel?
+    let conflictResolution: ConflictResolutionModel?
     let share: (@MainActor ([URL]) -> Void)?
 
     @ViewBuilder
@@ -29,7 +30,9 @@ struct FileActions {
         Divider()
         imageToolsSection(targets: targets)
         archiveSection(targets: targets)
+        diskImageSection(targets: targets)
         sizeSection(targets: targets)
+        advancedSystemSection(targets: targets)
         Divider()
         trashSection(targets: targets)
     }
@@ -40,6 +43,12 @@ struct FileActions {
             for url in targets { NSWorkspace.shared.open(url) }
         }
         .disabled(targets.isEmpty)
+        if targets.count == 1, let target = targets.first,
+           PackageInspector.isPackage(target) {
+            Button("Show Package Contents") {
+                Task { await pane.navigate(to: target) }
+            }
+        }
         Menu("Open With") {
             // Candidate apps come from the FIRST item's type (spec decision);
             // the chosen app opens the whole selection.
@@ -101,8 +110,13 @@ struct FileActions {
             Task { await pane.duplicateSelected(targets) }
         }
         .disabled(targets.isEmpty)
-        Button("Make Alias") {
-            Task { await pane.makeAliasSelected(targets) }
+        Menu("Make Alias") {
+            Button("Symbolic Link Alias") {
+                Task { await pane.makeAliasSelected(targets, kind: .symlink) }
+            }
+            Button("Finder Alias File") {
+                Task { await pane.makeAliasSelected(targets, kind: .bookmarkFile) }
+            }
         }
         .disabled(targets.isEmpty)
         Menu("Copy Path") {
@@ -201,11 +215,11 @@ struct FileActions {
         if let otherPane {
             Divider()
             Button("Move to Other Pane") {
-                Task { await pane.moveSelected(targets, into: otherPane.currentURL) }
+                transfer(targets, to: otherPane, operation: .move, title: "Move")
             }
             .disabled(targets.isEmpty)
             Button("Copy to Other Pane") {
-                Task { await pane.copySelected(targets, into: otherPane.currentURL) }
+                transfer(targets, to: otherPane, operation: .copy, title: "Copy")
             }
             .disabled(targets.isEmpty)
         }
@@ -272,6 +286,34 @@ struct FileActions {
     }
 
     @ViewBuilder
+    private func diskImageSection(targets: [URL]) -> some View {
+        let folders = targets.filter { isFolder($0) }
+        let images = targets.filter { $0.pathExtension.lowercased() == "dmg" }
+        Menu("Disk Image") {
+            Button("Create Disk Image") {
+                for folder in folders {
+                    runDiskImageCommand(DiskImagePlanner.createCommand(
+                        sourceFolder: folder))
+                }
+            }
+            .disabled(folders.isEmpty)
+            Button("Mount") {
+                for image in images {
+                    runDiskImageCommand(DiskImagePlanner.attachCommand(image: image))
+                }
+            }
+            .disabled(images.isEmpty)
+            Button("Verify") {
+                for image in images {
+                    runDiskImageCommand(DiskImagePlanner.verifyCommand(image: image))
+                }
+            }
+            .disabled(images.isEmpty)
+        }
+        .disabled(targets.isEmpty)
+    }
+
+    @ViewBuilder
     private func sizeSection(targets: [URL]) -> some View {
         Button("Calculate Size") {
             Task { await pane.calculateFolderSizes(targets) }
@@ -279,6 +321,39 @@ struct FileActions {
         .disabled(!targets.contains { url in
             pane.entries.first(where: { $0.url == url })?.isDirectory == true
         })
+    }
+
+    @ViewBuilder
+    private func advancedSystemSection(targets: [URL]) -> some View {
+        Menu("Advanced") {
+            Button("Lock") {
+                setLocked(true, targets: targets)
+            }
+            .disabled(targets.isEmpty)
+            Button("Unlock") {
+                setLocked(false, targets: targets)
+            }
+            .disabled(targets.isEmpty)
+            Button("Clear Quarantine") {
+                clearQuarantine(targets: targets)
+            }
+            .disabled(targets.isEmpty)
+            let cloudTargets = targets.filter {
+                CloudFileTools.state(for: $0) != .notCloud
+            }
+            Divider()
+            Button("Download from iCloud") {
+                runCloudAction(targets: cloudTargets,
+                               action: CloudFileTools.startDownload)
+            }
+            .disabled(cloudTargets.isEmpty)
+            Button("Remove Local Download") {
+                runCloudAction(targets: cloudTargets,
+                               action: CloudFileTools.evictLocalCopy)
+            }
+            .disabled(cloudTargets.isEmpty)
+        }
+        .disabled(targets.isEmpty)
     }
 
     @ViewBuilder
@@ -308,6 +383,93 @@ struct FileActions {
     private func openWith(_ urls: [URL], app: URL) {
         NSWorkspace.shared.open(urls, withApplicationAt: app,
                                 configuration: NSWorkspace.OpenConfiguration())
+    }
+
+    private func transfer(_ targets: [URL], to destinationPane: PaneState,
+                          operation: OperationConflictPlanner.Operation,
+                          title: String) {
+        let plan = OperationConflictPlanner.plan(
+            operation: operation,
+            sources: targets,
+            into: destinationPane.currentURL)
+        if plan.hasConflicts, let conflictResolution {
+            conflictResolution.present(plan: plan, title: title, pane: pane)
+        } else {
+            Task { await pane.executeResolvedPlan(plan, actionName: title) }
+        }
+    }
+
+    private func runDiskImageCommand(_ command: DiskImageCommand) {
+        Task.detached(priority: .userInitiated) {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: command.executable)
+            process.arguments = command.arguments
+            do {
+                try process.run()
+                process.waitUntilExit()
+                if process.terminationStatus != 0 {
+                    await MainActor.run {
+                        pane.reportTagFailure("Disk image command failed.")
+                    }
+                } else {
+                    await pane.reload()
+                }
+            } catch {
+                await MainActor.run {
+                    pane.reportTagFailure(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private func setLocked(_ locked: Bool, targets: [URL]) {
+        Task.detached(priority: .userInitiated) {
+            var failures: [String] = []
+            for target in targets {
+                do {
+                    try PermissionTools.setLocked(locked, for: target)
+                } catch {
+                    failures.append("\(target.lastPathComponent): \(error.localizedDescription)")
+                }
+            }
+            await pane.reload()
+            if let message = OperationFailureSummary.message(failures) {
+                await MainActor.run { pane.reportTagFailure(message) }
+            }
+        }
+    }
+
+    private func clearQuarantine(targets: [URL]) {
+        Task.detached(priority: .userInitiated) {
+            var failures: [String] = []
+            for target in targets {
+                do {
+                    try PermissionTools.clearQuarantine(target)
+                } catch {
+                    failures.append("\(target.lastPathComponent): \(error.localizedDescription)")
+                }
+            }
+            if let message = OperationFailureSummary.message(failures) {
+                await MainActor.run { pane.reportTagFailure(message) }
+            }
+        }
+    }
+
+    private func runCloudAction(
+        targets: [URL],
+        action: @escaping @Sendable (URL) -> Result<Void, FileOperationService.FileOpError>
+    ) {
+        Task.detached(priority: .userInitiated) {
+            let failures = targets.compactMap { target -> String? in
+                if case .failure(let error) = action(target) {
+                    return "\(target.lastPathComponent): \(error.message)"
+                }
+                return nil
+            }
+            if let message = OperationFailureSummary.message(failures) {
+                await MainActor.run { pane.reportTagFailure(message) }
+            }
+        }
     }
 
     private func applyTagToggle(_ tag: String, removing: Bool,

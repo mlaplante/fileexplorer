@@ -66,6 +66,51 @@ public final class SettingsModel {
         persister.saveSettings(settings)
     }
 
+    public func folderViewSettings(for url: URL) -> FolderViewSettings? {
+        settings.folderViewSettings[url.standardizedFileURL.path]
+    }
+
+    public func setFolderViewSettings(_ viewSettings: FolderViewSettings,
+                                      for url: URL) {
+        let key = url.standardizedFileURL.path
+        guard settings.folderViewSettings[key] != viewSettings else { return }
+        settings.folderViewSettings[key] = viewSettings
+        persister.saveSettings(settings)
+    }
+
+    public func saveWorkspaceProfile(name: String, snapshot: SessionSnapshot) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        settings.workspaceProfiles.removeAll { $0.name == trimmed }
+        settings.workspaceProfiles.append(WorkspaceProfile(name: trimmed,
+                                                          snapshot: snapshot))
+        settings.workspaceProfiles = AppSettings.normalizedProfiles(
+            settings.workspaceProfiles)
+        persister.saveSettings(settings)
+    }
+
+    public func deleteWorkspaceProfile(name: String) {
+        settings.workspaceProfiles.removeAll { $0.name == name }
+        persister.saveSettings(settings)
+    }
+
+    public func saveSmartFolder(name: String, root: URL, filter: FilterState) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, filter.isActive else { return }
+        settings.smartFolders.removeAll { $0.name == trimmed }
+        settings.smartFolders.append(SmartFolder(name: trimmed,
+                                                root: root,
+                                                filter: filter))
+        settings.smartFolders = AppSettings.normalizedSmartFolders(
+            settings.smartFolders)
+        persister.saveSettings(settings)
+    }
+
+    public func deleteSmartFolder(name: String) {
+        settings.smartFolders.removeAll { $0.name == name }
+        persister.saveSettings(settings)
+    }
+
     public func chord(for command: ShortcutRegistry.Command) -> KeyChord {
         ShortcutRegistry.effectiveChord(for: command,
                                         overrides: settings.shortcutOverrides)

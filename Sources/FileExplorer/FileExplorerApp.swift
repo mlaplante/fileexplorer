@@ -9,6 +9,10 @@ struct FileExplorerApp: App {
     private let renameModel = RenameSheetModel()
     private let batchRenameModel = BatchRenameModel()
     private let syncPreviewModel = SyncPreviewModel()
+    private let conflictResolutionModel = ConflictResolutionModel()
+    private let operationQueue = OperationQueueModel()
+    private let workspaceProfileModel = WorkspaceProfileModel()
+    private let connectServerModel = ConnectServerModel()
     private let volumesModel = VolumesModel()
     private let settings: SettingsModel
     private let trashRegistry: TrashRegistryModel
@@ -72,7 +76,9 @@ struct FileExplorerApp: App {
                     TabContentView(session: session, renameModel: renameModel,
                                    batchRenameModel: batchRenameModel,
                                    syncPreview: syncPreviewModel, settings: settings,
-                                   trashRegistry: trashRegistry)
+                                   trashRegistry: trashRegistry,
+                                   conflictResolution: conflictResolutionModel,
+                                   operationQueue: operationQueue)
                         .navigationTitle(session.activePane.currentURL.lastPathComponent)
                         .toolbar {
                             ToolbarItemGroup(placement: .navigation) {
@@ -120,6 +126,14 @@ struct FileExplorerApp: App {
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
                     .padding(.top, 8)
                 }
+
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        OperationQueueOverlay(model: operationQueue)
+                    }
+                }
             }
             .frame(minWidth: 760, minHeight: 400)
             .sheet(isPresented: Binding(
@@ -145,9 +159,84 @@ struct FileExplorerApp: App {
                 set: { if !$0 { syncPreviewModel.dismiss() } })) {
                 SyncPreviewSheet(model: syncPreviewModel)
             }
+            .sheet(isPresented: Binding(
+                get: { conflictResolutionModel.isPresented },
+                set: { if !$0 { conflictResolutionModel.dismiss() } })) {
+                ConflictResolutionSheet(model: conflictResolutionModel)
+            }
+            .sheet(isPresented: Binding(
+                get: { workspaceProfileModel.isPresented },
+                set: { if !$0 { workspaceProfileModel.dismiss() } })) {
+                WorkspaceProfileSheet(model: workspaceProfileModel) { name in
+                    settings.saveWorkspaceProfile(name: name,
+                                                  snapshot: session.snapshot())
+                }
+            }
+            .sheet(isPresented: Binding(
+                get: { connectServerModel.isPresented },
+                set: { if !$0 { connectServerModel.dismiss() } })) {
+                ConnectServerSheet(model: connectServerModel) { url in
+                    NSWorkspace.shared.open(url)
+                }
+            }
         }
         .commands {
             GetInfoCommands(settings: settings)
+            CommandMenu("Network") {
+                Button("Connect to Server…") {
+                    connectServerModel.present()
+                }
+                .keyboardShortcut("k", modifiers: .command)
+            }
+            CommandMenu("Workspace") {
+                Button("Save Workspace…") {
+                    let formatter = DateFormatter()
+                    formatter.dateStyle = .short
+                    formatter.timeStyle = .short
+                    workspaceProfileModel.present(
+                        defaultName: "Workspace \(formatter.string(from: Date()))")
+                }
+                if !settings.settings.workspaceProfiles.isEmpty {
+                    Divider()
+                    ForEach(settings.settings.workspaceProfiles) { profile in
+                        Button("Restore \(profile.name)") {
+                            session.restoreWorkspace(
+                                profile,
+                                fallback: FileManager.default.homeDirectoryForCurrentUser)
+                        }
+                    }
+                    Divider()
+                    ForEach(settings.settings.workspaceProfiles) { profile in
+                        Button("Delete \(profile.name)") {
+                            settings.deleteWorkspaceProfile(name: profile.name)
+                        }
+                    }
+                }
+            }
+            CommandMenu("Smart Folders") {
+                Button("Save Current Filter as Smart Folder…") {
+                    let pane = session.activePane
+                    pane.saveSmartFolderNameDraft = pane.currentURL.lastPathComponent
+                    pane.showsSaveSmartFolderPopover = true
+                }
+                .disabled(!session.activePane.filter.isActive)
+                if !settings.settings.smartFolders.isEmpty {
+                    Divider()
+                    ForEach(settings.settings.smartFolders) { smartFolder in
+                        Button("Open \(smartFolder.name)") {
+                            Task {
+                                await session.activePane.applySmartFolder(smartFolder)
+                            }
+                        }
+                    }
+                    Divider()
+                    ForEach(settings.settings.smartFolders) { smartFolder in
+                        Button("Delete \(smartFolder.name)") {
+                            settings.deleteSmartFolder(name: smartFolder.name)
+                        }
+                    }
+                }
+            }
             CommandGroup(replacing: .pasteboard) {
                 Button("Cut") {
                     PasteboardOps.forwardToFieldEditor(#selector(NSText.cut(_:)))
@@ -179,7 +268,20 @@ struct FileExplorerApp: App {
                     let urls = PasteboardOps.readFileURLs()
                     guard !urls.isEmpty else { return }
                     let pane = session.activePane
-                    Task { await pane.moveSelected(urls, into: pane.currentURL) }
+                    let plan = OperationConflictPlanner.plan(
+                        operation: .move,
+                        sources: urls,
+                        into: pane.currentURL)
+                    if plan.hasConflicts {
+                        conflictResolutionModel.present(plan: plan,
+                                                        title: "Move",
+                                                        pane: pane)
+                    } else {
+                        Task {
+                            await pane.executeResolvedPlan(plan,
+                                                           actionName: "Move")
+                        }
+                    }
                 }
                 .keyboardShortcut("v", modifiers: [.command, .option])
                 Button("Select All") {

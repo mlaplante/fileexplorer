@@ -23,6 +23,18 @@ public final class SessionState {
     /// default single tab at `fallback`.
     public convenience init(snapshot: SessionSnapshot, fallback: URL) {
         self.init(url: fallback)
+        restore(snapshot: snapshot, fallback: fallback)
+        recentFolders = snapshot.recentFolders.map { URL(fileURLWithPath: $0) }
+        favoriteFolders = Self.dedupedFolders(snapshot.favoriteFolders.map {
+            URL(fileURLWithPath: $0)
+        })
+    }
+
+    public func restoreWorkspace(_ profile: WorkspaceProfile, fallback: URL) {
+        restore(snapshot: profile.snapshot, fallback: fallback)
+    }
+
+    private func restore(snapshot: SessionSnapshot, fallback: URL) {
         if !snapshot.tabs.isEmpty {
             tabs = snapshot.tabs.map { tabSnapshot in
                 TabState(snapshot: tabSnapshot, fallback: fallback) {
@@ -32,10 +44,6 @@ public final class SessionState {
             }
             activeTabIndex = max(0, min(snapshot.activeTabIndex, tabs.count - 1))
         }
-        recentFolders = snapshot.recentFolders.map { URL(fileURLWithPath: $0) }
-        favoriteFolders = Self.dedupedFolders(snapshot.favoriteFolders.map {
-            URL(fileURLWithPath: $0)
-        })
     }
 
     public var activeTab: TabState {

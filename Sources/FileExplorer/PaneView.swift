@@ -10,6 +10,8 @@ struct PaneView: View {
     var batchRenameModel: BatchRenameModel
     var settings: SettingsModel
     var trashRegistry: TrashRegistryModel?
+    var conflictResolution: ConflictResolutionModel?
+    var operationQueue: OperationQueueModel?
     /// Compare-mode context: this pane's side and the shared result, valid
     /// only while the pane is still at the compared root.
     var compareSide: FolderComparator.Side? = nil
@@ -33,6 +35,7 @@ struct PaneView: View {
                                              batchRenameModel: batchRenameModel,
                                              settings: settings,
                                              trashRegistry: trashRegistry,
+                                             conflictResolution: conflictResolution,
                                              share: share)) { open($0) }
                 } else if pane.viewMode == .columns {
                     ColumnBrowserView(
@@ -43,6 +46,7 @@ struct PaneView: View {
                                              batchRenameModel: batchRenameModel,
                                              settings: settings,
                                              trashRegistry: trashRegistry,
+                                             conflictResolution: conflictResolution,
                                              share: share)) { open($0) }
                 } else {
                     table
@@ -114,12 +118,29 @@ struct PaneView: View {
                     DropDecision.sameVolume($0, pane.currentURL)
                 }
                 Task {
-                    switch DropDecision.decide(optionDown: optionDown,
-                                               sameVolume: sameVolume) {
+                    let operation = DropDecision.decide(optionDown: optionDown,
+                                                        sameVolume: sameVolume)
+                    let plannerOperation: OperationConflictPlanner.Operation
+                    let actionName: String
+                    switch operation {
                     case .move:
-                        await pane.moveSelected(outside, into: pane.currentURL)
+                        plannerOperation = .move
+                        actionName = "Move"
                     case .copy:
-                        await pane.copySelected(outside, into: pane.currentURL)
+                        plannerOperation = .copy
+                        actionName = "Copy"
+                    }
+                    let plan = OperationConflictPlanner.plan(
+                        operation: plannerOperation,
+                        sources: outside,
+                        into: pane.currentURL)
+                    if plan.hasConflicts, let conflictResolution {
+                        conflictResolution.present(plan: plan,
+                                                   title: actionName,
+                                                   pane: pane)
+                    } else {
+                        await pane.executeResolvedPlan(plan,
+                                                       actionName: actionName)
                     }
                 }
                 return true
@@ -131,6 +152,7 @@ struct PaneView: View {
             pane.undoManager = undoManager
             pane.trashRegistry = trashRegistry
             pane.settingsModel = settings
+            pane.operationQueue = operationQueue
             pane.springLoad.onSpring = { folder in
                 Task { await pane.navigate(to: folder) }
             }
@@ -139,6 +161,7 @@ struct PaneView: View {
             pane.undoManager = undoManager
             pane.trashRegistry = trashRegistry
             pane.settingsModel = settings
+            pane.operationQueue = operationQueue
         }
         .onChange(of: pane.pendingRenameURL) { _, url in
             guard let url else { return }
@@ -292,6 +315,7 @@ struct PaneView: View {
                         batchRenameModel: batchRenameModel,
                         settings: settings,
                         trashRegistry: trashRegistry,
+                        conflictResolution: conflictResolution,
                         share: share).menu(for: urls)
         } primaryAction: { urls in
             open(urls)

@@ -30,13 +30,20 @@ public final class PaneState {
     public var sortOrder: [KeyPathComparator<FileEntry>] = [
         KeyPathComparator(\FileEntry.name, comparator: .localizedStandard)
     ] {
-        didSet { recomputeVisible() }
+        didSet {
+            recomputeVisible()
+            persistFolderViewSettings()
+        }
     }
     public var groupBy: Grouper.Axis = .none {
-        didSet { recomputeVisible() }
+        didSet {
+            recomputeVisible()
+            persistFolderViewSettings()
+        }
     }
     public var showHidden = false {
         didSet {
+            persistFolderViewSettings()
             guard oldValue != showHidden, started else { return }
             Task { await reload() }
         }
@@ -49,7 +56,9 @@ public final class PaneState {
     }
 
     /// List vs thumbnail-grid presentation; per pane, remembered per tab.
-    public var viewMode: ViewMode = .list
+    public var viewMode: ViewMode = .list {
+        didSet { persistFolderViewSettings() }
+    }
     public var errorMessage: String?
     public var availableSpaceText: String?
     public var pendingRenameURL: URL?
@@ -117,6 +126,8 @@ public final class PaneState {
     /// deliberately NOT read by snapshot()).
     public var showsSavePresetPopover = false
     public var savePresetNameDraft = ""
+    public var showsSaveSmartFolderPopover = false
+    public var saveSmartFolderNameDraft = ""
 
     /// Transient rubber-band drag state for the icon grid (view-layer
     /// geometry; deliberately NOT read by snapshot()).
@@ -148,6 +159,7 @@ public final class PaneState {
     @ObservationIgnored public weak var undoManager: UndoManager?
     @ObservationIgnored public var trashRegistry: TrashRegistryModel?
     @ObservationIgnored public var settingsModel: SettingsModel?
+    @ObservationIgnored public var operationQueue: OperationQueueModel?
 
     public init(url: URL) {
         // Standardize so NavigationHistory's exact-URL-equality no-op check
@@ -182,6 +194,7 @@ public final class PaneState {
     public func startIfNeeded() {
         guard !started else { return }
         started = true
+        applyStoredFolderViewSettings()
         watchCurrent()
         Task { await reload() }
     }
@@ -325,6 +338,59 @@ public final class PaneState {
         opErrorMessage = OperationFailureSummary.message(failures)
     }
 
+    public func executeResolvedPlan(_ plan: OperationConflictPlanner.Plan,
+                                    actionName: String) async {
+        let queueID = operationQueue?.enqueue(plan, title: actionName)
+        if queueID != nil {
+            _ = operationQueue?.startNext()
+        }
+        let outcome = await Task.detached(priority: .userInitiated) {
+            FileOperationService.execute(plan)
+        }.value
+        await reload()
+        if let undoManager {
+            let needsGrouping = !outcome.written.isEmpty
+                && !outcome.replacedTrash.isEmpty
+            if needsGrouping { undoManager.beginUndoGrouping() }
+            UndoRecorder.recordTrash(outcome.replacedTrash,
+                                     actionName: actionName,
+                                     on: undoManager, pane: self)
+            switch plan.operation {
+            case .copy, .sync:
+                UndoRecorder.recordCreation(outcome.created,
+                                            actionName: actionName,
+                                            on: undoManager, pane: self)
+            case .move:
+                UndoRecorder.recordMove(
+                    outcome.written.map { (from: $0.source, to: $0.destination) },
+                    actionName: actionName,
+                    on: undoManager, pane: self)
+            }
+            if needsGrouping { undoManager.endUndoGrouping() }
+        }
+        opErrorMessage = OperationFailureSummary.message(outcome.failures)
+        if !outcome.created.isEmpty {
+            selection = Set(outcome.created.map(\.standardizedFileURL))
+        }
+        if let queueID {
+            operationQueue?.updateProgress(
+                id: queueID,
+                completed: outcome.written.count + outcome.skipped.count
+                    + outcome.failures.count,
+                total: plan.items.count)
+            if outcome.failures.isEmpty {
+                operationQueue?.succeed(id: queueID)
+            } else {
+                operationQueue?.fail(
+                    id: queueID,
+                    failures: outcome.failures.map {
+                        QueuedOperation.Failure(source: plan.destination,
+                                                message: $0)
+                    })
+            }
+        }
+    }
+
     public func renameSelected(_ url: URL, to newName: String) async {
         let result = FileOperationService.rename(url, to: newName)
         await reload()
@@ -448,8 +514,13 @@ public final class PaneState {
     /// Creates Finder-style aliases (POSIX symlinks) next to each selected
     /// item, selects the aliases, one undo step (trash the aliases).
     public func makeAliasSelected(_ urls: [URL]) async {
+        await makeAliasSelected(urls, kind: .symlink)
+    }
+
+    public func makeAliasSelected(_ urls: [URL],
+                                  kind: FileOperationService.AliasKind) async {
         let results = await Task.detached(priority: .userInitiated) {
-            FileOperationService.symlink(urls)
+            FileOperationService.makeAlias(urls, kind: kind)
         }.value
         await reload()
         finishOperation(results: results) { successes in
@@ -680,6 +751,40 @@ public final class PaneState {
         filter = FilterState()
     }
 
+    public func applySmartFolder(_ smartFolder: SmartFolder) async {
+        await navigate(to: smartFolder.rootURL)
+        applyFilter(smartFolder.filter)
+    }
+
+    public func applyFilter(_ newFilter: FilterState) {
+        filter = newFilter
+        filterExtensionsText = newFilter.extensions.sorted()
+            .joined(separator: ", ")
+    }
+
+    private func applyStoredFolderViewSettings() {
+        guard let settings = settingsModel?.folderViewSettings(for: currentURL) else {
+            return
+        }
+        viewMode = ViewMode(rawValue: settings.viewMode) ?? viewMode
+        groupBy = settings.groupBy
+        sortOrder = SortTokenCoder.comparators(from: settings.sort)
+        showHidden = settings.showHidden
+    }
+
+    private func persistFolderViewSettings() {
+        guard started else { return }
+        settingsModel?.setFolderViewSettings(folderViewSettings(), for: currentURL)
+    }
+
+    public func folderViewSettings() -> FolderViewSettings {
+        FolderViewSettings(
+            viewMode: viewMode.rawValue,
+            groupBy: groupBy,
+            showHidden: showHidden,
+            sort: SortTokenCoder.tokens(from: sortOrder))
+    }
+
     public func snapshot() -> SessionSnapshot.Pane {
         SessionSnapshot.Pane(
             path: currentURL.path,
@@ -701,6 +806,7 @@ public final class PaneState {
         selection.removeAll()
         opErrorMessage = nil
         folderSizes.removeAll()
+        applyStoredFolderViewSettings()
         watchCurrent()
         await reload()
         onNavigated?(currentURL)

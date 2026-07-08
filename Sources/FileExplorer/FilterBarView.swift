@@ -164,29 +164,44 @@ struct FilterBarView: View {
             Spacer()
 
             if pane.filter.isActive {
-                Button("Save Preset…") {
-                    pane.savePresetNameDraft = ""
-                    pane.showsSavePresetPopover = true
+                Menu {
+                    Button("Preset…") {
+                        pane.savePresetNameDraft = ""
+                        pane.showsSavePresetPopover = true
+                    }
+                    Button("Smart Folder…") {
+                        pane.saveSmartFolderNameDraft = ""
+                        pane.showsSaveSmartFolderPopover = true
+                    }
+                } label: {
+                    Label("Save", systemImage: "square.and.arrow.down")
                 }
                 .controlSize(.small)
                 .popover(isPresented: Binding(
                     get: { pane.showsSavePresetPopover },
                     set: { pane.showsSavePresetPopover = $0 })) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        TextField("Preset name", text: Binding(
-                            get: { pane.savePresetNameDraft },
-                            set: { pane.savePresetNameDraft = $0 }))
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 180)
-                        Button("Save") {
-                            settings.savePreset(name: pane.savePresetNameDraft,
-                                                filter: pane.filter)
-                            pane.showsSavePresetPopover = false
-                        }
-                        .disabled(pane.savePresetNameDraft
-                            .trimmingCharacters(in: .whitespaces).isEmpty)
+                    saveFilterPopover(title: "Preset name",
+                                      text: Binding(
+                                        get: { pane.savePresetNameDraft },
+                                        set: { pane.savePresetNameDraft = $0 })) {
+                        settings.savePreset(name: pane.savePresetNameDraft,
+                                            filter: pane.filter)
+                        pane.showsSavePresetPopover = false
                     }
-                    .padding(12)
+                }
+                .popover(isPresented: Binding(
+                    get: { pane.showsSaveSmartFolderPopover },
+                    set: { pane.showsSaveSmartFolderPopover = $0 })) {
+                    saveFilterPopover(title: "Smart folder name",
+                                      text: Binding(
+                                        get: { pane.saveSmartFolderNameDraft },
+                                        set: { pane.saveSmartFolderNameDraft = $0 })) {
+                        settings.saveSmartFolder(
+                            name: pane.saveSmartFolderNameDraft,
+                            root: pane.currentURL,
+                            filter: pane.filter)
+                        pane.showsSaveSmartFolderPopover = false
+                    }
                 }
                 Button("Clear") { pane.clearFilters() }
                     .controlSize(.small)
@@ -194,5 +209,18 @@ struct FilterBarView: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 32)
+    }
+
+    private func saveFilterPopover(title: String, text: Binding<String>,
+                                   save: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField(title, text: text)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 180)
+            Button("Save", action: save)
+                .disabled(text.wrappedValue
+                    .trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+        .padding(12)
     }
 }

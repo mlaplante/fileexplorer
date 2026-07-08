@@ -9,22 +9,32 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var lastUpdateCheckAt: Date?
     public var shortcutOverrides: [String: KeyChord]
     public var knownTags: [String]
+    public var folderViewSettings: [String: FolderViewSettings]
+    public var workspaceProfiles: [WorkspaceProfile]
+    public var smartFolders: [SmartFolder]
 
     public init(jpegQuality: Double = 0.85, filterPresets: [FilterPreset] = [],
                 updateCheckEnabled: Bool = true, lastUpdateCheckAt: Date? = nil,
                 shortcutOverrides: [String: KeyChord] = [:],
-                knownTags: [String] = []) {
+                knownTags: [String] = [],
+                folderViewSettings: [String: FolderViewSettings] = [:],
+                workspaceProfiles: [WorkspaceProfile] = [],
+                smartFolders: [SmartFolder] = []) {
         self.jpegQuality = min(max(jpegQuality, 0.1), 1.0)
         self.filterPresets = filterPresets
         self.updateCheckEnabled = updateCheckEnabled
         self.lastUpdateCheckAt = lastUpdateCheckAt
         self.shortcutOverrides = shortcutOverrides
         self.knownTags = Self.normalizedTags(knownTags)
+        self.folderViewSettings = folderViewSettings
+        self.workspaceProfiles = Self.normalizedProfiles(workspaceProfiles)
+        self.smartFolders = Self.normalizedSmartFolders(smartFolders)
     }
 
     enum CodingKeys: String, CodingKey {
         case jpegQuality, filterPresets, updateCheckEnabled, lastUpdateCheckAt,
-             shortcutOverrides, knownTags
+             shortcutOverrides, knownTags, folderViewSettings
+        case workspaceProfiles, smartFolders
     }
 
     public init(from decoder: Decoder) throws {
@@ -41,6 +51,13 @@ public struct AppSettings: Codable, Equatable, Sendable {
             [String: KeyChord].self, forKey: .shortcutOverrides) ?? [:]
         knownTags = Self.normalizedTags(try container.decodeIfPresent(
             [String].self, forKey: .knownTags) ?? [])
+        folderViewSettings = try container.decodeIfPresent(
+            [String: FolderViewSettings].self,
+            forKey: .folderViewSettings) ?? [:]
+        workspaceProfiles = Self.normalizedProfiles(try container.decodeIfPresent(
+            [WorkspaceProfile].self, forKey: .workspaceProfiles) ?? [])
+        smartFolders = Self.normalizedSmartFolders(try container.decodeIfPresent(
+            [SmartFolder].self, forKey: .smartFolders) ?? [])
     }
 
     public static func normalizedTags(_ tags: [String]) -> [String] {
@@ -48,6 +65,35 @@ public struct AppSettings: Codable, Equatable, Sendable {
             let insensitive = lhs.localizedCaseInsensitiveCompare(rhs)
             if insensitive != .orderedSame { return insensitive == .orderedAscending }
             return lhs.localizedCompare(rhs) == .orderedAscending
+        }
+    }
+
+    public static func normalizedProfiles(_ profiles: [WorkspaceProfile])
+        -> [WorkspaceProfile] {
+        var byName: [String: WorkspaceProfile] = [:]
+        for profile in profiles {
+            let trimmed = profile.name.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { continue }
+            byName[trimmed] = WorkspaceProfile(name: trimmed,
+                                               snapshot: profile.snapshot)
+        }
+        return byName.values.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+    }
+
+    public static func normalizedSmartFolders(_ folders: [SmartFolder])
+        -> [SmartFolder] {
+        var byName: [String: SmartFolder] = [:]
+        for folder in folders {
+            let trimmed = folder.name.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty, !folder.rootPath.isEmpty else { continue }
+            byName[trimmed] = SmartFolder(name: trimmed,
+                                          root: folder.rootURL,
+                                          filter: folder.filter)
+        }
+        return byName.values.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
         }
     }
 }

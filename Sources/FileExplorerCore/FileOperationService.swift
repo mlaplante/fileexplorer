@@ -8,6 +8,23 @@ public enum FileOperationService {
         public let outcome: Result<URL, FileOpError>
     }
 
+    public struct PlannedOutcome: Sendable {
+        public var written: [(source: URL, destination: URL)] = []
+        public var replacedTrash: [(original: URL, trashed: URL)] = []
+        public var skipped: [URL] = []
+        public var failures: [String] = []
+
+        public init() {}
+
+        public var created: [URL] {
+            written.map(\.destination)
+        }
+
+        public var succeeded: Bool {
+            failures.isEmpty
+        }
+    }
+
     public struct FileOpError: Error, Sendable, CustomStringConvertible {
         public let message: String
         public var description: String { message }
@@ -26,6 +43,47 @@ public enum FileOperationService {
         perform(sources, into: destination) { source, target in
             try FileManager.default.copyItem(at: source, to: target)
         }
+    }
+
+    /// Executes a previously reviewed operation plan. Conflicts left in the
+    /// plan are reported as failures; only `.replace` overwrites, and it first
+    /// moves the existing destination to Trash so callers can register undo.
+    public static func execute(_ plan: OperationConflictPlanner.Plan)
+        -> PlannedOutcome {
+        let fm = FileManager.default
+        var outcome = PlannedOutcome()
+        for item in plan.items {
+            switch item.action {
+            case .write(let target):
+                write(item.source, to: target, operation: plan.operation,
+                      outcome: &outcome)
+            case .replace(let existing):
+                if fm.fileExists(atPath: existing.path) {
+                    var resulting: NSURL?
+                    do {
+                        try fm.trashItem(at: existing, resultingItemURL: &resulting)
+                        if let trashed = resulting as URL? {
+                            outcome.replacedTrash.append((original: existing,
+                                                          trashed: trashed))
+                        }
+                    } catch {
+                        outcome.failures.append(
+                            "\(existing.lastPathComponent): \(error.localizedDescription)")
+                        continue
+                    }
+                }
+                write(item.source, to: existing, operation: plan.operation,
+                      outcome: &outcome)
+            case .skip:
+                outcome.skipped.append(item.source)
+            case .conflict(let existing):
+                outcome.failures.append(
+                    "“\(existing.lastPathComponent)” already exists in the destination.")
+            case .fail(let message):
+                outcome.failures.append(message)
+            }
+        }
+        return outcome
     }
 
     public static func rename(_ url: URL, to newName: String) -> Result<URL, FileOpError> {
@@ -148,9 +206,19 @@ public enum FileOperationService {
         }
     }
 
+    public enum AliasKind: Sendable {
+        case symlink
+        case bookmarkFile
+    }
+
     /// Creates "name alias" symlinks next to each source. Collisions get
     /// plain Finder-style counters ("name alias 2", "name alias 3", ...).
     public static func symlink(_ sources: [URL]) -> [ItemResult] {
+        makeAlias(sources, kind: .symlink)
+    }
+
+    public static func makeAlias(_ sources: [URL],
+                                 kind: AliasKind) -> [ItemResult] {
         let fm = FileManager.default
         return sources.map { source in
             let directory = source.deletingLastPathComponent()
@@ -159,7 +227,16 @@ public enum FileOperationService {
             let name = CollisionNamer.sequentialName(base: aliasStem, existing: existing)
             let target = directory.appendingPathComponent(name)
             do {
-                try fm.createSymbolicLink(at: target, withDestinationURL: source)
+                switch kind {
+                case .symlink:
+                    try fm.createSymbolicLink(at: target, withDestinationURL: source)
+                case .bookmarkFile:
+                    let data = try source.bookmarkData(
+                        options: [.suitableForBookmarkFile],
+                        includingResourceValuesForKeys: nil,
+                        relativeTo: nil)
+                    try URL.writeBookmarkData(data, to: target)
+                }
                 return ItemResult(source: source, outcome: .success(target))
             } catch {
                 return ItemResult(source: source, outcome: .failure(FileOpError(error)))
@@ -188,6 +265,26 @@ public enum FileOperationService {
             } catch {
                 return ItemResult(source: source, outcome: .failure(FileOpError(error)))
             }
+        }
+    }
+
+    private static func write(_ source: URL, to target: URL,
+                              operation: OperationConflictPlanner.Operation,
+                              outcome: inout PlannedOutcome) {
+        do {
+            try FileManager.default.createDirectory(
+                at: target.deletingLastPathComponent(),
+                withIntermediateDirectories: true)
+            switch operation {
+            case .copy, .sync:
+                try FileManager.default.copyItem(at: source, to: target)
+            case .move:
+                try FileManager.default.moveItem(at: source, to: target)
+            }
+            outcome.written.append((source: source, destination: target))
+        } catch {
+            outcome.failures.append(
+                "\(source.lastPathComponent): \(error.localizedDescription)")
         }
     }
 }
