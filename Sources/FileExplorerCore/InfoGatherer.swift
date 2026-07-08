@@ -70,10 +70,15 @@ public enum InfoGatherer {
     }
 
     /// "rwxr-xr-x" from a POSIX mode. Pure.
+    /// (Written as explicit statements: the map/ternary/shift one-liner
+    /// exceeds the type-checker budget on CI's older Swift toolchain.)
     public static func permissionString(mode: Int) -> String {
         let bits = ["r", "w", "x"]
-        return (0..<9).map { index in
-            (mode >> (8 - index)) & 1 == 1 ? bits[index % 3] : "-"
-        }.joined()
+        var result = ""
+        for index in 0..<9 {
+            let bit = (mode >> (8 - index)) & 1
+            result += bit == 1 ? bits[index % 3] : "-"
+        }
+        return result
     }
 }
