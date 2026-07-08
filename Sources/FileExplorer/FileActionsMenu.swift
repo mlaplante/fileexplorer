@@ -19,6 +19,31 @@ struct FileActions {
             for url in targets { NSWorkspace.shared.open(url) }
         }
         .disabled(targets.isEmpty)
+        Menu("Open With") {
+            // Candidate apps come from the FIRST item's type (spec decision);
+            // the chosen app opens the whole selection.
+            if let url = targets.first {
+                let defaultApp = NSWorkspace.shared.urlForApplication(toOpen: url)
+                let apps = NSWorkspace.shared.urlsForApplications(toOpen: url)
+                    .sorted {
+                        appDisplayName($0).localizedCaseInsensitiveCompare(
+                            appDisplayName($1)) == .orderedAscending
+                    }
+                if let defaultApp {
+                    Button("\(appDisplayName(defaultApp)) (default)") {
+                        openWith(targets, app: defaultApp)
+                    }
+                    Divider()
+                }
+                ForEach(apps.filter { $0 != defaultApp }, id: \.self) { app in
+                    Button(appDisplayName(app)) { openWith(targets, app: app) }
+                }
+                if apps.isEmpty && defaultApp == nil {
+                    Text("No Available Applications")
+                }
+            }
+        }
+        .disabled(targets.isEmpty)
         Button("Reveal in Finder") {
             NSWorkspace.shared.activateFileViewerSelecting(targets)
         }
@@ -107,5 +132,14 @@ struct FileActions {
             Task { await pane.trashSelected(targets) }
         }
         .disabled(targets.isEmpty)
+    }
+
+    private func appDisplayName(_ app: URL) -> String {
+        FileManager.default.displayName(atPath: app.path)
+    }
+
+    private func openWith(_ urls: [URL], app: URL) {
+        NSWorkspace.shared.open(urls, withApplicationAt: app,
+                                configuration: NSWorkspace.OpenConfiguration())
     }
 }
