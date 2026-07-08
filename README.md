@@ -1,6 +1,6 @@
 # FileExplorer
 
-A personal, keyboard-driven macOS file manager in the spirit of WhimFiles: fast
+A personal, keyboard-driven macOS file manager: fast
 dual-pane browsing, fuzzy palettes for navigation and commands, previews,
 batch tools (rename / convert / compress), and full undo — built with Swift 6
 and SwiftUI on top of Swift Package Manager.
