@@ -8,20 +8,23 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var updateCheckEnabled: Bool
     public var lastUpdateCheckAt: Date?
     public var shortcutOverrides: [String: KeyChord]
+    public var knownTags: [String]
 
     public init(jpegQuality: Double = 0.85, filterPresets: [FilterPreset] = [],
                 updateCheckEnabled: Bool = true, lastUpdateCheckAt: Date? = nil,
-                shortcutOverrides: [String: KeyChord] = [:]) {
+                shortcutOverrides: [String: KeyChord] = [:],
+                knownTags: [String] = []) {
         self.jpegQuality = min(max(jpegQuality, 0.1), 1.0)
         self.filterPresets = filterPresets
         self.updateCheckEnabled = updateCheckEnabled
         self.lastUpdateCheckAt = lastUpdateCheckAt
         self.shortcutOverrides = shortcutOverrides
+        self.knownTags = Self.normalizedTags(knownTags)
     }
 
     enum CodingKeys: String, CodingKey {
         case jpegQuality, filterPresets, updateCheckEnabled, lastUpdateCheckAt,
-             shortcutOverrides
+             shortcutOverrides, knownTags
     }
 
     public init(from decoder: Decoder) throws {
@@ -36,6 +39,16 @@ public struct AppSettings: Codable, Equatable, Sendable {
             Date.self, forKey: .lastUpdateCheckAt)
         shortcutOverrides = try container.decodeIfPresent(
             [String: KeyChord].self, forKey: .shortcutOverrides) ?? [:]
+        knownTags = Self.normalizedTags(try container.decodeIfPresent(
+            [String].self, forKey: .knownTags) ?? [])
+    }
+
+    public static func normalizedTags(_ tags: [String]) -> [String] {
+        Array(Set(tags)).sorted { lhs, rhs in
+            let insensitive = lhs.localizedCaseInsensitiveCompare(rhs)
+            if insensitive != .orderedSame { return insensitive == .orderedAscending }
+            return lhs.localizedCompare(rhs) == .orderedAscending
+        }
     }
 }
 

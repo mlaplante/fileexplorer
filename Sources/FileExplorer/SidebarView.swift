@@ -139,6 +139,23 @@ struct SidebarView: View {
                     }
                 }
             }
+            if !sidebarTags.isEmpty {
+                Section("Tags") {
+                    ForEach(sidebarTags, id: \.self) { tag in
+                        Button {
+                            toggleTag(tag)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(TagDotsView.color(for: tag))
+                                    .frame(width: 8, height: 8)
+                                Text(tag)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
         }
         .listStyle(.sidebar)
     }
@@ -166,6 +183,19 @@ struct SidebarView: View {
         session.recentPlaces(limit: 8, excluding: builtInFavoritePaths)
     }
 
+    private var sidebarTags: [String] {
+        let labels = NSWorkspace.shared.fileLabels.filter { $0 != "None" }
+        let labelSet = Set(labels)
+        let extras = settings.settings.knownTags
+            .filter { !labelSet.contains($0) }
+            .sorted { lhs, rhs in
+                let insensitive = lhs.localizedCaseInsensitiveCompare(rhs)
+                if insensitive != .orderedSame { return insensitive == .orderedAscending }
+                return lhs.localizedCompare(rhs) == .orderedAscending
+            }
+        return labels + extras
+    }
+
     private func row(_ place: StandardPlaces.Place) -> some View {
         let isCurrent = place.url.standardizedFileURL.path
             == session.activePane.currentURL.path
@@ -187,6 +217,15 @@ struct SidebarView: View {
         pane.filter = preset.filter
         pane.filterExtensionsText = preset.filter.extensions.sorted()
             .joined(separator: ", ")
+    }
+
+    private func toggleTag(_ tag: String) {
+        let pane = session.activePane
+        if pane.filter.tags == [tag] {
+            pane.filter.tags = nil
+        } else {
+            pane.filter.tags = [tag]
+        }
     }
 
     private func addDroppedFavorites(_ urls: [URL]) -> Bool {

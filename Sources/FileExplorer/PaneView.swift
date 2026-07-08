@@ -128,10 +128,12 @@ struct PaneView: View {
         .onAppear {
             pane.undoManager = undoManager
             pane.trashRegistry = trashRegistry
+            pane.settingsModel = settings
         }
         .onChange(of: pane.currentURL) { _, _ in
             pane.undoManager = undoManager
             pane.trashRegistry = trashRegistry
+            pane.settingsModel = settings
         }
         .onChange(of: pane.pendingRenameURL) { _, url in
             guard let url else { return }

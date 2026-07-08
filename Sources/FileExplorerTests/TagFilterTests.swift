@@ -75,4 +75,22 @@ func tagFilterTests() async {
         expectEqual(cleared.first?.tags ?? ["sentinel"], [],
                     "tags cleared")
     }
+
+    await test("PaneState merges loaded entry tags into known settings tags") {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let persister = SessionPersister(
+            directory: dir.appendingPathComponent("settings"))
+        let settings = SettingsModel(persister: persister)
+        let pane = PaneState(url: dir)
+        pane.settingsModel = settings
+
+        let file = dir.appendingPathComponent("tagged.txt")
+        try Data().write(to: file)
+        _ = TagWriter.setTags(["Red", "projx"], on: file)
+
+        await pane.reload()
+        expectEqual(settings.settings.knownTags, ["projx", "Red"],
+                    "loaded tags merged into settings")
+    }
 }

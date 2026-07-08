@@ -144,6 +144,7 @@ public final class PaneState {
     /// Window-level UndoManager, injected by the UI (or tests).
     @ObservationIgnored public weak var undoManager: UndoManager?
     @ObservationIgnored public var trashRegistry: TrashRegistryModel?
+    @ObservationIgnored public var settingsModel: SettingsModel?
 
     public init(url: URL) {
         // Standardize so NavigationHistory's exact-URL-equality no-op check
@@ -218,6 +219,7 @@ public final class PaneState {
             }.value
             guard myID == reloadID else { return }
             entries = loaded
+            settingsModel?.mergeKnownTags(loaded.flatMap(\.tags))
             availableSpaceText = spaceText
             errorMessage = nil
             hasLoadedOnce = true
