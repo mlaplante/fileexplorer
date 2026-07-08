@@ -29,9 +29,11 @@ public final class HoverPreviewModel {
     /// Production renderer: PreviewRenderer off the main actor.
     public static let defaultRenderer: Renderer = { url, isPDF in
         await Task.detached(priority: .userInitiated) {
+            // 1920px ≈ the popover's 960pt ceiling at 2x, so previews stay
+            // crisp on Retina displays.
             isPDF
-                ? PreviewRenderer.pdfFirstPage(at: url, maxDimension: 512)
-                : PreviewRenderer.downsampledImage(at: url, maxDimension: 512)
+                ? PreviewRenderer.pdfFirstPage(at: url, maxDimension: 1920)
+                : PreviewRenderer.downsampledImage(at: url, maxDimension: 1920)
         }.value
     }
 

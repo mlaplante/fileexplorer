@@ -20,6 +20,7 @@ struct PaneView: View {
             Divider()
             FilterBarView(pane: pane, settings: settings)
             Divider()
+            paneTitle
             Group {
                 if pane.viewMode == .icons {
                     ThumbnailGridView(
@@ -122,6 +123,22 @@ struct PaneView: View {
         .onChange(of: pane.currentURL) { _, _ in pane.undoManager = undoManager }
     }
 
+    /// Prominent folder heading over the content area (the breadcrumb stays
+    /// the navigation surface; this is the "you are here" anchor).
+    private var paneTitle: some View {
+        HStack {
+            Text(pane.currentURL.path == "/" ? "Macintosh HD"
+                 : pane.currentURL.lastPathComponent)
+                .font(.title3.weight(.semibold))
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 2)
+    }
+
     private var statusBar: some View {
         HStack {
             if pane.filter.isActive {
@@ -148,7 +165,11 @@ struct PaneView: View {
     }
 
     private var table: some View {
-        Table(pane.visibleEntries, selection: $pane.selection,
+        // Dragging lives on the ROW (itemProvider), not on cell content:
+        // a .draggable on the Name cell swallowed mouse-downs, so clicking
+        // the icon or name never reached row selection — only the plain
+        // Size/Kind/Date cells selected.
+        Table(of: FileEntry.self, selection: $pane.selection,
               sortOrder: $pane.sortOrder) {
             TableColumn("Name", value: \.name) { entry in
                 HStack(spacing: 6) {
@@ -177,7 +198,6 @@ struct PaneView: View {
                             .help(badgeHelp(badge))
                     }
                 }
-                .draggable(entry.url)
                 .onHover { hovering in
                     if hovering {
                         pane.hoverPreview.hoverBegan(entry)
@@ -219,6 +239,11 @@ struct PaneView: View {
                     .foregroundStyle(.secondary)
             }
             .width(min: 120, ideal: 160)
+        } rows: {
+            ForEach(pane.visibleEntries) { entry in
+                TableRow(entry)
+                    .itemProvider { NSItemProvider(object: entry.url as NSURL) }
+            }
         }
         .contextMenu(forSelectionType: URL.self) { urls in
             FileActions(pane: pane, otherPane: otherPane,

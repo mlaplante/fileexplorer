@@ -17,24 +17,27 @@ struct BreadcrumbView: View {
         let crumbs = crumbs
         let last = crumbs.last
         return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 2) {
+            HStack(spacing: 6) {
                 ForEach(crumbs, id: \.self) { crumb in
                     Button {
                         Task { await pane.navigate(to: crumb) }
                     } label: {
                         Text(crumb.path == "/" ? "/" : crumb.lastPathComponent)
                             .fontWeight(crumb == last ? .semibold : .regular)
+                            .foregroundStyle(crumb == last
+                                             ? AnyShapeStyle(.primary)
+                                             : AnyShapeStyle(.secondary))
                     }
                     .buttonStyle(.plain)
                     if crumb != last {
                         Image(systemName: "chevron.right")
                             .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(.quaternary)
                     }
                 }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 16)
         }
-        .frame(height: 24)
+        .frame(height: 28)
     }
 }

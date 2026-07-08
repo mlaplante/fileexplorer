@@ -15,10 +15,11 @@ struct HoverPreviewView: View {
                     .scaledToFit()
             } else {
                 ProgressView()
-                    .frame(width: 128, height: 128)
             }
         }
-        .frame(maxWidth: 512, maxHeight: 512)
-        .padding(6)
+        // Min bounds so small images scale UP instead of presenting a tiny
+        // popover; max keeps huge renders from swallowing the screen.
+        .frame(minWidth: 480, maxWidth: 960, minHeight: 480, maxHeight: 960)
+        .padding(8)
     }
 }

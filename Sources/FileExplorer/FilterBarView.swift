@@ -192,7 +192,7 @@ struct FilterBarView: View {
                     .controlSize(.small)
             }
         }
-        .padding(.horizontal, 8)
-        .frame(height: 30)
+        .padding(.horizontal, 16)
+        .frame(height: 32)
     }
 }

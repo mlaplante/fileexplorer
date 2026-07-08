@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import QuickLookThumbnailing
+import UniformTypeIdentifiers
 import FileExplorerCore
 
 /// App-lifetime thumbnail store. Cells are STATELESS view structs (re-inited
@@ -77,39 +78,85 @@ struct ThumbnailCell: View {
     let entry: FileEntry
     let isSelected: Bool
 
+    /// Card geometry shared with the grid's column sizing.
+    static let cardWidth: CGFloat = 188
+    static let imageHeight: CGFloat = 126
+    private static let cornerRadius: CGFloat = 10
+
+    /// Photo-like content fills the card edge-to-edge (cropping is fine);
+    /// icons and document thumbnails sit centered on a subtle backdrop.
+    private var fillsCard: Bool {
+        guard let type = entry.contentType else { return false }
+        return type.conforms(to: .image) || type.conforms(to: .movie)
+    }
+
     var body: some View {
-        VStack(spacing: 4) {
-            Group {
-                if let image = ThumbnailStore.shared.image(for: entry, side: 96) {
-                    Image(nsImage: image).resizable().scaledToFit()
-                } else {
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: entry.url.path))
-                        .resizable().scaledToFit()
-                }
-            }
-            .frame(width: 96, height: 96)
-            .overlay(alignment: .bottomLeading) {
-                if entry.isSymlink {
-                    Image(systemName: "arrow.triangle.turn.up.right.circle.fill")
-                        .foregroundStyle(.secondary)
-                        .background(.background, in: Circle())
-                }
-            }
-            .overlay(alignment: .bottomTrailing) {
-                if !entry.tags.isEmpty {
-                    TagDotsView(tags: entry.tags)
-                        .padding(2)
-                }
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            card
             Text(entry.name)
-                .font(.caption)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(width: 104)
+                .font(.callout)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .padding(.horizontal, 2)
+                .frame(width: Self.cardWidth, alignment: .leading)
         }
-        .padding(6)
-        .background(isSelected ? AnyShapeStyle(.selection) : AnyShapeStyle(.clear),
-                    in: RoundedRectangle(cornerRadius: 8))
+        .padding(8)
+        .background(isSelected ? AnyShapeStyle(Color.accentColor.opacity(0.14))
+                               : AnyShapeStyle(.clear),
+                    in: RoundedRectangle(cornerRadius: Self.cornerRadius + 4))
+    }
+
+    private var card: some View {
+        ZStack {
+            if let image = ThumbnailStore.shared.image(for: entry, side: 256),
+               fillsCard {
+                Image(nsImage: image).resizable().scaledToFill()
+            } else {
+                Rectangle().fill(.quinary)
+                Group {
+                    if let image = ThumbnailStore.shared.image(for: entry,
+                                                               side: 256) {
+                        Image(nsImage: image).resizable().scaledToFit()
+                    } else {
+                        Image(nsImage: NSWorkspace.shared
+                            .icon(forFile: entry.url.path))
+                            .resizable().scaledToFit()
+                    }
+                }
+                .padding(14)
+            }
+        }
+        .frame(width: Self.cardWidth, height: Self.imageHeight)
+        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: Self.cornerRadius)
+                .strokeBorder(isSelected ? AnyShapeStyle(Color.accentColor)
+                                         : AnyShapeStyle(.quaternary),
+                              lineWidth: isSelected ? 2 : 1)
+        }
+        .overlay(alignment: .topLeading) {
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 18))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, Color.accentColor)
+                    .padding(6)
+            }
+        }
+        .overlay(alignment: .bottomLeading) {
+            if entry.isSymlink {
+                Image(systemName: "arrow.triangle.turn.up.right.circle.fill")
+                    .foregroundStyle(.secondary)
+                    .background(.background, in: Circle())
+                    .padding(6)
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if !entry.tags.isEmpty {
+                TagDotsView(tags: entry.tags)
+                    .padding(6)
+            }
+        }
     }
 }
 
@@ -118,11 +165,14 @@ struct ThumbnailGridView: View {
     var actions: FileActions
     var open: (Set<URL>) -> Void
 
-    private let columns = [GridItem(.adaptive(minimum: 116), spacing: 8)]
+    // Column min = card width + the cell's own 8pt padding on each side.
+    private let columns = [
+        GridItem(.adaptive(minimum: ThumbnailCell.cardWidth + 16), spacing: 12),
+    ]
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 8) {
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                 ForEach(pane.visibleEntries) { entry in
                     ThumbnailCell(entry: entry,
                                   isSelected: pane.selection.contains(entry.url))
@@ -148,7 +198,7 @@ struct ThumbnailGridView: View {
                         }
                 }
             }
-            .padding(8)
+            .padding(16)
             .overlay {
                 if let rect = pane.rubberBandRect {
                     Rectangle()
