@@ -103,6 +103,18 @@ public final class TabState: Identifiable {
     /// pane's UndoManager groups the creation-undo and the trash-restore.
     public func syncCompare(direction: FolderComparator.Direction) async {
         guard let result = compareResult, panes.count == 2 else { return }
+        // Re-validate both panes are STILL at the compared roots: the preview
+        // sheet is modal, but a watcher-driven reload can auto-navigate a
+        // pane while it's open (root unmounted/deleted → ancestor fallback).
+        // Executing the snapshotted plan against drifted roots would write
+        // the diff into an unrelated folder — bail loudly instead.
+        guard panes[0].currentURL.standardizedFileURL == compareLeftRoot,
+              panes[1].currentURL.standardizedFileURL == compareRightRoot else {
+            panes[direction == .leftToRight ? 1 : 0].reportTagFailure(
+                "Sync cancelled: a pane navigated away from the compared folder.")
+            endCompare()
+            return
+        }
         let sourcePane = direction == .leftToRight ? panes[0] : panes[1]
         let targetPane = direction == .leftToRight ? panes[1] : panes[0]
         let sourceRoot = sourcePane.currentURL

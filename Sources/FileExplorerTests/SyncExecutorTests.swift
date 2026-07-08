@@ -76,6 +76,34 @@ func syncExecutorTests() async {
                     "redo re-applied the sync")
     }
 
+    await test("syncCompare refuses to run after a pane navigated away") {
+        // Regression for the stale-preview-sheet path: the plan was computed
+        // against the compared roots; if a pane drifted, nothing may be
+        // written into the new location.
+        let source = try makeTree(["changed.txt": "fresh"])
+        let target = try makeTree(["changed.txt": "stale-old"])
+        let elsewhere = try makeTree([:])
+        defer {
+            try? FileManager.default.removeItem(at: source)
+            try? FileManager.default.removeItem(at: target)
+            try? FileManager.default.removeItem(at: elsewhere)
+        }
+        let tab = TabState(url: source)
+        tab.toggleDual()
+        await tab.panes[1].navigate(to: target)
+        await tab.runCompare()
+        expect(tab.compareResult != nil, "compare ran")
+        await tab.panes[1].navigate(to: elsewhere)
+        await tab.syncCompare(direction: .leftToRight)
+        expect(!FileManager.default.fileExists(
+                   atPath: elsewhere.appendingPathComponent("changed.txt").path),
+               "nothing written into the drifted folder")
+        expectEqual(try String(contentsOf: target.appendingPathComponent("changed.txt"),
+                               encoding: .utf8), "stale-old",
+                    "original target untouched")
+        expect(tab.compareResult == nil, "compare mode ended after the bail")
+    }
+
     await test("execute reports per-item failures without aborting") {
         let source = try makeTree(["ok.txt": "fine"])
         let target = try makeTree([:])
