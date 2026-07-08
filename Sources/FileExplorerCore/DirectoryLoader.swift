@@ -4,7 +4,7 @@ public enum DirectoryLoader {
     private static let resourceKeys: [URLResourceKey] = [
         .isDirectoryKey, .isHiddenKey, .isSymbolicLinkKey,
         .fileSizeKey, .creationDateKey, .contentModificationDateKey,
-        .contentTypeKey,
+        .contentTypeKey, .tagNamesKey,
     ]
     private static let resourceKeySet = Set(resourceKeys)
 
@@ -44,7 +44,8 @@ public enum DirectoryLoader {
                 size: Int64(rv.fileSize ?? 0),
                 created: rv.creationDate,
                 modified: rv.contentModificationDate ?? .distantPast,
-                contentType: rv.contentType)
+                contentType: rv.contentType,
+                tags: rv.tagNames ?? [])
         }
     }
 }
