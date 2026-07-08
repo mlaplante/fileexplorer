@@ -65,7 +65,7 @@ struct PaneView: View {
                         let tag = pane.newTagDraft
                             .trimmingCharacters(in: .whitespaces)
                         let targets = pane.entries.filter {
-                            pane.selection.contains($0.url)
+                            pane.newTagTargets.contains($0.url)
                         }
                         pane.showsNewTagPopover = false
                         guard !tag.isEmpty, !targets.isEmpty else { return }

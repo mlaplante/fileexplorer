@@ -89,6 +89,7 @@ struct FileActions {
             Divider()
             Button("New Tag…") {
                 pane.newTagDraft = ""
+                pane.newTagTargets = targets
                 pane.showsNewTagPopover = true
             }
         }

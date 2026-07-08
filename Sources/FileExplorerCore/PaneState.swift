@@ -98,6 +98,10 @@ public final class PaneState {
     /// deliberately NOT read by snapshot()).
     public var showsNewTagPopover = false
     public var newTagDraft = ""
+    /// Targets captured when "New Tag…" is chosen — the grid's context menu
+    /// doesn't sync `selection` to the right-clicked item, so the popover
+    /// must not re-read `selection` at Add-click time.
+    public var newTagTargets: [URL] = []
 
     /// Filtered and sorted snapshot of `entries`. Stored rather than computed
     /// so SwiftUI body evaluations don't re-sort/re-filter large directories;
