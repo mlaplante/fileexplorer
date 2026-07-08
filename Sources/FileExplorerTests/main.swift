@@ -36,5 +36,6 @@ await infoGathererTests()
 await tagFilterTests()
 await filterPresetTests()
 await contentScannerTests()
+await folderComparatorTests()
 
 finish()
