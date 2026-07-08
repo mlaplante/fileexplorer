@@ -160,6 +160,10 @@ struct PaneView: View {
                     .truncationMode(.tail)
                     .help(opError)
             }
+            if let availableSpaceText = pane.availableSpaceText {
+                Text(availableSpaceText)
+                    .lineLimit(1)
+            }
         }
         .font(.caption)
         .foregroundStyle(.secondary)

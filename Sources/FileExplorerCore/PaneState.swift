@@ -46,6 +46,7 @@ public final class PaneState {
     /// List vs thumbnail-grid presentation; per pane, remembered per tab.
     public var viewMode: ViewMode = .list
     public var errorMessage: String?
+    public var availableSpaceText: String?
     /// Failure summary from the most recent file OPERATION (move/copy/trash/
     /// rename/new folder) — distinct from `errorMessage`, which reports
     /// folder-LOAD failures and drives the full-pane overlay. Cleared on the
@@ -201,11 +202,14 @@ public final class PaneState {
         let url = currentURL
         let includeHidden = showHidden
         do {
-            let loaded = try await Task.detached(priority: .userInitiated) {
-                try DirectoryLoader.load(url, includeHidden: includeHidden)
+            let (loaded, spaceText) = try await Task.detached(priority: .userInitiated) {
+                let entries = try DirectoryLoader.load(url, includeHidden: includeHidden)
+                let spaceText = VolumeSpace.label(bytes: VolumeSpace.availableBytes(for: url))
+                return (entries, spaceText)
             }.value
             guard myID == reloadID else { return }
             entries = loaded
+            availableSpaceText = spaceText
             errorMessage = nil
             hasLoadedOnce = true
         } catch {
@@ -218,6 +222,7 @@ public final class PaneState {
                 return
             }
             entries = []
+            availableSpaceText = nil
             errorMessage = Self.describe(error)
             hasLoadedOnce = true
         }
