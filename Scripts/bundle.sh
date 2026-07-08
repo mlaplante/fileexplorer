@@ -3,9 +3,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-swift build -c release
+export CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-$PWD/.build/clang-module-cache}"
+mkdir -p "$CLANG_MODULE_CACHE_PATH"
 
-BIN_PATH="$(swift build -c release --show-bin-path)"
+swift build -c release --disable-sandbox -debug-info-format none --product FileExplorer
+
+BIN_PATH="$(swift build -c release --disable-sandbox --show-bin-path)"
 
 APP="build/FileExplorer.app"
 rm -rf "$APP"

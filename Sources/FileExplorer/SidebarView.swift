@@ -9,6 +9,7 @@ import AppKit
 @Observable
 final class VolumesModel {
     private(set) var volumes: [StandardPlaces.Place] = []
+    private(set) var ejectableVolumes = Set<URL>()
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
 
     init() {
@@ -32,15 +33,43 @@ final class VolumesModel {
     }
 
     private func refresh() {
-        let keys: [URLResourceKey] = [.volumeNameKey]
+        let keys: [URLResourceKey] = [
+            .volumeNameKey,
+            .volumeIsEjectableKey,
+            .volumeIsRemovableKey,
+        ]
         let urls = FileManager.default.mountedVolumeURLs(
             includingResourceValuesForKeys: keys,
             options: [.skipHiddenVolumes]) ?? []
+        var ejectable = Set<URL>()
         volumes = urls.map { url in
-            let name = (try? url.resourceValues(forKeys: [.volumeNameKey]))?
-                .volumeName ?? url.lastPathComponent
+            let values = try? url.resourceValues(forKeys: Set(keys))
+            let name = values?.volumeName ?? url.lastPathComponent
+            let isRoot = url.standardizedFileURL.path == "/"
+            if !isRoot,
+               values?.volumeIsEjectable == true || values?.volumeIsRemovable == true {
+                ejectable.insert(url.standardizedFileURL)
+            }
             return StandardPlaces.Place(name: name, url: url,
                                         systemImage: "externaldrive")
+        }
+        ejectableVolumes = ejectable
+    }
+
+    func isEjectable(_ url: URL) -> Bool {
+        ejectableVolumes.contains(url.standardizedFileURL)
+    }
+
+    func eject(_ url: URL, reportingTo pane: PaneState) {
+        let name = FileManager.default.displayName(atPath: url.path)
+        Task.detached(priority: .userInitiated) {
+            do {
+                try NSWorkspace.shared.unmountAndEjectDevice(at: url)
+            } catch {
+                await MainActor.run {
+                    pane.reportTagFailure("Couldn't eject \(name): \(error.localizedDescription)")
+                }
+            }
         }
     }
 }
@@ -67,8 +96,30 @@ struct SidebarView: View {
             .dropDestination(for: URL.self) { urls, _ in
                 addDroppedFavorites(urls)
             }
+            if !recentPlaces.isEmpty {
+                Section("Recents") {
+                    ForEach(recentPlaces) { place in
+                        row(place)
+                    }
+                    .contextMenu {
+                        Button("Clear Recents") {
+                            session.clearRecentFolders()
+                        }
+                    }
+                }
+            }
             Section("Volumes") {
-                ForEach(volumesModel.volumes) { place in row(place) }
+                ForEach(volumesModel.volumes) { place in
+                    row(place)
+                        .contextMenu {
+                            if volumesModel.isEjectable(place.url) {
+                                Button("Eject") {
+                                    volumesModel.eject(place.url,
+                                                       reportingTo: session.activePane)
+                                }
+                            }
+                        }
+                }
             }
             if !settings.settings.filterPresets.isEmpty {
                 Section("Presets") {
@@ -105,6 +156,14 @@ struct SidebarView: View {
                 systemImage: "folder")
         }
         return builtIns + userPlaces
+    }
+
+    private var builtInFavoritePaths: Set<String> {
+        Set(StandardPlaces.favorites().map { $0.url.standardizedFileURL.path })
+    }
+
+    private var recentPlaces: [StandardPlaces.Place] {
+        session.recentPlaces(limit: 8, excluding: builtInFavoritePaths)
     }
 
     private func row(_ place: StandardPlaces.Place) -> some View {

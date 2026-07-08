@@ -22,7 +22,7 @@ struct FileActions {
         tagsSection(targets: targets)
         Divider()
         renameSection(targets: targets)
-        newItemsSection()
+        newItemsSection(targets: targets)
         paneTransferSection(targets: targets)
         Divider()
         imageToolsSection(targets: targets)
@@ -93,6 +93,10 @@ struct FileActions {
         .disabled(targets.isEmpty)
         Button("Duplicate") {
             Task { await pane.duplicateSelected(targets) }
+        }
+        .disabled(targets.isEmpty)
+        Button("Make Alias") {
+            Task { await pane.makeAliasSelected(targets) }
         }
         .disabled(targets.isEmpty)
         Menu("Copy Path") {
@@ -172,9 +176,14 @@ struct FileActions {
     }
 
     @ViewBuilder
-    private func newItemsSection() -> some View {
+    private func newItemsSection(targets: [URL]) -> some View {
         Button("New Folder") {
             Task { await pane.createNewFolder() }
+        }
+        if !targets.isEmpty {
+            Button("New Folder with Selection (\(targets.count) Item\(targets.count == 1 ? "" : "s"))") {
+                Task { await pane.newFolderWithSelection(targets) }
+            }
         }
         Button("New File") {
             Task { await pane.createNewFile() }

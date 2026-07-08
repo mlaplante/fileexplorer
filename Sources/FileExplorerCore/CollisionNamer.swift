@@ -8,7 +8,7 @@ import Foundation
 public enum CollisionNamer {
     /// Splits "name.ext" into ("name", ".ext"). Dotfiles and extensionless
     /// names keep the whole name as the stem.
-    static func split(_ name: String) -> (stem: String, ext: String) {
+    public static func split(_ name: String) -> (stem: String, ext: String) {
         let ns = name as NSString
         let ext = ns.pathExtension
         let stem = ns.deletingPathExtension

@@ -61,12 +61,14 @@ All assertions should report PASS.
 | ⌥⌘1 | View as List |
 | ⌥⌘2 | View as Icons |
 | ⌥⌘3 | View as Columns |
+| View → Sort By | Sort by Name, Size, Kind, or Date Modified |
 | ⌘Y / Space | Quick Look |
 | ⌘O / ⌘↓ | Open |
 | ⇧⌘N | New folder |
 | ⌥⌘N | New file |
 | ⌘C / ⌘V | Copy / paste files (⌥⌘V moves) |
 | ⌘D | Duplicate |
+| Context menu | Make Alias |
 | ⌘I | Get Info |
 | ⌘⌫ | Move to Trash |
 | Return | Rename selected item |

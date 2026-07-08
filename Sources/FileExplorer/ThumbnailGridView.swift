@@ -171,11 +171,13 @@ struct ThumbnailGridView: View {
     ]
 
     var body: some View {
-        ScrollView {
+        ScrollViewReader { proxy in
+            ScrollView {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                 ForEach(pane.visibleEntries) { entry in
                     ThumbnailCell(entry: entry,
                                   isSelected: pane.selection.contains(entry.url))
+                        .id(entry.url)
                         .onGeometryChange(for: CGRect.self) { proxy in
                             proxy.frame(in: .named("fxGrid"))
                         } action: { frame in
@@ -209,9 +211,13 @@ struct ThumbnailGridView: View {
                         .allowsHitTesting(false)
                 }
             }
-        }
-        .coordinateSpace(name: "fxGrid")
-        .simultaneousGesture(
+            }
+            .coordinateSpace(name: "fxGrid")
+            .focusable()
+            .onMoveCommand { direction in
+                moveSelection(direction, proxy: proxy)
+            }
+            .simultaneousGesture(
             DragGesture(minimumDistance: 6, coordinateSpace: .named("fxGrid"))
                 .onChanged { value in
                     if pane.rubberBandRect == nil {
@@ -228,6 +234,48 @@ struct ThumbnailGridView: View {
                         base: pane.rubberBandBase, union: pane.rubberBandUnion)
                 }
                 .onEnded { _ in pane.rubberBandRect = nil }
-        )
+            )
+        }
+    }
+
+    private func moveSelection(_ direction: MoveCommandDirection,
+                               proxy: ScrollViewProxy) {
+        guard let gridDirection = gridDirection(direction) else { return }
+        let current = currentGridSelection()
+        guard let next = GridNavigator.target(from: current,
+                                              direction: gridDirection,
+                                              frames: pane.rubberBandFrames)
+        else { return }
+        let ordered = pane.visibleEntries.map(\.url)
+        let shiftDown = NSEvent.modifierFlags.contains(.shift)
+        if shiftDown, let anchor = pane.selectionAnchor,
+           ordered.contains(anchor) {
+            pane.selection = SelectionResolver.resolve(
+                clicked: next, in: ordered, current: pane.selection,
+                baseline: pane.selectionPivot, anchor: anchor,
+                commandDown: false, shiftDown: true)
+        } else {
+            pane.selection = [next]
+            pane.selectionAnchor = next
+            pane.selectionPivot = pane.selection
+        }
+        proxy.scrollTo(next, anchor: .center)
+    }
+
+    private func currentGridSelection() -> URL? {
+        if let anchor = pane.selectionAnchor, pane.selection.contains(anchor) {
+            return anchor
+        }
+        return pane.visibleEntries.map(\.url).first { pane.selection.contains($0) }
+    }
+
+    private func gridDirection(_ direction: MoveCommandDirection) -> GridNavigator.Direction? {
+        switch direction {
+        case .up: .up
+        case .down: .down
+        case .left: .left
+        case .right: .right
+        @unknown default: nil
+        }
     }
 }

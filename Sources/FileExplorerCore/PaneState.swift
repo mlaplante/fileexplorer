@@ -46,6 +46,8 @@ public final class PaneState {
     /// List vs thumbnail-grid presentation; per pane, remembered per tab.
     public var viewMode: ViewMode = .list
     public var errorMessage: String?
+    public var availableSpaceText: String?
+    public var pendingRenameURL: URL?
     /// Failure summary from the most recent file OPERATION (move/copy/trash/
     /// rename/new folder) — distinct from `errorMessage`, which reports
     /// folder-LOAD failures and drives the full-pane overlay. Cleared on the
@@ -201,11 +203,14 @@ public final class PaneState {
         let url = currentURL
         let includeHidden = showHidden
         do {
-            let loaded = try await Task.detached(priority: .userInitiated) {
-                try DirectoryLoader.load(url, includeHidden: includeHidden)
+            let (loaded, spaceText) = try await Task.detached(priority: .userInitiated) {
+                let entries = try DirectoryLoader.load(url, includeHidden: includeHidden)
+                let spaceText = VolumeSpace.label(bytes: VolumeSpace.availableBytes(for: url))
+                return (entries, spaceText)
             }.value
             guard myID == reloadID else { return }
             entries = loaded
+            availableSpaceText = spaceText
             errorMessage = nil
             hasLoadedOnce = true
         } catch {
@@ -218,6 +223,7 @@ public final class PaneState {
                 return
             }
             entries = []
+            availableSpaceText = nil
             errorMessage = Self.describe(error)
             hasLoadedOnce = true
         }
@@ -306,6 +312,52 @@ public final class PaneState {
         }
     }
 
+    public func newFolderWithSelection(_ urls: [URL]) async {
+        guard !urls.isEmpty else { return }
+        let destination = currentURL
+        let outcome = await Task.detached(priority: .userInitiated) {
+            let folderResult = FileOperationService.newFolder(in: destination)
+            switch folderResult {
+            case .success(let folder):
+                let moveResults = FileOperationService.move(urls, into: folder)
+                return (folderResult, moveResults)
+            case .failure:
+                return (folderResult, [])
+            }
+        }.value
+        await reload()
+
+        switch outcome.0 {
+        case .success(let folder):
+            let successes = outcome.1.compactMap { result -> OperationSuccess? in
+                if case .success(let url) = result.outcome {
+                    return OperationSuccess(source: result.source, destination: url)
+                }
+                return nil
+            }
+            let failures = outcome.1.compactMap { result -> String? in
+                if case .failure(let error) = result.outcome { return error.message }
+                return nil
+            }
+            if let undoManager {
+                undoManager.beginUndoGrouping()
+                UndoRecorder.recordCreation([folder], actionName: "New Folder with Selection",
+                                            on: undoManager, pane: self)
+                UndoRecorder.recordMove(
+                    successes.map { (from: $0.source, to: $0.destination) },
+                    actionName: "New Folder with Selection",
+                    on: undoManager, pane: self)
+                undoManager.endUndoGrouping()
+            }
+            opErrorMessage = OperationFailureSummary.message(failures)
+            let standardizedFolder = folder.standardizedFileURL
+            selection = [standardizedFolder]
+            pendingRenameURL = standardizedFolder
+        case .failure(let error):
+            opErrorMessage = error.message
+        }
+    }
+
     public func createNewFile() async {
         let result = FileOperationService.newFile(in: currentURL)
         await reload()
@@ -336,6 +388,28 @@ public final class PaneState {
             guard let undoManager else { return }
             UndoRecorder.recordCreation(successes.map(\.destination),
                                         actionName: "Duplicate",
+                                        on: undoManager, pane: self)
+        }
+        let created = results.compactMap { result -> URL? in
+            if case .success(let url) = result.outcome { return url }
+            return nil
+        }
+        if !created.isEmpty {
+            selection = Set(created.map { $0.standardizedFileURL })
+        }
+    }
+
+    /// Creates Finder-style aliases (POSIX symlinks) next to each selected
+    /// item, selects the aliases, one undo step (trash the aliases).
+    public func makeAliasSelected(_ urls: [URL]) async {
+        let results = await Task.detached(priority: .userInitiated) {
+            FileOperationService.symlink(urls)
+        }.value
+        await reload()
+        finishOperation(results: results) { successes in
+            guard let undoManager else { return }
+            UndoRecorder.recordCreation(successes.map(\.destination),
+                                        actionName: "Make Alias",
                                         on: undoManager, pane: self)
         }
         let created = results.compactMap { result -> URL? in
