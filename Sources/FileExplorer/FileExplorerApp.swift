@@ -114,6 +114,48 @@ struct FileExplorerApp: App {
             }
         }
         .commands {
+            CommandGroup(replacing: .pasteboard) {
+                Button("Cut") {
+                    PasteboardOps.forwardToFieldEditor(#selector(NSText.cut(_:)))
+                }
+                .keyboardShortcut("x", modifiers: .command)
+                Button("Copy") {
+                    if PasteboardOps.textEditingIsActive {
+                        PasteboardOps.forwardToFieldEditor(#selector(NSText.copy(_:)))
+                    } else {
+                        PasteboardOps.copyToPasteboard(
+                            Array(session.activePane.selection))
+                    }
+                }
+                .keyboardShortcut("c", modifiers: .command)
+                Button("Paste") {
+                    if PasteboardOps.textEditingIsActive {
+                        PasteboardOps.forwardToFieldEditor(#selector(NSText.paste(_:)))
+                    } else {
+                        let urls = PasteboardOps.readFileURLs()
+                        guard !urls.isEmpty else { return }
+                        Task { await session.activePane.pasteCopy(urls) }
+                    }
+                }
+                .keyboardShortcut("v", modifiers: .command)
+                Button("Move Item Here") {
+                    let urls = PasteboardOps.readFileURLs()
+                    guard !urls.isEmpty else { return }
+                    let pane = session.activePane
+                    Task { await pane.moveSelected(urls, into: pane.currentURL) }
+                }
+                .keyboardShortcut("v", modifiers: [.command, .option])
+                Button("Select All") {
+                    if PasteboardOps.textEditingIsActive {
+                        PasteboardOps.forwardToFieldEditor(
+                            #selector(NSText.selectAll(_:)))
+                    } else {
+                        session.activePane.selection =
+                            Set(session.activePane.visibleEntries.map(\.url))
+                    }
+                }
+                .keyboardShortcut("a", modifiers: .command)
+            }
             CommandGroup(after: .newItem) {
                 Button("Open") {
                     Task {
@@ -128,6 +170,17 @@ struct FileExplorerApp: App {
                     Task { await session.activePane.createNewFolder() }
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+                Button("New File") {
+                    Task { await session.activePane.createNewFile() }
+                }
+                .keyboardShortcut("n", modifiers: [.command, .option])
+                Button("Duplicate") {
+                    let targets = Array(session.activePane.selection)
+                    guard !targets.isEmpty else { return }
+                    Task { await session.activePane.duplicateSelected(targets) }
+                }
+                .keyboardShortcut("d", modifiers: .command)
+                .disabled(session.activePane.selection.isEmpty)
                 Button("Rename…") {
                     if let url = session.activePane.selection.first,
                        session.activePane.selection.count == 1 {

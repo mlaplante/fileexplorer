@@ -23,6 +23,26 @@ struct FileActions {
             NSWorkspace.shared.activateFileViewerSelecting(targets)
         }
         .disabled(targets.isEmpty)
+        Button("Copy") {
+            PasteboardOps.copyToPasteboard(targets)
+        }
+        .disabled(targets.isEmpty)
+        Button("Duplicate") {
+            Task { await pane.duplicateSelected(targets) }
+        }
+        .disabled(targets.isEmpty)
+        Menu("Copy Path") {
+            Button("POSIX Path") {
+                PasteboardOps.copyString(
+                    targets.map(\.path).joined(separator: "\n"))
+            }
+            Button("Abbreviated (~) Path") {
+                PasteboardOps.copyString(
+                    targets.map { ($0.path as NSString).abbreviatingWithTildeInPath }
+                        .joined(separator: "\n"))
+            }
+        }
+        .disabled(targets.isEmpty)
         Divider()
         Button("Rename…") {
             if let url = targets.first { renameModel.present(for: url, in: pane) }
@@ -37,6 +57,9 @@ struct FileActions {
         .disabled(targets.count < 2)
         Button("New Folder") {
             Task { await pane.createNewFolder() }
+        }
+        Button("New File") {
+            Task { await pane.createNewFile() }
         }
         if let otherPane {
             Divider()
