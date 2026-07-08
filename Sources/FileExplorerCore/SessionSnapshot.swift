@@ -77,11 +77,13 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
         public var filter: FilterState
         public var filterExtensionsText: String
         public var sort: [SortToken]
+        public var expandedFolders: [String]
 
         public init(path: String, showHidden: Bool = false,
                     viewMode: String = "list", groupBy: Grouper.Axis = .none,
                     filter: FilterState = FilterState(),
-                    filterExtensionsText: String = "", sort: [SortToken] = []) {
+                    filterExtensionsText: String = "", sort: [SortToken] = [],
+                    expandedFolders: [String] = []) {
             self.path = path
             self.showHidden = showHidden
             self.viewMode = viewMode
@@ -89,10 +91,12 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
             self.filter = filter
             self.filterExtensionsText = filterExtensionsText
             self.sort = sort
+            self.expandedFolders = expandedFolders
         }
 
         enum CodingKeys: String, CodingKey {
             case path, showHidden, viewMode, groupBy, filter, filterExtensionsText, sort
+            case expandedFolders
         }
 
         public init(from decoder: Decoder) throws {
@@ -110,6 +114,8 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
                 String.self, forKey: .filterExtensionsText) ?? ""
             sort = try container.decodeIfPresent(
                 [SortToken].self, forKey: .sort) ?? []
+            expandedFolders = try container.decodeIfPresent(
+                [String].self, forKey: .expandedFolders) ?? []
         }
 
         /// The saved folder if it still exists as a directory, else its

@@ -678,7 +678,7 @@ git commit -m "feat: PaneState tree expansion state with per-folder watchers"
 - Modify: `Sources/FileExplorerCore/PaneState.swift` (`snapshot()` and `init(snapshot:fallback:)`)
 - Modify: `Sources/FileExplorerTests/SessionSnapshotTests.swift` (append one test to the existing function — match its local style)
 
-- [ ] **Step 3.1: Write the failing test**
+- [x] **Step 3.1: Write the failing test**
 
 Append inside the existing `sessionSnapshotTests()` function:
 
@@ -700,12 +700,12 @@ Append inside the existing `sessionSnapshotTests()` function:
     }
 ```
 
-- [ ] **Step 3.2: Run to verify failure**
+- [x] **Step 3.2: Run to verify failure**
 
 Run: `swift build 2>&1 | tail -5`
 Expected: FAIL — `no member 'expandedFolders'`.
 
-- [ ] **Step 3.3: Implement**
+- [x] **Step 3.3: Implement**
 
 In `SessionSnapshot.Pane`:
 - Add `public var expandedFolders: [String]` after `sort`.
@@ -730,12 +730,12 @@ In `PaneState`'s `convenience init(snapshot:fallback:)` add (after `sortOrder` i
 
 (`expandedFolders` is `private(set)` but this runs inside PaneState, so it compiles. Children load on the first `reload()` via `refreshExpandedChildren` — no work at init.)
 
-- [ ] **Step 3.4: Run tests to verify pass**
+- [x] **Step 3.4: Run tests to verify pass**
 
 Run: `swift run FileExplorerTests > /tmp/fx-tree-tests.log 2>&1; tail -5 /tmp/fx-tree-tests.log`
 Expected: `PASS`.
 
-- [ ] **Step 3.5: Commit**
+- [x] **Step 3.5: Commit**
 
 ```bash
 git add Sources/FileExplorerCore/SessionSnapshot.swift Sources/FileExplorerCore/PaneState.swift Sources/FileExplorerTests/SessionSnapshotTests.swift

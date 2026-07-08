@@ -266,4 +266,20 @@ func sessionSnapshotTests() async {
         expect(old.customDateRange == nil && old.customSizeRange == nil,
                "old session.json filters decode with nil custom ranges")
     }
+
+    await test("Pane snapshot round-trips expandedFolders and tolerates absence") {
+        var pane = SessionSnapshot.Pane(path: "/tmp")
+        pane.expandedFolders = ["/tmp/a", "/tmp/a/b"]
+        let data = try JSONEncoder().encode(pane)
+        let decoded = try JSONDecoder().decode(SessionSnapshot.Pane.self,
+                                               from: data)
+        expectEqual(decoded.expandedFolders, ["/tmp/a", "/tmp/a/b"],
+                    "expandedFolders round-trips")
+
+        let legacy = #"{"path":"/tmp"}"#.data(using: .utf8)!
+        let old = try JSONDecoder().decode(SessionSnapshot.Pane.self,
+                                           from: legacy)
+        expectEqual(old.expandedFolders, [],
+                    "legacy session.json decodes with no expansions")
+    }
 }

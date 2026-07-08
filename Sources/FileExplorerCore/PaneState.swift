@@ -207,6 +207,9 @@ public final class PaneState {
         filter = snapshot.filter
         filterExtensionsText = snapshot.filterExtensionsText
         sortOrder = SortTokenCoder.comparators(from: snapshot.sort)
+        expandedFolders = Set(snapshot.expandedFolders.map {
+            URL(fileURLWithPath: $0).standardizedFileURL.path
+        })
     }
 
     // A window-scoped UndoManager outlives closed tabs' panes, and
@@ -944,7 +947,8 @@ public final class PaneState {
             groupBy: groupBy,
             filter: filter,
             filterExtensionsText: filterExtensionsText,
-            sort: SortTokenCoder.tokens(from: sortOrder))
+            sort: SortTokenCoder.tokens(from: sortOrder),
+            expandedFolders: expandedFolders.sorted())
     }
 
     private func recomputeVisible() {
