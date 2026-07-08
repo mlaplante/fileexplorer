@@ -30,6 +30,9 @@ public final class PaneState {
     ] {
         didSet { recomputeVisible() }
     }
+    public var groupBy: Grouper.Axis = .none {
+        didSet { recomputeVisible() }
+    }
     public var showHidden = false {
         didSet {
             guard oldValue != showHidden, started else { return }
@@ -123,6 +126,9 @@ public final class PaneState {
     /// so SwiftUI body evaluations don't re-sort/re-filter large directories;
     /// refreshed when `entries`, `sortOrder`, or `filter` changes.
     public private(set) var visibleEntries: [FileEntry] = []
+    public private(set) var groupedEntries: [FileGroup] = [
+        FileGroup(title: nil, entries: [])
+    ]
 
     /// Count before filtering — the "M" in the status bar's "N of M items".
     public var totalCount: Int { entries.count }
@@ -151,6 +157,7 @@ public final class PaneState {
         self.init(url: snapshot.resolvedURL(fallback: fallback))
         showHidden = snapshot.showHidden
         viewMode = ViewMode(rawValue: snapshot.viewMode) ?? .list
+        groupBy = snapshot.groupBy
         filter = snapshot.filter
         filterExtensionsText = snapshot.filterExtensionsText
         sortOrder = SortTokenCoder.comparators(from: snapshot.sort)
@@ -639,6 +646,7 @@ public final class PaneState {
             path: currentURL.path,
             showHidden: showHidden,
             viewMode: viewMode.rawValue,
+            groupBy: groupBy,
             filter: filter,
             filterExtensionsText: filterExtensionsText,
             sort: SortTokenCoder.tokens(from: sortOrder))
@@ -647,6 +655,7 @@ public final class PaneState {
     private func recomputeVisible() {
         visibleEntries = FileSorter.sort(
             FilterEngine.apply(filter, to: entries), using: sortOrder)
+        groupedEntries = Grouper.group(visibleEntries, by: groupBy, now: Date())
     }
 
     private func afterNavigation() async {

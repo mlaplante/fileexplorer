@@ -83,6 +83,7 @@ func sessionSnapshotTests() async {
         session.newTab()                        // tab 1 active
         session.activePane.showHidden = true
         session.activePane.viewMode = .icons
+        session.activePane.groupBy = .kind
         session.activePane.filter.preset = .images
         session.activePane.filterExtensionsText = "png, jpg"
         _ = session.addFavoriteFolder(home)
@@ -99,6 +100,7 @@ func sessionSnapshotTests() async {
         expectEqual(pane.path, "/tmp", "pane folder captured as path")
         expect(pane.showHidden, "showHidden captured")
         expectEqual(pane.viewMode, "icons", "view mode captured as raw string")
+        expectEqual(pane.groupBy, .kind, "grouping captured")
         expectEqual(pane.filter.preset, .images, "filter preset captured")
         expectEqual(pane.filterExtensionsText, "png, jpg",
                     "extension draft text captured")
@@ -130,6 +132,7 @@ func sessionSnapshotTests() async {
         expectEqual(pane.path, "/tmp", "path decoded")
         expect(!pane.showHidden, "missing showHidden defaults to false")
         expectEqual(pane.viewMode, "list", "missing viewMode defaults to list")
+        expectEqual(pane.groupBy, .none, "missing groupBy defaults to none")
         expectEqual(pane.filter, FilterState(), "missing filter defaults to empty")
         expect(pane.sort.isEmpty, "missing sort defaults to empty tokens")
         expect(decoded.recentFolders.isEmpty, "missing recents default to empty")
@@ -144,6 +147,7 @@ func sessionSnapshotTests() async {
         original.newTab()
         original.activePane.showHidden = true
         original.activePane.viewMode = .icons
+        original.activePane.groupBy = .size
         original.activePane.filter.sizePreset = .under1MB
         original.activePane.filterExtensionsText = "png"
         original.activePane.sortOrder = {
@@ -162,6 +166,7 @@ func sessionSnapshotTests() async {
         expectEqual(pane.currentURL.path, "/tmp", "pane folder restored")
         expect(pane.showHidden, "showHidden restored")
         expectEqual(pane.viewMode, .icons, "view mode restored")
+        expectEqual(pane.groupBy, .size, "grouping restored")
         expectEqual(pane.filter.sizePreset, .under1MB, "filter restored")
         expectEqual(pane.filter.extensions, ["png"],
                     "extensions re-derived from restored draft text")
