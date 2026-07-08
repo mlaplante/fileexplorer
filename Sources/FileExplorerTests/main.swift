@@ -43,5 +43,6 @@ await imageResizerTests()
 await fileHasherTests()
 await updateCheckerTests()
 await shortcutTests()
+await columnsModelTests()
 
 finish()

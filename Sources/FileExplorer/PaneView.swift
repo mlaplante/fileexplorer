@@ -28,6 +28,13 @@ struct PaneView: View {
                                              renameModel: renameModel,
                                              batchRenameModel: batchRenameModel,
                                              settings: settings)) { open($0) }
+                } else if pane.viewMode == .columns {
+                    ColumnBrowserView(
+                        pane: pane,
+                        actions: FileActions(pane: pane, otherPane: otherPane,
+                                             renameModel: renameModel,
+                                             batchRenameModel: batchRenameModel,
+                                             settings: settings)) { open($0) }
                 } else {
                     table
                 }

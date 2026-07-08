@@ -7,6 +7,7 @@ public final class PaneState {
     /// Hover-preview state; owned here because view structs are re-inited on
     /// every parent render on this toolchain (M5 deferred hoisting).
     public let hoverPreview = HoverPreviewModel()
+    public let columnsModel = ColumnsModel()
     public private(set) var history: NavigationHistory
     /// Invoked after every completed navigation (navigate/back/forward/up)
     /// with the new current URL; used by the session layer to record recents.
@@ -39,6 +40,7 @@ public final class PaneState {
     public enum ViewMode: String, Sendable, Codable {
         case list
         case icons
+        case columns
     }
 
     /// List vs thumbnail-grid presentation; per pane, remembered per tab.

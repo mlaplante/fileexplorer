@@ -292,6 +292,8 @@ struct FileExplorerApp: App {
                         .keyboardShortcut("1", modifiers: [.command, .option])
                     Text("as Icons").tag(PaneState.ViewMode.icons)
                         .keyboardShortcut("2", modifiers: [.command, .option])
+                    Text("as Columns").tag(PaneState.ViewMode.columns)
+                        .keyboardShortcut("3", modifiers: [.command, .option])
                 }
                 .pickerStyle(.inline)
                 Button("Quick Look") {
