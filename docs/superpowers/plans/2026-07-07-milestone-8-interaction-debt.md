@@ -34,14 +34,14 @@
 - Create: `Sources/FileExplorerTests/SelectionResolverTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Branch**
+- [x] **Step 1: Branch**
 
 ```bash
 cd /Users/mlaplante/Sites/fileexplorer
 git checkout main && git checkout -b milestone-8-interaction-debt
 ```
 
-- [ ] **Step 2: Failing tests — `Sources/FileExplorerTests/SelectionResolverTests.swift`**
+- [x] **Step 2: Failing tests — `Sources/FileExplorerTests/SelectionResolverTests.swift`**
 
 ```swift
 import Foundation
@@ -102,11 +102,11 @@ func selectionResolverTests() async {
 }
 ```
 
-- [ ] **Step 3: Register** — in `main.swift`, add `await selectionResolverTests()` after `await sessionAutosaverTests()`.
+- [x] **Step 3: Register** — in `main.swift`, add `await selectionResolverTests()` after `await sessionAutosaverTests()`.
 
-- [ ] **Step 4: Run to verify failure** — `swift run FileExplorerTests 2>&1 | tail -5`; expect compile error (SelectionResolver undefined).
+- [x] **Step 4: Run to verify failure** — `swift run FileExplorerTests 2>&1 | tail -5`; expect compile error (SelectionResolver undefined).
 
-- [ ] **Step 5: Implement — `Sources/FileExplorerCore/SelectionResolver.swift`**
+- [x] **Step 5: Implement — `Sources/FileExplorerCore/SelectionResolver.swift`**
 
 ```swift
 import Foundation
@@ -148,9 +148,9 @@ Add to `PaneState` (near `selection`; NOT persisted — transient UI state):
     @ObservationIgnored public var selectionAnchor: URL?
 ```
 
-- [ ] **Step 6: Run to verify pass** — expect PASS (~377).
+- [x] **Step 6: Run to verify pass** — expect PASS (~377).
 
-- [ ] **Step 7: Wire the grid — `Sources/FileExplorer/ThumbnailGridView.swift`**
+- [x] **Step 7: Wire the grid — `Sources/FileExplorer/ThumbnailGridView.swift`**
 
 Replace the single-tap `simultaneousGesture` on the cell:
 
@@ -172,7 +172,7 @@ Replace the single-tap `simultaneousGesture` on the cell:
 
 (`import AppKit` is already present in this file.)
 
-- [ ] **Step 8: Build + suite + commit**
+- [x] **Step 8: Build + suite + commit**
 
 ```bash
 swift build 2>&1 | tail -3 && swift run FileExplorerTests 2>&1 | tail -3
@@ -191,7 +191,7 @@ Modifier-click gestures themselves are MANUAL walkthrough items.
 - Create: `Sources/FileExplorerTests/DropDecisionTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Failing tests — `Sources/FileExplorerTests/DropDecisionTests.swift`**
+- [x] **Step 1: Failing tests — `Sources/FileExplorerTests/DropDecisionTests.swift`**
 
 ```swift
 import Foundation
@@ -228,9 +228,9 @@ func dropDecisionTests() async {
 }
 ```
 
-- [ ] **Step 2: Register** — `await dropDecisionTests()` after `await selectionResolverTests()`.
+- [x] **Step 2: Register** — `await dropDecisionTests()` after `await selectionResolverTests()`.
 
-- [ ] **Step 3: Red run**, then implement — `Sources/FileExplorerCore/DropDecision.swift`:
+- [x] **Step 3: Red run**, then implement — `Sources/FileExplorerCore/DropDecision.swift`:
 
 ```swift
 import Foundation
@@ -257,7 +257,7 @@ public enum DropDecision: Equatable, Sendable {
 }
 ```
 
-- [ ] **Step 4: Green run** (~383), then wire `PaneView.swift`: add `import AppKit` at the top and replace the `.dropDestination` closure body:
+- [x] **Step 4: Green run** (~383), then wire `PaneView.swift`: add `import AppKit` at the top and replace the `.dropDestination` closure body:
 
 ```swift
             .dropDestination(for: URL.self) { urls, _ in
@@ -282,7 +282,7 @@ public enum DropDecision: Equatable, Sendable {
             }
 ```
 
-- [ ] **Step 5: Build + suite + commit** — `git commit -m "feat: drop into pane moves on same volume, option/cross-volume copies"`. Actual drags are MANUAL.
+- [x] **Step 5: Build + suite + commit** — `git commit -m "feat: drop into pane moves on same volume, option/cross-volume copies"`. Actual drags are MANUAL.
 
 ---
 
@@ -295,7 +295,7 @@ public enum DropDecision: Equatable, Sendable {
 - Create: `Sources/FileExplorerTests/SettingsModelTests.swift`; extend `PaneBatchToolsTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Failing tests.** Create `Sources/FileExplorerTests/SettingsModelTests.swift`:
+- [x] **Step 1: Failing tests.** Create `Sources/FileExplorerTests/SettingsModelTests.swift`:
 
 ```swift
 import Foundation
@@ -348,9 +348,9 @@ And append to the END of the existing `paneBatchToolsTests()` in `Sources/FileEx
     }
 ```
 
-- [ ] **Step 2: Register** — `await settingsModelTests()` after `await dropDecisionTests()`. Red run.
+- [x] **Step 2: Register** — `await settingsModelTests()` after `await dropDecisionTests()`. Red run.
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 
 `Sources/FileExplorerCore/SettingsModel.swift`:
 
@@ -409,7 +409,7 @@ In `PaneState.swift`, change `convertSelected` signature and add output selectio
     }
 ```
 
-- [ ] **Step 4: Thread `SettingsModel` down and build the menu.**
+- [x] **Step 4: Thread `SettingsModel` down and build the menu.**
 
 `FileExplorerApp.swift` `init()`: after creating `persister`, add `let settings = SettingsModel(persister: persister)` stored as `private let settings: SettingsModel`; pass `settings: settings` to `TabContentView`.
 `TabBarView.swift`: `TabContentView` and `PaneAreaView` each gain `var settings: SettingsModel` and pass it down to `PaneView`.
@@ -439,7 +439,7 @@ In `PaneState.swift`, change `convertSelected` signature and add output selectio
         .disabled(targets.isEmpty)
 ```
 
-- [ ] **Step 5: Green run (~389), build, commit** — `git commit -m "feat: JPG quality presets persisted in settings; convert selects outputs"`. Submenu interaction is MANUAL.
+- [x] **Step 5: Green run (~389), build, commit** — `git commit -m "feat: JPG quality presets persisted in settings; convert selects outputs"`. Submenu interaction is MANUAL.
 
 ---
 
@@ -452,7 +452,7 @@ In `PaneState.swift`, change `convertSelected` signature and add output selectio
 - Extend: `Sources/FileExplorerTests/RenamePlanTests.swift`, create `RenameExecutorTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Failing tests.** Append to `renamePlanTests()`. The suffix rule produces a genuine in-batch name handoff: with items `[a.txt, ax.txt]` and suffix `"x"`, `a.txt → ax.txt` targets a name currently held by batch member `ax.txt`, which itself moves to `axx.txt` (vacating its name):
+- [x] **Step 1: Failing tests.** Append to `renamePlanTests()`. The suffix rule produces a genuine in-batch name handoff: with items `[a.txt, ax.txt]` and suffix `"x"`, `a.txt → ax.txt` targets a name currently held by batch member `ax.txt`, which itself moves to `axx.txt` (vacating its name):
 
 ```swift
     await test("plan allows targets vacated by the batch, blocks outside holders") {
@@ -563,9 +563,9 @@ func renameExecutorTests() async {
 }
 ```
 
-- [ ] **Step 2: Register** (`await renameExecutorTests()` after settings), red run.
+- [x] **Step 2: Register** (`await renameExecutorTests()` after settings), red run.
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 
 `RenamePlan.swift` — vacated-name awareness in the conflict pass:
 
@@ -668,7 +668,7 @@ public enum RenameExecutor {
 
 Note: `Outcome.pairs` tuple labels must match `UndoRecorder.recordMove`'s expected `(from:to:)` shape — check `UndoRecorder.swift` and adapt if it wants a different label pair.
 
-- [ ] **Step 4: Green run (~400), build, existing RenamePlan/undo tests still green, commit** — `git commit -m "feat: two-phase batch rename enables A-B swaps and cycles"`.
+- [x] **Step 4: Green run (~400), build, existing RenamePlan/undo tests still green, commit** — `git commit -m "feat: two-phase batch rename enables A-B swaps and cycles"`.
 
 ---
 
@@ -677,7 +677,7 @@ Note: `Outcome.pairs` tuple labels must match `UndoRecorder.recordMove`'s expect
 **Files:**
 - Modify: `Sources/FileExplorer/RenameSheet.swift`, `BatchRenameSheet.swift` (models gain weak pane; confirm order), `FileActionsMenu.swift`, `FileExplorerApp.swift`
 
-- [ ] **Step 1:** `RenameSheetModel` gains a target pane (weak — a tab may close under an open sheet):
+- [x] **Step 1:** `RenameSheetModel` gains a target pane (weak — a tab may close under an open sheet):
 
 ```swift
     @ObservationIgnored weak var pane: PaneState?
@@ -693,7 +693,7 @@ Note: `Outcome.pairs` tuple labels must match `UndoRecorder.recordMove`'s expect
 
 `BatchRenameModel` identically: `@ObservationIgnored weak var pane: PaneState?`, `present(targets:existingNames:in:)`, dismiss clears it; mirror the confirm-order change in `BatchRenameSheet` if it dismisses before invoking its apply closure.
 
-- [ ] **Step 2:** Update the three presentation sites:
+- [x] **Step 2:** Update the three presentation sites:
 - `FileActionsMenu.swift`: `renameModel.present(for: url, in: pane)` and `batchRenameModel.present(targets: …, existingNames: …, in: pane)`.
 - `FileExplorerApp.swift` File-menu "Rename…": `renameModel.present(for: url, in: session.activePane)`.
 - `FileExplorerApp.swift` sheet callbacks:
@@ -710,7 +710,7 @@ Note: `Outcome.pairs` tuple labels must match `UndoRecorder.recordMove`'s expect
                 }
 ```
 
-- [ ] **Step 3:** Build + suite (~unchanged count) + commit — `git commit -m "fix: rename sheets act on the pane they were opened from"`. Right-click-on-inactive-pane behavior is MANUAL.
+- [x] **Step 3:** Build + suite (~unchanged count) + commit — `git commit -m "fix: rename sheets act on the pane they were opened from"`. Right-click-on-inactive-pane behavior is MANUAL.
 
 ---
 
@@ -721,7 +721,7 @@ Note: `Outcome.pairs` tuple labels must match `UndoRecorder.recordMove`'s expect
 - Modify: `Sources/FileExplorer/FilterBarView.swift`
 - Extend: `Sources/FileExplorerTests/FilterEngineTests.swift`, `SessionSnapshotTests.swift`
 
-- [ ] **Step 1: Failing tests.** Append INSIDE `filterEngineTests()` (its local `entry(_:dir:size:modified:)` helper and `now` constant are in scope there):
+- [x] **Step 1: Failing tests.** Append INSIDE `filterEngineTests()` (its local `entry(_:dir:size:modified:)` helper and `now` constant are in scope there):
 
 ```swift
     await test("custom date range overrides preset and filters entries") {
@@ -765,7 +765,7 @@ Append to `sessionSnapshotTests()`:
     }
 ```
 
-- [ ] **Step 2: Red run**, then implement.
+- [x] **Step 2: Red run**, then implement.
 
 `FilterState.swift`:
 
@@ -807,7 +807,7 @@ public struct FilterState: Equatable, Sendable, Codable {
     public var showsCustomSizePopover = false
 ```
 
-- [ ] **Step 3: Filter bar UI.** In `FilterBarView.swift`, add a "Custom Range…" entry to each menu and anchor popovers on the menu labels:
+- [x] **Step 3: Filter bar UI.** In `FilterBarView.swift`, add a "Custom Range…" entry to each menu and anchor popovers on the menu labels:
 
 Date menu gains, after the preset ForEach:
 
@@ -863,7 +863,7 @@ Size menu mirrors it with two MB text fields (parse Int64 MB → bytes; empty mi
 
 (size label analogous). `clearFilters()` in `PaneState` already resets `filter = FilterState()` which clears both ranges — no change needed there.
 
-- [ ] **Step 4: Green run (~410), build, commit** — `git commit -m "feat: custom date and size filter ranges with popover editors"`. Popover interaction is MANUAL; range decode/apply logic is tested.
+- [x] **Step 4: Green run (~410), build, commit** — `git commit -m "feat: custom date and size filter ranges with popover editors"`. Popover interaction is MANUAL; range decode/apply logic is tested.
 
 ---
 
@@ -872,7 +872,7 @@ Size menu mirrors it with two MB text fields (parse Int64 MB → bytes; empty mi
 **Files:**
 - Modify: `Sources/FileExplorer/PaneView.swift`, `ThumbnailGridView.swift`, `SidebarView.swift`, `FileExplorerApp.swift`
 
-- [ ] **Step 1: Symlink badge.** `PaneView.swift` Name column, inside the HStack after the Text:
+- [x] **Step 1: Symlink badge.** `PaneView.swift` Name column, inside the HStack after the Text:
 
 ```swift
                     if entry.isSymlink {
@@ -894,7 +894,7 @@ Size menu mirrors it with two MB text fields (parse Int64 MB → bytes; empty mi
             }
 ```
 
-- [ ] **Step 2: Live volumes.** In `SidebarView.swift`, add an app-lifetime model and take it as a parameter (view structs are stateless on this toolchain — the model must be OWNED BY `FileExplorerApp`, not the view):
+- [x] **Step 2: Live volumes.** In `SidebarView.swift`, add an app-lifetime model and take it as a parameter (view structs are stateless on this toolchain — the model must be OWNED BY `FileExplorerApp`, not the view):
 
 ```swift
 /// Observes NSWorkspace mount/unmount and republishes the volume list.
@@ -943,7 +943,7 @@ final class VolumesModel {
 
 `SidebarView` drops its computed `volumes` property, gains `var volumesModel: VolumesModel`, iterates `volumesModel.volumes`. `FileExplorerApp` adds `private let volumesModel = VolumesModel()` and passes it: `SidebarView(session: session, volumesModel: volumesModel)`. (`import AppKit` in SidebarView.swift.)
 
-- [ ] **Step 3: Sidebar current-location highlight.** In `SidebarView.row(_:)`:
+- [x] **Step 3: Sidebar current-location highlight.** In `SidebarView.row(_:)`:
 
 ```swift
     private func row(_ place: StandardPlaces.Place) -> some View {
@@ -960,7 +960,7 @@ final class VolumesModel {
     }
 ```
 
-- [ ] **Step 4: ⌘W on last tab.** `FileExplorerApp.swift`:
+- [x] **Step 4: ⌘W on last tab.** `FileExplorerApp.swift`:
 
 ```swift
                 Button("Close Tab") {
@@ -975,7 +975,7 @@ final class VolumesModel {
 
 (remove the `.disabled(session.tabs.count == 1)`).
 
-- [ ] **Step 5: Build + suite + launch check + commit**
+- [x] **Step 5: Build + suite + launch check + commit**
 
 ```bash
 swift build 2>&1 | tail -3 && swift run FileExplorerTests 2>&1 | tail -3
@@ -993,7 +993,7 @@ Badge/highlight/mount visuals are MANUAL.
 - Modify: `Sources/FileExplorerCore/PaneState.swift` (showHidden didSet, hoverPreview), `Sources/FileExplorer/FileExplorerApp.swift` (drop manual reload), `Sources/FileExplorer/PaneView.swift` (use pane.hoverPreview), `Sources/FileExplorer/ThumbnailGridView.swift` (generation coalescing), `Sources/FileExplorer/FileActionsMenu.swift` (Calculate Size gating), `Sources/FileExplorer/BatchRenameSheet.swift` (isNoOp)
 - Extend: `Sources/FileExplorerTests/PaneStateTests.swift`
 
-- [ ] **Step 1: showHidden didSet (TDD).** Append to `paneStateTests()`: build a temp dir with a hidden file, start a pane, flip `pane.showHidden = true`, poll (≤2 s) until `pane.entries` contains the hidden file WITHOUT calling `reload()` manually; then flip back and poll for its disappearance. Red run. Implement in `PaneState`:
+- [x] **Step 1: showHidden didSet (TDD).** Append to `paneStateTests()`: build a temp dir with a hidden file, start a pane, flip `pane.showHidden = true`, poll (≤2 s) until `pane.entries` contains the hidden file WITHOUT calling `reload()` manually; then flip back and poll for its disappearance. Red run. Implement in `PaneState`:
 
 ```swift
     public var showHidden = false {
@@ -1012,7 +1012,7 @@ Badge/highlight/mount visuals are MANUAL.
                     set: { session.activePane.showHidden = $0 }))
 ```
 
-- [ ] **Step 2: Hoist hoverModel.** `PaneState` gains:
+- [x] **Step 2: Hoist hoverModel.** `PaneState` gains:
 
 ```swift
     /// Hover-preview state; owned here because view structs are re-inited on
@@ -1022,7 +1022,7 @@ Badge/highlight/mount visuals are MANUAL.
 
 `PaneView` deletes `private let hoverModel = HoverPreviewModel()` and uses `pane.hoverPreview` in the three call sites (onHover ×2, popover binding + content).
 
-- [ ] **Step 3: Generation coalescing.** In `ThumbnailStore`, replace the direct `generation += 1` in the request completion with a coalesced bump:
+- [x] **Step 3: Generation coalescing.** In `ThumbnailStore`, replace the direct `generation += 1` in the request completion with a coalesced bump:
 
 ```swift
     @ObservationIgnored private var bumpScheduled = false
@@ -1040,7 +1040,7 @@ Badge/highlight/mount visuals are MANUAL.
 
 (call `scheduleGenerationBump()` where `generation += 1` was). One re-render per 50 ms burst instead of one per thumbnail.
 
-- [ ] **Step 4: Menu nits.** `FileActionsMenu.swift` — Calculate Size only enabled when a directory is targeted:
+- [x] **Step 4: Menu nits.** `FileActionsMenu.swift` — Calculate Size only enabled when a directory is targeted:
 
 ```swift
         Button("Calculate Size") {
@@ -1053,19 +1053,79 @@ Badge/highlight/mount visuals are MANUAL.
 
 `BatchRenameSheet.swift` — wire the unused `RenameRules.isNoOp` into the Apply button's disabled condition (find the apply/confirm button; add `model.rules.isNoOp ||` to its existing disable expression). If the sheet already disables on `applicableCount == 0` and `isNoOp` is fully redundant with it, DELETE `isNoOp` from `RenameRules` instead and say so in the commit.
 
-- [ ] **Step 5: Build + full suite + commit** — `git commit -m "refactor: showHidden auto-reload, hoisted hover model, coalesced thumbnail re-renders, menu gating"`.
+- [x] **Step 5: Build + full suite + commit** — `git commit -m "refactor: showHidden auto-reload, hoisted hover model, coalesced thumbnail re-renders, menu gating"`.
 
 ---
 
 ### Task 9: Verification sweep, completion notes, merge gate
 
-- [ ] **Step 1:** Full suite ×2 (`swift run FileExplorerTests`) — PASS both, record final count. `swift build -c release 2>&1 | tail -2` clean.
-- [ ] **Step 2:** Launch checks: plain launch alive >5 s; launch with `/tmp` arg alive; relaunch restores prior session (session.json now includes any custom ranges — verify it decodes by launching after setting a custom filter… settable only manually → list as MANUAL).
-- [ ] **Step 3:** Re-read the v2 spec's M8 section; each bullet has a test, a wired UI path, or a MANUAL entry. Fix real bugs found (`fix: … (milestone 8 verification)`).
-- [ ] **Step 4:** Append Completion Notes (final assertion count; bugs found; MANUAL list: modifier-click gestures, real drags in/out, quality submenu, custom-range popovers, mount/unmount refresh, ⌘W-last-tab window close, badge visuals). Mark all checkboxes.
+- [x] **Step 1:** Full suite ×2 (`swift run FileExplorerTests`) — PASS both, record final count. `swift build -c release 2>&1 | tail -2` clean.
+- [x] **Step 2:** Launch checks: plain launch alive >5 s; launch with `/tmp` arg alive; relaunch restores prior session (session.json now includes any custom ranges — verify it decodes by launching after setting a custom filter… settable only manually → list as MANUAL).
+- [x] **Step 3:** Re-read the v2 spec's M8 section; each bullet has a test, a wired UI path, or a MANUAL entry. Fix real bugs found (`fix: … (milestone 8 verification)`).
+- [x] **Step 4:** Append Completion Notes (final assertion count; bugs found; MANUAL list: modifier-click gestures, real drags in/out, quality submenu, custom-range popovers, mount/unmount refresh, ⌘W-last-tab window close, badge visuals). Mark all checkboxes.
 - [ ] **Step 5:** Controller runs the final whole-branch review, then merges:
 
 ```bash
 git checkout main && git merge --no-ff milestone-8-interaction-debt \
     -m "merge: milestone 8 — interaction debt (v2 complete)"
 ```
+
+---
+
+## Completion Notes (2026-07-08)
+
+**Suite:** 462 assertions at the start of this task; unchanged after this task (no fixes were needed — recounted twice, both PASS 462). `swift build -c release` clean (only the pre-existing CLT linker search-path warnings). Launch checks: plain launch alive >5s; `swift run FileExplorer /tmp` alive >5s; both killed cleanly.
+
+**Per-task summary (all committed + two-stage reviewed):**
+- **Task 1** — Grid multi-select: `SelectionResolver` (Core) + `PaneState.clickSelect` wire ⌘-toggle and ⇧-range into `ThumbnailGridView`, matching table semantics.
+- **Task 2** — Finder-parity drop: `DropDecision` (Core) decides move/copy from ⌥ + same-volume; `PaneView`'s `.dropDestination` routes through existing `FileOperationService`/undo.
+- **Task 3** — Convert quality + output selection: `SettingsModel` persists `jpegQuality` via `SessionPersister`; Convert submenu gains JPG Quality presets 60/80/90/100; `convertSelected` selects its outputs.
+- **Task 4** — Batch-rename A↔B swaps: `RenamePlan` gains vacated-name awareness; `RenameExecutor` two-phase (temp-name) execution enables swaps/cycles with rollback on phase-2 failure.
+- **Task 5** — Direct-pane rename sheets: `RenameSheetModel`/`BatchRenameModel` carry a weak target pane so right-click-rename and batch-rename act on the pane they were opened from, not `session.activePane`.
+- **Task 6** — Custom date/size filter ranges: `FilterState.customDateRange`/`customSizeRange` (optional, Codable-compatible with pre-M8 session.json) override presets in `FilterEngine`; `FilterBarView` gains popover editors.
+- **Task 7** — Browse polish: symlink badges in table + grid; `VolumesModel` observes `NSWorkspace` mount/unmount and republishes the volume list; sidebar highlights the active pane's current location; ⌘W closes the window on the last tab.
+- **Task 8** — Internal cleanups: `showHidden` auto-reloads via `didSet` (gated on `started`); `HoverPreviewModel` hoisted onto `PaneState`; `ThumbnailStore` coalesces generation bumps (one re-render per 50ms burst); Calculate Size disables when no target is a folder; `RenameRules.isNoOp` deleted as redundant with `BatchRenameSheet`'s existing `applicableCount == 0` gate.
+
+**Review-driven fixes during the milestone:**
+- `f449171` — shift-range pivot semantics: selection recomputes from a pivot so a shift-range can grow AND shrink; shift-click can also bootstrap an anchor.
+- `55363e1` — swap-undo two-phase relocate fix: `UndoRecorder.recordMove` now restores swapped/cycled rename pairs via a single two-phase `RenameExecutor.relocate()` call instead of a pair-by-pair loop, avoiding spurious "already exists" failures.
+- `5d645e0` — vacated-set fixpoint in `RenamePlan` + loud rollback-collision recovery in `RenameExecutor` (data-integrity Critical found by adversarial review, empirically reproduced).
+- `3704dd1` — MB-field Int64 overflow clamp in the custom size-filter parser (Critical, crash reachable by pasting a huge number then applying the filter).
+
+**Accepted minors/notes (no fix needed, or deliberately out of scope):**
+- Mixed-volume drops copy the whole batch (`PaneView`'s drop handler uses `allSatisfy` for same-volume — provably-safe simplification: any cross-volume item in the batch forces copy for all).
+- No "Moved/Copied N items" success feedback in the status bar (follow-up; failures already surface there via `opErrorMessage`).
+- `jpegQuality` default 0.85 matches no preset (60/80/90/100), so there's no initial checkmark in the JPG Quality submenu until the user picks one.
+- The 0.85 default is duplicated across `PaneState.convertSelected`, `SessionPersister`'s `AppSettings` init/decoder, and `ImageConverter.convert` — no single source of truth, but each is independently clamped/correct.
+- Batch-rename failure display truncates at 3 (`opErrorMessage`) — a `RenameExecutor` rollback-recovery message could be among the ones cut, though the file itself still lands at a visible "(restored)" name so no data is hidden, only the message.
+- `relocate()`'s rollback-collision path has no dedicated undo-time test (only the execute-path collision is covered by `RenameExecutorTests`).
+- Sheet-model pane bookkeeping (`RenameSheetModel`/`BatchRenameModel`'s weak `pane` wiring) is untestable from the `FileExplorerTests` harness — those types live in the `FileExplorer` executable target, which `Package.swift` doesn't link into the test target.
+- `HoverPreviewModel`'s pending task self-cleans (~500ms) when a pane closes; no explicit cancellation was added since the existing self-cleanup already prevents a leak.
+
+**Spec sweep (v2 spec, Milestone 8 section) — every bullet covered:**
+- Convert quality / presets / persistence → `SettingsModel`, `FileActionsMenu`'s JPG Quality submenu, `SettingsModelTests`.
+- Convert selects outputs → `PaneState.convertSelected` (line ~322), `PaneBatchToolsTests`.
+- Rename swaps (A↔B, cycles) → `RenamePlan` vacated-name pass + `RenameExecutor` two-phase execution, `RenamePlanTests`/`RenameExecutorTests`.
+- Direct-pane unification → `RenameSheetModel`/`BatchRenameModel` weak `pane`, `FileActionsMenu.present(...)` call sites.
+- Grid multi-select → `SelectionResolver`/`PaneState.clickSelect`, wired in `ThumbnailGridView`, `SelectionResolverTests`.
+- Drop into pane (Finder parity) → `DropDecision`, wired in `PaneView`'s `.dropDestination`, `DropDecisionTests`.
+- Symlink badge → `PaneView` (table) and `ThumbnailGridView.ThumbnailCell` (grid), both checking `entry.isSymlink`.
+- Volumes live refresh + sidebar highlight → `VolumesModel` (NSWorkspace observers) in `SidebarView.swift`, `SidebarView.row(_:)` `isCurrent` check.
+- ⌘W on last tab → `FileExplorerApp`'s "Close Tab" now calls `NSApp.mainWindow?.performClose(nil)` when `session.tabs.count == 1` (fixed from `keyWindow` during Task 8 review so it works even with a sheet key).
+- Custom date/size filter ranges → `FilterState.customDateRange`/`customSizeRange` (optional, backward-compatible), `FilterEngine.apply` override logic, `FilterBarView` popovers, `FilterEngineTests`/`SessionSnapshotTests`.
+- Internal cleanups (showHidden didSet, hoverModel hoist, generation coalescing, isNoOp) → all confirmed present in `PaneState.swift`/`ThumbnailGridView.swift`/`FileActionsMenu.swift`, per Task 8 commit `224ab20`.
+
+No gaps or bugs found during this sweep; no additional fixes were required.
+
+**MANUAL walkthrough** (TCC blocks agent-driven UI automation — verify by hand before merge):
+
+- [ ] ⌘-click and ⇧-click multi-select in the icon grid, including a shift-range that shrinks back after growing.
+- [ ] Drag-drop move within a volume vs. ⌥-drag copy vs. cross-volume drop (defaults to copy).
+- [ ] JPG Quality submenu: presets 60/80/90/100 show a checkmark on the active value and persist across relaunch.
+- [ ] Custom date and size range popovers, including pasting a huge number into the size filter's MB field — should clamp, not crash.
+- [ ] Symlink badges render correctly in both table and grid views.
+- [ ] Volume mount/unmount live-refreshes the sidebar's volume list.
+- [ ] Sidebar highlights the current location under both Favorites and Volumes.
+- [ ] ⌘W closes the window when it's the last tab, including with a sheet open (mainWindow fix).
+- [ ] Right-click → Rename on an INACTIVE pane renames in that pane, not the active one.
+- [ ] Convert selects its output files and Quick Look refreshes to show them.
