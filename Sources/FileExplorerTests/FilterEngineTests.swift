@@ -64,4 +64,27 @@ func filterEngineTests() async {
         expectEqual(none.map(\.name), ["folder"],
                     "no image is over 100MB — only the folder passes")
     }
+
+    await test("custom date range overrides preset and filters entries") {
+        var f = FilterState()
+        f.datePreset = .today   // preset alone would pass anything from today
+        f.customDateRange = now.addingTimeInterval(-7_200)...now.addingTimeInterval(-3_600)
+        let inRange = entry("mid.png", size: 10,
+                            modified: now.addingTimeInterval(-5_400))
+        let tooNew = entry("new.png", size: 10, modified: now)
+        let result = FilterEngine.apply(f, to: [inRange, tooNew], now: now)
+        expectEqual(result.map(\.name), ["mid.png"],
+                    "custom range wins over the preset")
+    }
+
+    await test("custom size range filters entries; folders pass") {
+        var f = FilterState()
+        f.customSizeRange = Int64(1_000)...Int64(5_000)
+        let result = FilterEngine.apply(
+            f, to: [entry("dir", dir: true), entry("small.txt", size: 500),
+                    entry("mid.txt", size: 3_000), entry("big.txt", size: 10_000)],
+            now: now)
+        expectEqual(result.map(\.name).sorted(), ["dir", "mid.txt"],
+                    "only the in-range file and the folder pass")
+    }
 }

@@ -213,4 +213,17 @@ func sessionSnapshotTests() async {
         expectEqual(withRecents.recentFolders.map(\.path), ["/tmp", "/private"],
                     "recent folders restored in order")
     }
+
+    await test("FilterState with custom ranges round-trips; old JSON still decodes") {
+        var filter = FilterState()
+        filter.customSizeRange = Int64(1)...Int64(2)
+        let data = try JSONEncoder().encode(filter)
+        let decoded = try JSONDecoder().decode(FilterState.self, from: data)
+        expectEqual(decoded, filter, "custom ranges survive encode/decode")
+
+        let legacy = #"{"extensions":[]}"#   // pre-M8 filter JSON, no range keys
+        let old = try JSONDecoder().decode(FilterState.self, from: Data(legacy.utf8))
+        expect(old.customDateRange == nil && old.customSizeRange == nil,
+               "old session.json filters decode with nil custom ranges")
+    }
 }

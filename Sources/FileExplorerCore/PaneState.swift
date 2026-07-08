@@ -74,6 +74,11 @@ public final class PaneState {
         }
     }
 
+    /// Transient popover visibility for the filter bar's custom-range editors
+    /// (no @State on this toolchain; deliberately NOT read by snapshot()).
+    public var showsCustomDatePopover = false
+    public var showsCustomSizePopover = false
+
     /// Filtered and sorted snapshot of `entries`. Stored rather than computed
     /// so SwiftUI body evaluations don't re-sort/re-filter large directories;
     /// refreshed when `entries`, `sortOrder`, or `filter` changes.

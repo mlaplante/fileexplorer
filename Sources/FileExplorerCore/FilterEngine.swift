@@ -7,8 +7,8 @@ public enum FilterEngine {
     public static func apply(_ filter: FilterState, to entries: [FileEntry],
                              now: Date = Date()) -> [FileEntry] {
         guard filter.isActive else { return entries }
-        let dateRange = filter.datePreset?.range(now: now)
-        let sizeRange = filter.sizePreset?.range
+        let dateRange = filter.customDateRange ?? filter.datePreset?.range(now: now)
+        let sizeRange = filter.customSizeRange ?? filter.sizePreset?.range
         return entries.filter { entry in
             if entry.isDirectory { return true }
             if let preset = filter.preset, !preset.matches(entry.contentType) {
