@@ -32,4 +32,35 @@ public final class SettingsModel {
         settings.filterPresets.removeAll { $0.name == name }
         persister.saveSettings(settings)
     }
+
+    public func setUpdateCheckEnabled(_ enabled: Bool) {
+        settings.updateCheckEnabled = enabled
+        persister.saveSettings(settings)
+    }
+
+    public func markUpdateCheck(at date: Date = Date()) {
+        settings.lastUpdateCheckAt = date
+        persister.saveSettings(settings)
+    }
+
+    public func setShortcutOverride(_ chord: KeyChord,
+                                    for command: ShortcutRegistry.Command) {
+        settings.shortcutOverrides[command.rawValue] = chord
+        persister.saveSettings(settings)
+    }
+
+    public func clearShortcutOverride(for command: ShortcutRegistry.Command) {
+        settings.shortcutOverrides.removeValue(forKey: command.rawValue)
+        persister.saveSettings(settings)
+    }
+
+    public func resetAllShortcuts() {
+        settings.shortcutOverrides = [:]
+        persister.saveSettings(settings)
+    }
+
+    public func chord(for command: ShortcutRegistry.Command) -> KeyChord {
+        ShortcutRegistry.effectiveChord(for: command,
+                                        overrides: settings.shortcutOverrides)
+    }
 }

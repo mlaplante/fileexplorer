@@ -12,6 +12,8 @@ struct FileExplorerApp: App {
     private let volumesModel = VolumesModel()
     private let settings: SettingsModel
     private let infoModel = GetInfoModel()
+    private let updateModel = UpdateModel()
+    private let shortcutRecorder = ShortcutRecorderModel()
 
     init() {
         let persister = SessionPersister(
@@ -37,9 +39,13 @@ struct FileExplorerApp: App {
 
         // When launched from `swift run` (no bundle), become a regular
         // foreground app so the window appears and takes focus.
+        // Locals, not properties: an escaping closure in a struct's init
+        // can't capture mutating self.
+        let updateModel = self.updateModel
         DispatchQueue.main.async {
             NSApplication.shared.setActivationPolicy(.regular)
             NSApplication.shared.activate(ignoringOtherApps: true)
+            updateModel.checkIfDue(settings: settings)
         }
     }
 
@@ -99,6 +105,18 @@ struct FileExplorerApp: App {
                     }
                     .padding(.top, 60)
                 }
+
+                if let version = updateModel.availableVersion {
+                    HStack(spacing: 8) {
+                        Text("FileExplorer \(version) is available.")
+                        Button("View Release") { updateModel.openReleasePage() }
+                        Button("Dismiss") { updateModel.dismiss() }
+                    }
+                    .font(.callout)
+                    .padding(8)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    .padding(.top, 8)
+                }
             }
             .frame(minWidth: 760, minHeight: 400)
             .sheet(isPresented: Binding(
@@ -126,7 +144,7 @@ struct FileExplorerApp: App {
             }
         }
         .commands {
-            GetInfoCommands()
+            GetInfoCommands(settings: settings)
             CommandGroup(replacing: .pasteboard) {
                 Button("Cut") {
                     PasteboardOps.forwardToFieldEditor(#selector(NSText.cut(_:)))
@@ -185,17 +203,17 @@ struct FileExplorerApp: App {
                 Button("New Folder") {
                     Task { await session.activePane.createNewFolder() }
                 }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
+                .keyboardShortcut(settings.chord(for: .newFolder).keyboardShortcut)
                 Button("New File") {
                     Task { await session.activePane.createNewFile() }
                 }
-                .keyboardShortcut("n", modifiers: [.command, .option])
+                .keyboardShortcut(settings.chord(for: .newFile).keyboardShortcut)
                 Button("Duplicate") {
                     let targets = Array(session.activePane.selection)
                     guard !targets.isEmpty else { return }
                     Task { await session.activePane.duplicateSelected(targets) }
                 }
-                .keyboardShortcut("d", modifiers: .command)
+                .keyboardShortcut(settings.chord(for: .duplicate).keyboardShortcut)
                 .disabled(session.activePane.selection.isEmpty)
                 Button("Rename…") {
                     if let url = session.activePane.selection.first,
@@ -240,32 +258,32 @@ struct FileExplorerApp: App {
                             to: FileManager.default.homeDirectoryForCurrentUser)
                     }
                 }
-                .keyboardShortcut("h", modifiers: [.command, .shift])
+                .keyboardShortcut(settings.chord(for: .goHome).keyboardShortcut)
                 Divider()
                 Button("Go to Folder…") {
                     PaletteCoordinator.openFolders(palette, session: session)
                 }
-                .keyboardShortcut("g", modifiers: .command)
+                .keyboardShortcut(settings.chord(for: .gotoFolder).keyboardShortcut)
                 Button("Find File…") {
                     PaletteCoordinator.openFiles(palette, session: session)
                 }
-                .keyboardShortcut("p", modifiers: .command)
+                .keyboardShortcut(settings.chord(for: .findFile).keyboardShortcut)
                 Button("Search File Contents…") {
                     PaletteCoordinator.openContents(palette, session: session)
                 }
-                .keyboardShortcut("f", modifiers: [.command, .shift])
+                .keyboardShortcut(settings.chord(for: .contentSearch).keyboardShortcut)
             }
             CommandGroup(after: .toolbar) {
                 Toggle("Show Hidden Files", isOn: Binding(
                     get: { session.activePane.showHidden },
                     set: { session.activePane.showHidden = $0 }))
-                    .keyboardShortcut(".", modifiers: [.command, .shift])
+                    .keyboardShortcut(settings.chord(for: .toggleHidden).keyboardShortcut)
                 Button("Toggle Dual Pane") { session.activeTab.toggleDual() }
-                    .keyboardShortcut("d", modifiers: [.command, .shift])
+                    .keyboardShortcut(settings.chord(for: .dualPane).keyboardShortcut)
                 Button("Compare Panes") {
                     Task { await session.activeTab.runCompare() }
                 }
-                .keyboardShortcut("k", modifiers: [.command, .shift])
+                .keyboardShortcut(settings.chord(for: .comparePanes).keyboardShortcut)
                 .disabled(!session.activeTab.isDual)
                 Picker("View", selection: Binding(
                     get: { session.activePane.viewMode },
@@ -274,19 +292,21 @@ struct FileExplorerApp: App {
                         .keyboardShortcut("1", modifiers: [.command, .option])
                     Text("as Icons").tag(PaneState.ViewMode.icons)
                         .keyboardShortcut("2", modifiers: [.command, .option])
+                    Text("as Columns").tag(PaneState.ViewMode.columns)
+                        .keyboardShortcut("3", modifiers: [.command, .option])
                 }
                 .pickerStyle(.inline)
                 Button("Quick Look") {
                     QuickLookController.shared.toggle(for: session.activePane)
                 }
-                .keyboardShortcut("y", modifiers: .command)
+                .keyboardShortcut(settings.chord(for: .quickLook).keyboardShortcut)
             }
             CommandGroup(after: .windowArrangement) {
                 Button("Command Palette…") {
                     PaletteCoordinator.openCommands(palette, session: session,
                                                     settings: settings)
                 }
-                .keyboardShortcut("a", modifiers: [.command, .shift])
+                .keyboardShortcut(settings.chord(for: .commandPalette).keyboardShortcut)
             }
             CommandGroup(before: .windowList) {
                 ForEach(1...9, id: \.self) { number in
@@ -302,6 +322,10 @@ struct FileExplorerApp: App {
         }
         .windowResizability(.contentSize)
         .defaultPosition(.trailing)
+        Settings {
+            SettingsRootView(settings: settings, updateModel: updateModel,
+                             recorder: shortcutRecorder)
+        }
     }
 }
 
@@ -309,11 +333,12 @@ struct FileExplorerApp: App {
 /// is available to Commands conformances but not to the App struct itself.
 struct GetInfoCommands: Commands {
     @Environment(\.openWindow) private var openWindow
+    var settings: SettingsModel
 
     var body: some Commands {
         CommandGroup(after: .newItem) {
             Button("Get Info") { openWindow(id: "info") }
-                .keyboardShortcut("i", modifiers: .command)
+                .keyboardShortcut(settings.chord(for: .getInfo).keyboardShortcut)
         }
     }
 }

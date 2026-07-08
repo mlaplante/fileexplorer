@@ -7,6 +7,7 @@ public final class PaneState {
     /// Hover-preview state; owned here because view structs are re-inited on
     /// every parent render on this toolchain (M5 deferred hoisting).
     public let hoverPreview = HoverPreviewModel()
+    public let columnsModel = ColumnsModel()
     public private(set) var history: NavigationHistory
     /// Invoked after every completed navigation (navigate/back/forward/up)
     /// with the new current URL; used by the session layer to record recents.
@@ -39,6 +40,7 @@ public final class PaneState {
     public enum ViewMode: String, Sendable, Codable {
         case list
         case icons
+        case columns
     }
 
     /// List vs thumbnail-grid presentation; per pane, remembered per tab.
@@ -107,6 +109,13 @@ public final class PaneState {
     /// deliberately NOT read by snapshot()).
     public var showsSavePresetPopover = false
     public var savePresetNameDraft = ""
+
+    /// Transient rubber-band drag state for the icon grid (view-layer
+    /// geometry; deliberately NOT read by snapshot()).
+    @ObservationIgnored public var rubberBandFrames: [URL: CGRect] = [:]
+    public var rubberBandRect: CGRect?
+    @ObservationIgnored public var rubberBandBase = Set<URL>()
+    @ObservationIgnored public var rubberBandUnion = false
 
     /// Filtered and sorted snapshot of `entries`. Stored rather than computed
     /// so SwiftUI body evaluations don't re-sort/re-filter large directories;

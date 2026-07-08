@@ -15,6 +15,23 @@ struct FileActions {
     @ViewBuilder
     func menu(for urls: Set<URL>) -> some View {
         let targets = Array(urls)
+        openSection(targets: targets)
+        clipboardSection(targets: targets)
+        tagsSection(targets: targets)
+        Divider()
+        renameSection(targets: targets)
+        newItemsSection()
+        paneTransferSection(targets: targets)
+        Divider()
+        imageToolsSection(targets: targets)
+        archiveSection(targets: targets)
+        sizeSection(targets: targets)
+        Divider()
+        trashSection(targets: targets)
+    }
+
+    @ViewBuilder
+    private func openSection(targets: [URL]) -> some View {
         Button("Open") {
             for url in targets { NSWorkspace.shared.open(url) }
         }
@@ -48,6 +65,10 @@ struct FileActions {
             NSWorkspace.shared.activateFileViewerSelecting(targets)
         }
         .disabled(targets.isEmpty)
+    }
+
+    @ViewBuilder
+    private func clipboardSection(targets: [URL]) -> some View {
         Button("Copy") {
             PasteboardOps.copyToPasteboard(targets)
         }
@@ -85,6 +106,10 @@ struct FileActions {
         .disabled(targets.count != 1 || targets.first.map { url in
             pane.entries.first { $0.url == url }?.isDirectory == true
         } == true)
+    }
+
+    @ViewBuilder
+    private func tagsSection(targets: [URL]) -> some View {
         Menu("Tags") {
             let selectedEntries = pane.entries.filter { targets.contains($0.url) }
             let visibleTags = Set(pane.entries.flatMap(\.tags))
@@ -111,7 +136,10 @@ struct FileActions {
             }
         }
         .disabled(targets.isEmpty)
-        Divider()
+    }
+
+    @ViewBuilder
+    private func renameSection(targets: [URL]) -> some View {
         Button("Rename…") {
             if let url = targets.first { renameModel.present(for: url, in: pane) }
         }
@@ -123,12 +151,20 @@ struct FileActions {
                 in: pane)
         }
         .disabled(targets.count < 2)
+    }
+
+    @ViewBuilder
+    private func newItemsSection() -> some View {
         Button("New Folder") {
             Task { await pane.createNewFolder() }
         }
         Button("New File") {
             Task { await pane.createNewFile() }
         }
+    }
+
+    @ViewBuilder
+    private func paneTransferSection(targets: [URL]) -> some View {
         if let otherPane {
             Divider()
             Button("Move to Other Pane") {
@@ -140,7 +176,10 @@ struct FileActions {
             }
             .disabled(targets.isEmpty)
         }
-        Divider()
+    }
+
+    @ViewBuilder
+    private func imageToolsSection(targets: [URL]) -> some View {
         Menu("Convert Image To") {
             Button("JPG") {
                 Task { await pane.convertSelected(
@@ -180,6 +219,10 @@ struct FileActions {
             }
         }
         .disabled(targets.isEmpty)
+    }
+
+    @ViewBuilder
+    private func archiveSection(targets: [URL]) -> some View {
         Button("Compress") {
             Task { await pane.compressSelected(targets) }
         }
@@ -193,13 +236,20 @@ struct FileActions {
         .disabled(!targets.contains {
             ArchiveKind.detect($0.lastPathComponent) != nil
         })
+    }
+
+    @ViewBuilder
+    private func sizeSection(targets: [URL]) -> some View {
         Button("Calculate Size") {
             Task { await pane.calculateFolderSizes(targets) }
         }
         .disabled(!targets.contains { url in
             pane.entries.first(where: { $0.url == url })?.isDirectory == true
         })
-        Divider()
+    }
+
+    @ViewBuilder
+    private func trashSection(targets: [URL]) -> some View {
         Button("Move to Trash") {
             Task { await pane.trashSelected(targets) }
         }

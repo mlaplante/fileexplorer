@@ -715,4 +715,22 @@ public enum RubberBand {
 
 ## Completion Notes
 
-(filled in at the end of the milestone)
+**Completed 2026-07-08.** All 6 implementation tasks done; **v3 is feature-complete**. Final suite: **641 assertions, PASS** (610 at start).
+
+**Swift 6 concurrency traps hit and fixed at execution time (all app-target, invisible to the Core-only test run):**
+- Escaping closure in the App struct's `init` can't capture mutating self — hoist stored-property references into locals first.
+- `NSEvent` is non-Sendable: extract keyCode/characters/modifierFlags BEFORE `MainActor.assumeIsolated`, return a Bool decision out, map to `nil`/event outside.
+- `isolated deinit` required to tear down the recorder's event monitor (same pattern as VolumesModel).
+
+**Deferred / accepted:**
+- Rubber-band: stale frames during a mid-drag listing change can ghost-select briefly (documented in plan; walkthrough item).
+- Shortcut recording is character-keys-with-⌘ only; special keys stay fixed (spec decision).
+- Ancestor columns in column view are read-only browse lists; no drag targets.
+
+**MANUAL walkthrough (human, ~10 min):**
+- [ ] Settings ⌘,: JPG quality + update toggle persist; Check Now updates the timestamp; banner appears only for a newer tag; Dismiss/View Release behave.
+- [ ] Shortcuts: record a chord (e.g. ⇧⌘J for Duplicate) → menu shows it immediately; Escape cancels recording; conflict warning on a clash; per-row Reset and Reset All.
+- [ ] Old settings.json (pre-M12) loads; M12 settings.json opened by an M11 build doesn't crash it (extra keys ignored).
+- [ ] ⌥⌘3 columns: ancestors browse, bold trail, → descends into a selected folder, ← ascends, filters/sort apply to the last column only, session restores column mode; context menu works on last-column rows.
+- [ ] Rubber band in icon view: drag-select, ⇧-drag unions, marquee aligns while scrolled, click-select still works, no ghost selections after files change mid-drag.
+- [ ] Context menu identical to pre-M12 (menu split spot-check).
