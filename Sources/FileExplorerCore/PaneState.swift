@@ -47,6 +47,7 @@ public final class PaneState {
     public var viewMode: ViewMode = .list
     public var errorMessage: String?
     public var availableSpaceText: String?
+    public var pendingRenameURL: URL?
     /// Failure summary from the most recent file OPERATION (move/copy/trash/
     /// rename/new folder) — distinct from `errorMessage`, which reports
     /// folder-LOAD failures and drives the full-pane overlay. Cleared on the
@@ -306,6 +307,52 @@ public final class PaneState {
             }
             opErrorMessage = nil
             selection = [url.standardizedFileURL]
+        case .failure(let error):
+            opErrorMessage = error.message
+        }
+    }
+
+    public func newFolderWithSelection(_ urls: [URL]) async {
+        guard !urls.isEmpty else { return }
+        let destination = currentURL
+        let outcome = await Task.detached(priority: .userInitiated) {
+            let folderResult = FileOperationService.newFolder(in: destination)
+            switch folderResult {
+            case .success(let folder):
+                let moveResults = FileOperationService.move(urls, into: folder)
+                return (folderResult, moveResults)
+            case .failure:
+                return (folderResult, [])
+            }
+        }.value
+        await reload()
+
+        switch outcome.0 {
+        case .success(let folder):
+            let successes = outcome.1.compactMap { result -> OperationSuccess? in
+                if case .success(let url) = result.outcome {
+                    return OperationSuccess(source: result.source, destination: url)
+                }
+                return nil
+            }
+            let failures = outcome.1.compactMap { result -> String? in
+                if case .failure(let error) = result.outcome { return error.message }
+                return nil
+            }
+            if let undoManager {
+                undoManager.beginUndoGrouping()
+                UndoRecorder.recordCreation([folder], actionName: "New Folder with Selection",
+                                            on: undoManager, pane: self)
+                UndoRecorder.recordMove(
+                    successes.map { (from: $0.source, to: $0.destination) },
+                    actionName: "New Folder with Selection",
+                    on: undoManager, pane: self)
+                undoManager.endUndoGrouping()
+            }
+            opErrorMessage = OperationFailureSummary.message(failures)
+            let standardizedFolder = folder.standardizedFileURL
+            selection = [standardizedFolder]
+            pendingRenameURL = standardizedFolder
         case .failure(let error):
             opErrorMessage = error.message
         }

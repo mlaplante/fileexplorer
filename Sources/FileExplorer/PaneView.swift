@@ -124,6 +124,11 @@ struct PaneView: View {
         }
         .onAppear { pane.undoManager = undoManager }
         .onChange(of: pane.currentURL) { _, _ in pane.undoManager = undoManager }
+        .onChange(of: pane.pendingRenameURL) { _, url in
+            guard let url else { return }
+            renameModel.present(for: url, in: pane)
+            pane.pendingRenameURL = nil
+        }
     }
 
     /// Prominent folder heading over the content area (the breadcrumb stays
