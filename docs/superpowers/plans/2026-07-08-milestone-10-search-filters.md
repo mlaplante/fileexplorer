@@ -1278,4 +1278,27 @@ git commit -m "docs: milestone 10 README updates and completion notes"
 
 ## Completion Notes
 
-(filled in at the end of the milestone)
+**Completed 2026-07-08.** All 7 implementation tasks done (Codex implementer + Claude reviewers, controller builds/tests/commits). Final suite: **549 assertions, PASS** (522 at start).
+
+**Implementation-time discoveries (already folded into the plan text above):**
+- `URLResourceValues.tagNames` setter is macOS 26+; TagWriter writes the `_kMDItemUserTags` xattr directly (binary plist, "Name\nColorIndex").
+- Swift 6 region isolation rejects capturing a local `NSMetadataQuery` in the observer closure; SpotlightSearcher reads it back through the Sendable @MainActor self.
+
+**Review loop caught pre-merge:** New Tag popover mistargeting in grid view (targets captured at menu-click via `newTagTargets`); deep-scan confirm losing `targetPane` (restored after undismiss); `dismiss()` now bumps `presentToken` so in-flight Spotlight/scan results can't land in a closed/reopened palette.
+
+**Deferred / accepted:**
+- After a deep scan, editing the query requires reopening ⇧⌘F (documented limitation).
+- The uncancelled NSMetadataQuery keeps gathering briefly after Escape (results dropped by token; bounded, folder-scoped).
+- `deletePreset` doesn't trim its argument (all current callers pass stored, pre-trimmed names).
+- Tag-dot stroke may show a faint seam on alternating table-row stripes (cosmetic).
+
+**MANUAL walkthrough (human, ~10 min — TCC blocks agent UI automation):**
+- [ ] Tag dots render in list and grid for a Finder-tagged file; assigning/removing via the context submenu shows up in Finder **with correct colors** (xattr write path).
+- [ ] "New Tag…" free-text entry adds a novel tag — including via right-click on an UNSELECTED grid item (the mistarget fix).
+- [ ] Tag filter menu lists visible tags; selecting narrows the listing; persists across relaunch (session).
+- [ ] Save Preset… names and saves the active filter; sidebar Presets section applies it (extensions field updates too); right-click deletes; "Apply Preset: name" appears in ⇧⌘A.
+- [ ] Old settings.json/session.json from M9 load cleanly.
+- [ ] ⇧⌘F: typing searches file contents under the current folder via Spotlight; confirm navigates + selects on the pane the palette was opened for (try switching tabs mid-search).
+- [ ] Zero-hit query shows "Deep Scan this folder…"; running it surfaces scanner hits; picking a hit lands on the original pane.
+- [ ] Unindexed location (e.g. a `.noindex` folder) → deep scan path works there.
+- [ ] Escape mid-search: no late results reappear when reopening the palette.
