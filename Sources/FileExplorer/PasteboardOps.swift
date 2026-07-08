@@ -3,11 +3,11 @@ import AppKit
 /// File-URL clipboard bridge. URLs are written as NSURL pasteboard objects
 /// so copy/paste interoperates with Finder in both directions.
 ///
-/// The app-level Edit commands below replace SwiftUI's default pasteboard
-/// group, which would otherwise swallow ⌘C/⌘V from text fields (rename
-/// sheet, filter bar). Each command therefore checks whether a field editor
-/// owns focus and forwards to it via the responder chain instead of acting
-/// on files.
+/// The app-level Edit commands that use this bridge replace SwiftUI's
+/// default pasteboard group; because a replacement command intercepts
+/// ⌘C/⌘V before text fields see them (rename sheet, filter bar), each
+/// command checks whether a field editor owns focus and forwards to it via
+/// the responder chain instead of acting on files.
 @MainActor
 enum PasteboardOps {
     static func copyToPasteboard(_ urls: [URL]) {

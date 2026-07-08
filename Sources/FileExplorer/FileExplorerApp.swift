@@ -123,8 +123,11 @@ struct FileExplorerApp: App {
                     if PasteboardOps.textEditingIsActive {
                         PasteboardOps.forwardToFieldEditor(#selector(NSText.copy(_:)))
                     } else {
-                        PasteboardOps.copyToPasteboard(
-                            Array(session.activePane.selection))
+                        // Empty selection is a no-op — never wipe whatever
+                        // the user already has on the clipboard.
+                        let targets = Array(session.activePane.selection)
+                        guard !targets.isEmpty else { return }
+                        PasteboardOps.copyToPasteboard(targets)
                     }
                 }
                 .keyboardShortcut("c", modifiers: .command)
