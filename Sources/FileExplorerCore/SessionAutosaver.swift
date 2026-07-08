@@ -54,6 +54,11 @@ public final class SessionAutosaver {
         }
     }
 
+    /// INVARIANT the no-lost-mutation guarantee rests on: every persisted
+    /// piece of session state is a value-typed, @Observable-tracked stored
+    /// property that is REASSIGNED on mutation (as NavigationHistory is).
+    /// Refactoring any persisted sub-state into a reference type mutated
+    /// in place would silently stop onChange from firing for it.
     private func observe() {
         withObservationTracking {
             _ = session.snapshot()   // touches every persisted property
