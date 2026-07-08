@@ -3,31 +3,48 @@ import FileExplorerCore
 
 @main
 struct FileExplorerApp: App {
-    private let session: SessionState = {
-        let arguments = CommandLine.arguments.dropFirst()
-        if let path = arguments.first {
-            var isDirectory: ObjCBool = false
-            let expanded = (path as NSString).expandingTildeInPath
-            if FileManager.default.fileExists(atPath: expanded,
-                                              isDirectory: &isDirectory),
-               isDirectory.boolValue {
-                return SessionState(url: URL(fileURLWithPath: expanded))
-            }
-        }
-        return SessionState(
-            url: FileManager.default.homeDirectoryForCurrentUser)
-    }()
+    private let session: SessionState
+    private let autosaver: SessionAutosaver
     private let palette = PaletteModel()
     private let renameModel = RenameSheetModel()
     private let batchRenameModel = BatchRenameModel()
 
     init() {
+        let persister = SessionPersister(
+            directory: SessionPersister.defaultDirectory)
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let session: SessionState
+        if let snapshot = persister.loadSession() {
+            session = SessionState(snapshot: snapshot, fallback: home)
+        } else {
+            session = SessionState(url: home)
+        }
+        // Launch-path argument still wins: restore the session, then point
+        // the active pane at the requested folder (terminal `fe .` helper).
+        if let launchURL = Self.launchFolderURL() {
+            Task { await session.activePane.navigate(to: launchURL) }
+        }
+        self.session = session
+        let autosaver = SessionAutosaver(session: session, persister: persister)
+        autosaver.start()
+        self.autosaver = autosaver
+
         // When launched from `swift run` (no bundle), become a regular
         // foreground app so the window appears and takes focus.
         DispatchQueue.main.async {
             NSApplication.shared.setActivationPolicy(.regular)
             NSApplication.shared.activate(ignoringOtherApps: true)
         }
+    }
+
+    private static func launchFolderURL() -> URL? {
+        guard let path = CommandLine.arguments.dropFirst().first else { return nil }
+        let expanded = (path as NSString).expandingTildeInPath
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: expanded,
+                                             isDirectory: &isDirectory),
+              isDirectory.boolValue else { return nil }
+        return URL(fileURLWithPath: expanded)
     }
 
     var body: some Scene {

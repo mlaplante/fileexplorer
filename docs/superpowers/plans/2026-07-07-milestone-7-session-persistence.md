@@ -43,14 +43,14 @@
 - Create: `Sources/FileExplorerTests/SessionSnapshotTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Create the branch**
+- [x] **Step 1: Create the branch**
 
 ```bash
 cd /Users/mlaplante/Sites/fileexplorer
 git checkout main && git pull --ff-only 2>/dev/null; git checkout -b milestone-7-session-persistence
 ```
 
-- [ ] **Step 2: Write the failing tests — `Sources/FileExplorerTests/SessionSnapshotTests.swift`**
+- [x] **Step 2: Write the failing tests — `Sources/FileExplorerTests/SessionSnapshotTests.swift`**
 
 ```swift
 import Foundation
@@ -101,7 +101,7 @@ func sessionSnapshotTests() async {
 }
 ```
 
-- [ ] **Step 3: Register the suite — `Sources/FileExplorerTests/main.swift`**
+- [x] **Step 3: Register the suite — `Sources/FileExplorerTests/main.swift`**
 
 Add after `await paneBatchToolsTests()`:
 
@@ -109,12 +109,12 @@ Add after `await paneBatchToolsTests()`:
 await sessionSnapshotTests()
 ```
 
-- [ ] **Step 4: Run to verify failure**
+- [x] **Step 4: Run to verify failure**
 
 Run: `swift run FileExplorerTests 2>&1 | tail -5`
 Expected: compile error — `SortToken`/`SortTokenCoder` undefined, `FilterState` not `Codable`.
 
-- [ ] **Step 5: Implement the conformances**
+- [x] **Step 5: Implement the conformances**
 
 In `Sources/FileExplorerCore/FilterPresets.swift`, add `Codable` to all three enums (raw-value synthesis — no other change):
 
@@ -205,12 +205,12 @@ public enum SortTokenCoder {
 }
 ```
 
-- [ ] **Step 6: Run to verify pass**
+- [x] **Step 6: Run to verify pass**
 
 Run: `swift run FileExplorerTests 2>&1 | tail -5`
 Expected: `PASS` (assertion count grows by ~10).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add Sources/FileExplorerCore/SessionSnapshot.swift \
@@ -233,7 +233,7 @@ git commit -m "feat: Codable filter state and sort-token serialization"
 - Modify: `Sources/FileExplorerCore/SessionState.swift`
 - Modify: `Sources/FileExplorerTests/SessionSnapshotTests.swift`
 
-- [ ] **Step 1: Write the failing tests — append inside `sessionSnapshotTests()`**
+- [x] **Step 1: Write the failing tests — append inside `sessionSnapshotTests()`**
 
 ```swift
     await test("snapshot() captures the session graph") {
@@ -293,12 +293,12 @@ git commit -m "feat: Codable filter state and sort-token serialization"
     }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `swift run FileExplorerTests 2>&1 | tail -5`
 Expected: compile error — `SessionSnapshot` / `snapshot()` undefined.
 
-- [ ] **Step 3: Add the snapshot types — append to `Sources/FileExplorerCore/SessionSnapshot.swift`**
+- [x] **Step 3: Add the snapshot types — append to `Sources/FileExplorerCore/SessionSnapshot.swift`**
 
 ```swift
 /// Codable mirror of the persistable slice of the session object graph.
@@ -387,7 +387,7 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
 }
 ```
 
-- [ ] **Step 4: Add capture methods**
+- [x] **Step 4: Add capture methods**
 
 `Sources/FileExplorerCore/PaneState.swift` — add near `clearFilters()`:
 
@@ -422,12 +422,12 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
     }
 ```
 
-- [ ] **Step 5: Run to verify pass**
+- [x] **Step 5: Run to verify pass**
 
 Run: `swift run FileExplorerTests 2>&1 | tail -5`
 Expected: `PASS`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Sources/FileExplorerCore Sources/FileExplorerTests
@@ -445,7 +445,7 @@ git commit -m "feat: SessionSnapshot capture of tabs, panes, filters, and sort"
 - Modify: `Sources/FileExplorerCore/SessionState.swift`
 - Modify: `Sources/FileExplorerTests/SessionSnapshotTests.swift`
 
-- [ ] **Step 1: Write the failing tests — append inside `sessionSnapshotTests()`**
+- [x] **Step 1: Write the failing tests — append inside `sessionSnapshotTests()`**
 
 ```swift
     await test("restore rebuilds the session graph") {
@@ -531,12 +531,12 @@ git commit -m "feat: SessionSnapshot capture of tabs, panes, filters, and sort"
     }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `swift run FileExplorerTests 2>&1 | tail -5`
 Expected: compile error — restore inits undefined.
 
-- [ ] **Step 3: Implement restore**
+- [x] **Step 3: Implement restore**
 
 `Sources/FileExplorerCore/SessionSnapshot.swift` — add inside `SessionSnapshot.Pane` (after `init(from:)`):
 
@@ -623,12 +623,12 @@ Expected: compile error — restore inits undefined.
     }
 ```
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `swift run FileExplorerTests 2>&1 | tail -5`
 Expected: `PASS`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Sources/FileExplorerCore Sources/FileExplorerTests
@@ -644,7 +644,7 @@ git commit -m "feat: session restore from snapshot with ancestor fallback"
 - Create: `Sources/FileExplorerTests/SessionPersisterTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing tests — `Sources/FileExplorerTests/SessionPersisterTests.swift`**
+- [x] **Step 1: Write the failing tests — `Sources/FileExplorerTests/SessionPersisterTests.swift`**
 
 ```swift
 import Foundation
@@ -708,7 +708,7 @@ func sessionPersisterTests() async {
 }
 ```
 
-- [ ] **Step 2: Register the suite — `Sources/FileExplorerTests/main.swift`**
+- [x] **Step 2: Register the suite — `Sources/FileExplorerTests/main.swift`**
 
 Add after `await sessionSnapshotTests()`:
 
@@ -716,12 +716,12 @@ Add after `await sessionSnapshotTests()`:
 await sessionPersisterTests()
 ```
 
-- [ ] **Step 3: Run to verify failure**
+- [x] **Step 3: Run to verify failure**
 
 Run: `swift run FileExplorerTests 2>&1 | tail -5`
 Expected: compile error — `SessionPersister`/`AppSettings` undefined.
 
-- [ ] **Step 4: Implement — `Sources/FileExplorerCore/SessionPersister.swift`**
+- [x] **Step 4: Implement — `Sources/FileExplorerCore/SessionPersister.swift`**
 
 ```swift
 import Foundation
@@ -799,12 +799,12 @@ public struct SessionPersister: Sendable {
 }
 ```
 
-- [ ] **Step 5: Run to verify pass**
+- [x] **Step 5: Run to verify pass**
 
 Run: `swift run FileExplorerTests 2>&1 | tail -5`
 Expected: `PASS`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Sources/FileExplorerCore/SessionPersister.swift \
@@ -822,7 +822,7 @@ git commit -m "feat: SessionPersister atomic JSON store and AppSettings"
 - Create: `Sources/FileExplorerTests/SessionAutosaverTests.swift`
 - Modify: `Sources/FileExplorerTests/main.swift`
 
-- [ ] **Step 1: Write the failing tests — `Sources/FileExplorerTests/SessionAutosaverTests.swift`**
+- [x] **Step 1: Write the failing tests — `Sources/FileExplorerTests/SessionAutosaverTests.swift`**
 
 ```swift
 import Foundation
@@ -891,7 +891,7 @@ func sessionAutosaverTests() async {
 }
 ```
 
-- [ ] **Step 2: Register the suite — `Sources/FileExplorerTests/main.swift`**
+- [x] **Step 2: Register the suite — `Sources/FileExplorerTests/main.swift`**
 
 Add after `await sessionPersisterTests()`:
 
@@ -899,12 +899,12 @@ Add after `await sessionPersisterTests()`:
 await sessionAutosaverTests()
 ```
 
-- [ ] **Step 3: Run to verify failure**
+- [x] **Step 3: Run to verify failure**
 
 Run: `swift run FileExplorerTests 2>&1 | tail -5`
 Expected: compile error — `SessionAutosaver` undefined.
 
-- [ ] **Step 4: Implement — `Sources/FileExplorerCore/SessionAutosaver.swift`**
+- [x] **Step 4: Implement — `Sources/FileExplorerCore/SessionAutosaver.swift`**
 
 ```swift
 import Foundation
@@ -984,12 +984,12 @@ public final class SessionAutosaver {
 }
 ```
 
-- [ ] **Step 5: Run to verify pass**
+- [x] **Step 5: Run to verify pass**
 
 Run: `swift run FileExplorerTests 2>&1 | tail -5`
 Expected: `PASS`. If the debounce tests flake under load, widen the poll loop (not the debounce) and re-run; a genuine failure reproduces consistently.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Sources/FileExplorerCore/SessionAutosaver.swift \
@@ -1006,7 +1006,7 @@ git commit -m "feat: debounced session autosave with termination flush"
 - Modify: `Sources/FileExplorer/FileExplorerApp.swift:5-31`
 - Modify: `docs/superpowers/plans/2026-07-07-milestone-7-session-persistence.md` (completion notes)
 
-- [ ] **Step 1: Wire restore + autosave into the app**
+- [x] **Step 1: Wire restore + autosave into the app**
 
 In `Sources/FileExplorer/FileExplorerApp.swift`, replace the `session` stored-property closure (lines 6–19) and `init()` (lines 24–31) with:
 
@@ -1057,12 +1057,12 @@ and (keeping the existing `palette`/`renameModel`/`batchRenameModel` properties 
     }
 ```
 
-- [ ] **Step 2: Build and full-suite check**
+- [x] **Step 2: Build and full-suite check**
 
 Run: `swift build 2>&1 | tail -3 && swift run FileExplorerTests 2>&1 | tail -3`
 Expected: clean build, `PASS` (recount assertions honestly; expect roughly 340+).
 
-- [ ] **Step 3: Launch checks**
+- [x] **Step 3: Launch checks**
 
 ```bash
 swift run FileExplorer & APP_PID=$!; sleep 6; kill -0 $APP_PID && echo ALIVE; kill $APP_PID
@@ -1079,14 +1079,14 @@ swift run FileExplorer /tmp & APP_PID=$!; sleep 6; kill $APP_PID
 
 Expected: app stays alive; no crash with a restored session + path argument combined.
 
-- [ ] **Step 4: MANUAL walkthrough items (record, don't block)**
+- [x] **Step 4: MANUAL walkthrough items (record, don't block)**
 
 TCC blocks agent-driven UI automation on this machine; list these in the completion notes as MANUAL:
 - Make tabs/dual-pane/filters, ⌘Q, relaunch → layout and folders restored.
 - Delete a restored pane's folder while the app is closed, relaunch → pane opens at nearest ancestor.
 - Corrupt `session.json` by hand, relaunch → default session, no crash.
 
-- [ ] **Step 5: Verification sweep — fix real bugs found, then close out**
+- [x] **Step 5: Verification sweep — fix real bugs found, then close out**
 
 Re-read the spec's M7 section; confirm each requirement has a passing test or a MANUAL entry. Fix any real bugs (commit as `fix: … (milestone 7 verification)`); append Completion Notes to this plan (date, final assertion count, bugs found, deferred items), mark checkboxes, then merge:
 
@@ -1095,3 +1095,42 @@ git add -A && git commit -m "docs: milestone 7 completion notes"
 git checkout main && git merge --no-ff milestone-7-session-persistence \
     -m "merge: milestone 7 — session & settings persistence"
 ```
+
+---
+
+## Completion Notes (2026-07-07)
+
+**Final assertion count:** PASS (368 assertions). Task 6 added no new tests; the count carries over unchanged from Task 5.
+
+**Per-task summary:**
+- **Task 1** — `TypePreset`/`DatePreset`/`SizePreset`/`FilterState`/`PaneState.ViewMode` made `Codable`; `SortToken`/`SortTokenCoder` added to translate `[KeyPathComparator<FileEntry>]` to a JSON-safe token list and back.
+- **Task 2** — `SessionSnapshot` (`Pane`/`Tab`/root) added as the `Codable` mirror of the object graph; `snapshot()` capture methods added to `PaneState`, `TabState`, `SessionState`. All fields except `path` decode with defaults for forward compatibility.
+- **Task 3** — Restore path: `SessionSnapshot.Pane.resolvedURL(fallback:)` walks the ancestor chain when a saved folder is gone; restore inits on `PaneState`/`TabState`/`SessionState` clamp out-of-range indices and degrade empty snapshots to one default tab.
+- **Task 4** — `SessionPersister` (atomic JSON I/O, `session.json`/`settings.json` in `~/Library/Application Support/FileExplorer/`) and `AppSettings` (`jpegQuality`, default 0.85) added; load failures of any kind degrade to nil/defaults, save failures are logged and swallowed.
+- **Task 5** — `SessionAutosaver` added: debounced (`500ms` default) observation-driven saves via `withObservationTracking`/`onChange` re-registration loop, plus a synchronous flush on `NSApplication.willTerminateNotification`.
+- **Task 6** — Wired `SessionPersister`/`SessionAutosaver` into `FileExplorerApp.init()`: loads a saved session (falling back to home) then applies the launch-path CLI argument on top via `Task { await session.activePane.navigate(...) }`, so restore and the terminal `fe <path>` helper compose correctly. Added the `SessionAutosaver.observe()` doc invariant note (see below).
+
+**Bugs found during implementation:**
+- **Task 1 — Bool-not-Comparable substitution:** `KeyPathComparator(\FileEntry.isHidden)` doesn't compile because `Bool` isn't `Comparable`. The "unmapped key path dropped" test needed a real-but-unmapped comparator to exercise `SortTokenCoder.tokens`'s drop path, so a local `BoolComparator` stand-in (`KeyPathComparator(\FileEntry.isHidden, comparator: BoolComparator())`) was introduced in the test file — doc comment explains why, in `SessionSnapshotTests.swift`.
+- **Task 5 — `/private/tmp` URL-standardization test trap:** the autosaver's navigation-mutation test originally used `/private/tmp` as a "distinct" target directory, but `URL.standardizedFileURL` collapses `/private/tmp` to `/tmp` (its own symlink alias) on macOS, making the persisted-path assertion vacuous regardless of correctness. Fixed by navigating to a freshly created temp subdirectory instead, with a comment recording the trap for future test authors.
+
+**Accepted-minor items (not fixed, tracked as known/self-healing):**
+- Recents restore (`SessionState(snapshot:fallback:)`) bypasses `recordRecent`'s dedup/cap logic — it assigns `recentFolders` directly from the snapshot array. Self-healing: the next real navigation goes through `recordRecent` and re-applies dedup/cap normally.
+- `AppSettings.jpegQuality` is persisted but unclamped (no `0...1` enforcement) — deferred until Milestone 8 actually consumes the value in the export/convert path.
+- `SessionAutosaver` writes synchronously on the main actor; acceptable at current `session.json` size (sub-1KB for a realistic multi-tab session) but would need to move off-main if the snapshot grows substantially (e.g., very large recent-folder history).
+
+**Doc addition:** `Sources/FileExplorerCore/SessionAutosaver.swift` — added an invariant note above `observe()` recording that the no-lost-mutation guarantee depends on every persisted sub-state being value-typed and reassigned (not mutated in place) on change; a future refactor to a reference type would silently break `onChange` firing for that field.
+
+**End-to-end verification performed:**
+- `swift build` — clean (only pre-existing CLT linker search-path warnings).
+- `swift run FileExplorerTests` — `PASS (368 assertions)`.
+- `swift run FileExplorer` (no args) — process stayed alive (`ALIVE`) for 6s; `~/Library/Application Support/FileExplorer/` did not exist beforehand and no `session.json` was written by this mutation-free launch (correct: autosave fires on Observation `onChange`, not unconditionally on launch).
+- `swift run FileExplorer /tmp` — process stayed alive (`ALIVE2`/`ALIVE3` across two runs); the launch-path navigation is itself a persisted mutation, so a second run was used to positively confirm the full write path: after the 500ms debounce, `~/Library/Application Support/FileExplorer/session.json` was created (directory did not previously exist — `saveSession`'s `createDirectory` call is confirmed working) containing a `"tabs"` array with `"path" : "\/tmp"`, matching the CLI argument. No pre-existing `session.json` was found or touched at any point during this task.
+- **Restore-plus-argument composition** — with `session.json` already on disk pointing at `/tmp` (from the prior check), `swift run FileExplorer /Users` was launched (`ALIVE4`, no crash). After the debounce, `session.json` showed `"path" : "\/Users"` and `"recentFolders" : ["\/Users", "\/tmp"]` — i.e. the prior session (whose only recent folder was `/tmp`) was genuinely loaded via `persister.loadSession()`, then the launch-path argument navigated the active pane to `/Users` on top of it (extending, not replacing, `recentFolders`). This positively exercises the exact composition `init()` implements — restore first, launch-path argument wins second — rather than two independent fresh-session runs.
+
+**MANUAL walkthrough (not automatable — TCC blocks agent-driven UI automation on this machine):**
+- [ ] Make tabs/dual-pane/filters, ⌘Q, relaunch → layout and folders restored.
+- [ ] Delete a restored pane's folder while the app is closed, relaunch → pane opens at nearest ancestor.
+- [ ] Corrupt `session.json` by hand, relaunch → default session, no crash.
+
+**Not merged to main** — this branch (`milestone-7-session-persistence`) awaits controller review before merge.

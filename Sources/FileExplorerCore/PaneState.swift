@@ -21,7 +21,7 @@ public final class PaneState {
     }
     public var showHidden = false
 
-    public enum ViewMode: String, Sendable {
+    public enum ViewMode: String, Sendable, Codable {
         case list
         case icons
     }
@@ -90,6 +90,18 @@ public final class PaneState {
         // Standardize so NavigationHistory's exact-URL-equality no-op check
         // works for equivalent paths (trailing slash, "." components).
         history = NavigationHistory(current: url.standardizedFileURL)
+    }
+
+    /// Restore from a saved snapshot. Setting `filter` before
+    /// `filterExtensionsText` matters: the text's `didSet` re-derives
+    /// `filter.extensions`, making the draft field the source of truth.
+    public convenience init(snapshot: SessionSnapshot.Pane, fallback: URL) {
+        self.init(url: snapshot.resolvedURL(fallback: fallback))
+        showHidden = snapshot.showHidden
+        viewMode = ViewMode(rawValue: snapshot.viewMode) ?? .list
+        filter = snapshot.filter
+        filterExtensionsText = snapshot.filterExtensionsText
+        sortOrder = SortTokenCoder.comparators(from: snapshot.sort)
     }
 
     // A window-scoped UndoManager outlives closed tabs' panes, and
@@ -394,6 +406,16 @@ public final class PaneState {
     public func clearFilters() {
         filterExtensionsText = ""
         filter = FilterState()
+    }
+
+    public func snapshot() -> SessionSnapshot.Pane {
+        SessionSnapshot.Pane(
+            path: currentURL.path,
+            showHidden: showHidden,
+            viewMode: viewMode.rawValue,
+            filter: filter,
+            filterExtensionsText: filterExtensionsText,
+            sort: SortTokenCoder.tokens(from: sortOrder))
     }
 
     private func recomputeVisible() {

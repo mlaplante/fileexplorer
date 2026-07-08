@@ -1,6 +1,6 @@
 import Foundation
 
-public struct FilterState: Equatable, Sendable {
+public struct FilterState: Equatable, Sendable, Codable {
     public var preset: TypePreset?
     /// Lowercased extensions without leading dots, e.g. ["png", "jpg"].
     public var extensions: Set<String> = []
