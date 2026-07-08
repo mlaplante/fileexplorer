@@ -9,6 +9,7 @@ public final class PaneState {
     /// every parent render on this toolchain (M5 deferred hoisting).
     public let hoverPreview = HoverPreviewModel()
     public let columnsModel = ColumnsModel()
+    public let springLoad = SpringLoadModel()
     public private(set) var history: NavigationHistory
     /// Invoked after every completed navigation (navigate/back/forward/up)
     /// with the new current URL; used by the session layer to record recents.

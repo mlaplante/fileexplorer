@@ -53,5 +53,6 @@ await shortcutTests()
 await columnsModelTests()
 await rubberBandTests()
 await gridNavigatorTests()
+await springLoadTests()
 
 finish()

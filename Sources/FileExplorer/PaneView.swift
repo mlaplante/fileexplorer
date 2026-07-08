@@ -131,6 +131,9 @@ struct PaneView: View {
             pane.undoManager = undoManager
             pane.trashRegistry = trashRegistry
             pane.settingsModel = settings
+            pane.springLoad.onSpring = { folder in
+                Task { await pane.navigate(to: folder) }
+            }
         }
         .onChange(of: pane.currentURL) { _, _ in
             pane.undoManager = undoManager
@@ -232,6 +235,11 @@ struct PaneView: View {
                     arrowEdge: .trailing) {
                     HoverPreviewView(model: pane.hoverPreview)
                 }
+                .dropDestination(for: URL.self,
+                                 action: { urls, _ in drop(urls, into: entry) },
+                                 isTargeted: { targeted in
+                                     springTargetChanged(targeted, for: entry)
+                                 })
             }
             TableColumn("Size", value: \.size) { entry in
                 if entry.isDirectory {
@@ -315,6 +323,39 @@ struct PaneView: View {
         } else {
             for url in urls { NSWorkspace.shared.open(url) }
         }
+    }
+
+    private func springTargetChanged(_ targeted: Bool, for entry: FileEntry) {
+        guard entry.isDirectory else { return }
+        if targeted {
+            pane.springLoad.beginHover(folder: entry.url)
+        } else {
+            pane.springLoad.endHover()
+        }
+    }
+
+    private func drop(_ urls: [URL], into entry: FileEntry) -> Bool {
+        guard entry.isDirectory else { return false }
+        let target = entry.url.standardizedFileURL
+        let outside = urls.filter {
+            $0.standardizedFileURL != target
+                && $0.deletingLastPathComponent().standardizedFileURL != target
+        }
+        guard !outside.isEmpty else { return false }
+        let optionDown = NSEvent.modifierFlags.contains(.option)
+        let sameVolume = outside.allSatisfy {
+            DropDecision.sameVolume($0, target)
+        }
+        Task {
+            switch DropDecision.decide(optionDown: optionDown,
+                                       sameVolume: sameVolume) {
+            case .move:
+                await pane.moveSelected(outside, into: target)
+            case .copy:
+                await pane.copySelected(outside, into: target)
+            }
+        }
+        return true
     }
 
     private func badgeSymbol(_ badge: FolderComparator.Badge) -> String {

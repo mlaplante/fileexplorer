@@ -245,6 +245,11 @@ struct ThumbnailGridView: View {
             }
             .contentShape(Rectangle())
             .draggable(entry.url)
+            .dropDestination(for: URL.self,
+                             action: { urls, _ in drop(urls, into: entry) },
+                             isTargeted: { targeted in
+                                 springTargetChanged(targeted, for: entry)
+                             })
             .gesture(TapGesture(count: 2).onEnded {
                 open([entry.url])
             })
@@ -299,5 +304,38 @@ struct ThumbnailGridView: View {
         case .right: .right
         @unknown default: nil
         }
+    }
+
+    private func springTargetChanged(_ targeted: Bool, for entry: FileEntry) {
+        guard entry.isDirectory else { return }
+        if targeted {
+            pane.springLoad.beginHover(folder: entry.url)
+        } else {
+            pane.springLoad.endHover()
+        }
+    }
+
+    private func drop(_ urls: [URL], into entry: FileEntry) -> Bool {
+        guard entry.isDirectory else { return false }
+        let target = entry.url.standardizedFileURL
+        let outside = urls.filter {
+            $0.standardizedFileURL != target
+                && $0.deletingLastPathComponent().standardizedFileURL != target
+        }
+        guard !outside.isEmpty else { return false }
+        let optionDown = NSEvent.modifierFlags.contains(.option)
+        let sameVolume = outside.allSatisfy {
+            DropDecision.sameVolume($0, target)
+        }
+        Task {
+            switch DropDecision.decide(optionDown: optionDown,
+                                       sameVolume: sameVolume) {
+            case .move:
+                await pane.moveSelected(outside, into: target)
+            case .copy:
+                await pane.copySelected(outside, into: target)
+            }
+        }
+        return true
     }
 }
