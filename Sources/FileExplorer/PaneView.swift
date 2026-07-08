@@ -1,5 +1,6 @@
 import SwiftUI
 import FileExplorerCore
+import AppKit
 
 struct PaneView: View {
     @Bindable var pane: PaneState
@@ -55,7 +56,19 @@ struct PaneView: View {
                     $0.deletingLastPathComponent().standardizedFileURL != pane.currentURL
                 }
                 guard !outside.isEmpty else { return false }
-                Task { await pane.copySelected(outside, into: pane.currentURL) }
+                let optionDown = NSEvent.modifierFlags.contains(.option)
+                let sameVolume = outside.allSatisfy {
+                    DropDecision.sameVolume($0, pane.currentURL)
+                }
+                Task {
+                    switch DropDecision.decide(optionDown: optionDown,
+                                               sameVolume: sameVolume) {
+                    case .move:
+                        await pane.moveSelected(outside, into: pane.currentURL)
+                    case .copy:
+                        await pane.copySelected(outside, into: pane.currentURL)
+                    }
+                }
                 return true
             }
             Divider()
