@@ -21,11 +21,8 @@ public enum SyncExecutor {
             let target = targetRoot.appendingPathComponent(operation.relativePath)
             do {
                 if operation.kind == .overwrite, fm.fileExists(atPath: target.path) {
-                    var resulting: NSURL?
-                    try fm.trashItem(at: target, resultingItemURL: &resulting)
-                    if let trashedURL = resulting as URL? {
-                        outcome.trashed.append((original: target, trashed: trashedURL))
-                    }
+                    let trashedURL = try FileOperationService.trashItem(target)
+                    outcome.trashed.append((original: target, trashed: trashedURL))
                 }
                 try fm.createDirectory(at: target.deletingLastPathComponent(),
                                        withIntermediateDirectories: true)

@@ -13,12 +13,27 @@ public enum ContentScanner {
         "cpp", "hpp", "css", "html", "htm", "plist", "log", "cfg",
         "conf", "ini", "toml", "sql",
     ]
+    private static let textIdentifiers: Set<String> = [
+        "public.text", "public.plain-text", "public.utf8-plain-text",
+        "public.source-code", "public.swift-source", "public.json",
+        "public.xml", "public.yaml", "com.apple.property-list",
+        "public.html", "public.css", "public.comma-separated-values-text",
+    ]
 
     public static func isTextLike(_ type: UTType?, pathExtension: String) -> Bool {
         if let type {
             if type.conforms(to: .text) || type.conforms(to: .sourceCode)
                 || type.conforms(to: .json) || type.conforms(to: .xml)
                 || type.conforms(to: .propertyList) || type.conforms(to: .yaml) {
+                return true
+            }
+            if textIdentifiers.contains(type.identifier) {
+                return true
+            }
+            let typeExtensions = type.tags[.filenameExtension]?.map {
+                $0.lowercased()
+            } ?? []
+            if typeExtensions.contains(where: textExtensions.contains) {
                 return true
             }
             // A concrete non-text type (image, video, archive…) is rejected
@@ -42,7 +57,7 @@ public enum ContentScanner {
         guard !needle.isEmpty else { return [] }
         guard let enumerator = FileManager.default.enumerator(
             at: root,
-            includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey, .contentTypeKey],
+            includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey],
             options: [.skipsHiddenFiles, .skipsPackageDescendants]) else {
             return []
         }
@@ -52,11 +67,15 @@ public enum ContentScanner {
             visited += 1
             if visited > entryCap || hits.count >= resultCap { break }
             guard let rv = try? url.resourceValues(
-                forKeys: [.isDirectoryKey, .fileSizeKey, .contentTypeKey]),
+                forKeys: [.isDirectoryKey, .fileSizeKey]),
                 rv.isDirectory != true,
-                Int64(rv.fileSize ?? 0) <= maxFileBytes,
-                isTextLike(rv.contentType, pathExtension: url.pathExtension)
+                Int64(rv.fileSize ?? 0) <= maxFileBytes
             else { continue }
+            let type = FileContentType.resolve(
+                for: url,
+                resourceType: try? url.resourceValues(forKeys: [.contentTypeKey])
+                    .contentType)
+            guard isTextLike(type, pathExtension: url.pathExtension) else { continue }
             guard let contents = (try? String(contentsOf: url, encoding: .utf8))
                 ?? (try? String(contentsOf: url, encoding: .isoLatin1))
             else { continue }

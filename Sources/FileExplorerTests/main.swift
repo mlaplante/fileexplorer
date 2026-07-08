@@ -2,6 +2,7 @@ import Foundation
 
 await directoryLoaderTests()
 await fileSorterTests()
+await treeFlattenerTests()
 await navigationHistoryTests()
 await directoryWatcherTests()
 await paneStateTests()

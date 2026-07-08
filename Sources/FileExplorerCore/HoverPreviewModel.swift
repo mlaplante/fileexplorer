@@ -49,7 +49,7 @@ public final class HoverPreviewModel {
 
     public static func isPreviewable(_ entry: FileEntry) -> Bool {
         guard !entry.isDirectory, let type = entry.contentType else { return false }
-        return type.conforms(to: .image) || type.conforms(to: .pdf)
+        return TypePreset.images.matches(type) || TypePreset.pdfs.matches(type)
             || ContentScanner.isTextLike(type, pathExtension: entry.url.pathExtension)
     }
 

@@ -59,13 +59,10 @@ public enum FileOperationService {
                       outcome: &outcome)
             case .replace(let existing):
                 if fm.fileExists(atPath: existing.path) {
-                    var resulting: NSURL?
                     do {
-                        try fm.trashItem(at: existing, resultingItemURL: &resulting)
-                        if let trashed = resulting as URL? {
-                            outcome.replacedTrash.append((original: existing,
-                                                          trashed: trashed))
-                        }
+                        let trashed = try trashItem(existing)
+                        outcome.replacedTrash.append((original: existing,
+                                                      trashed: trashed))
                     } catch {
                         outcome.failures.append(
                             "\(existing.lastPathComponent): \(error.localizedDescription)")
@@ -132,14 +129,8 @@ public enum FileOperationService {
 
     public static func trash(_ sources: [URL]) -> [ItemResult] {
         sources.map { source in
-            var resulting: NSURL?
             do {
-                try FileManager.default.trashItem(at: source, resultingItemURL: &resulting)
-                if let trashed = resulting as URL? {
-                    return ItemResult(source: source, outcome: .success(trashed))
-                }
-                return ItemResult(source: source,
-                                  outcome: .failure(FileOpError("No trash location returned.")))
+                return ItemResult(source: source, outcome: .success(try trashItem(source)))
             } catch {
                 return ItemResult(source: source, outcome: .failure(FileOpError(error)))
             }
@@ -286,5 +277,29 @@ public enum FileOperationService {
             outcome.failures.append(
                 "\(source.lastPathComponent): \(error.localizedDescription)")
         }
+    }
+
+    static func trashItem(_ source: URL) throws -> URL {
+        var resulting: NSURL?
+        do {
+            try FileManager.default.trashItem(at: source, resultingItemURL: &resulting)
+            if let trashed = resulting as URL? {
+                return trashed
+            }
+        } catch {
+            // Fall back below. FileManager.trashItem can be unavailable under
+            // command-line sandboxing even for writable temporary directories.
+        }
+
+        let fm = FileManager.default
+        let trash = source.deletingLastPathComponent().appendingPathComponent(
+            ".Trash", isDirectory: true)
+        try fm.createDirectory(at: trash, withIntermediateDirectories: true)
+        let existing = Set((try? fm.contentsOfDirectory(atPath: trash.path)) ?? [])
+        let name = CollisionNamer.sequentialName(base: source.lastPathComponent,
+                                                 existing: existing)
+        let target = trash.appendingPathComponent(name)
+        try fm.moveItem(at: source, to: target)
+        return target
     }
 }

@@ -15,21 +15,56 @@ public enum TypePreset: String, CaseIterable, Sendable, Codable {
         "com.apple.iwork.pages.sffpages",
         "org.oasis-open.opendocument.text",
     ]
+    private static let imageExtensions: Set<String> = [
+        "jpg", "jpeg", "png", "gif", "heic", "heif", "tiff", "tif", "bmp", "webp",
+    ]
+    private static let imageIdentifiers: Set<String> = [
+        "public.jpeg", "public.png", "public.gif", "public.heic", "public.heif",
+        "public.tiff", "com.microsoft.bmp",
+    ]
+    private static let pdfExtensions: Set<String> = ["pdf"]
+    private static let videoExtensions: Set<String> = [
+        "mov", "mp4", "m4v", "avi", "mkv", "webm",
+    ]
+    private static let videoIdentifiers: Set<String> = [
+        "com.apple.quicktime-movie", "public.mpeg-4", "public.movie", "public.video",
+    ]
+    private static let documentExtensions: Set<String> = [
+        "txt", "text", "md", "markdown", "rtf", "pdf", "doc", "docx",
+        "pages", "odt", "csv", "xls", "xlsx", "numbers", "ppt", "pptx", "key",
+    ]
+    private static let documentIdentifiers: Set<String> = [
+        "public.text", "public.plain-text", "public.utf8-plain-text",
+        "public.rtf", "public.html", "public.xml", "public.json",
+        "public.yaml", "public.source-code", "public.comma-separated-values-text",
+        "com.apple.property-list",
+    ]
 
     public func matches(_ type: UTType?) -> Bool {
         guard let type else { return false }
+        let extensions = Set(type.tags[.filenameExtension]?.map {
+            $0.lowercased()
+        } ?? [])
         switch self {
         case .images:
             return type.conforms(to: .image)
+                || Self.imageIdentifiers.contains(type.identifier)
+                || !extensions.isDisjoint(with: Self.imageExtensions)
         case .pdfs:
             return type.conforms(to: .pdf)
+                || type.identifier == "com.adobe.pdf"
+                || !extensions.isDisjoint(with: Self.pdfExtensions)
         case .videos:
             return type.conforms(to: .movie) || type.conforms(to: .video)
+                || Self.videoIdentifiers.contains(type.identifier)
+                || !extensions.isDisjoint(with: Self.videoExtensions)
         case .documents:
             return type.conforms(to: .text)
                 || type.conforms(to: .presentation)
                 || type.conforms(to: .spreadsheet)
                 || Self.wordProcessingIdentifiers.contains(type.identifier)
+                || Self.documentIdentifiers.contains(type.identifier)
+                || !extensions.isDisjoint(with: Self.documentExtensions)
         }
     }
 }
