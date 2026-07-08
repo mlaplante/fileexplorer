@@ -1093,6 +1093,9 @@ git checkout main && git merge --no-ff milestone-8-interaction-debt \
 - `3704dd1` — MB-field Int64 overflow clamp in the custom size-filter parser (Critical, crash reachable by pasting a huge number then applying the filter).
 
 **Accepted minors/notes (no fix needed, or deliberately out of scope):**
+- Grid shift-click deliberately diverges from the spec's literal "matching the Table's semantics": SwiftUI Table replaces the range on ⇧-click, while the grid unions from a pivot and can shrink — Finder's icon-view behavior (rationale documented in `SelectionResolver.swift`).
+- `RenameExecutor.execute`/`relocate` share the recovery ladder but duplicate their staging loops (readability follow-up: `execute` could wrap `relocate`); the "vacated set" RenamePlan test carries leftover E/L/C scaffolding narration worth a cleanup pass.
+- Both-MB-fields-empty leaves a `0...Int64.max` custom size range ("Custom" chip + Clear button visible) instead of reverting to nil/"Any Size" — filters correctly, cosmetic drift from the plan.
 - Mixed-volume drops copy the whole batch (`PaneView`'s drop handler uses `allSatisfy` for same-volume — provably-safe simplification: any cross-volume item in the batch forces copy for all).
 - No "Moved/Copied N items" success feedback in the status bar (follow-up; failures already surface there via `opErrorMessage`).
 - `jpegQuality` default 0.85 matches no preset (60/80/90/100), so there's no initial checkmark in the JPG Quality submenu until the user picks one.
