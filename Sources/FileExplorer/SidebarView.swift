@@ -2,15 +2,18 @@ import SwiftUI
 import FileExplorerCore
 import AppKit
 
-/// Observes NSWorkspace mount/unmount and republishes the volume list.
+/// Observes NSWorkspace mount/unmount plus ~/Library/CloudStorage changes and
+/// republishes the Finder-style Locations list (iCloud, cloud providers,
+/// This Mac, external drives, network shares).
 /// App-lifetime: owned by FileExplorerApp (stateless view structs must not
 /// own @Observable models on this no-@State toolchain).
 @MainActor
 @Observable
-final class VolumesModel {
-    private(set) var volumes: [StandardPlaces.Place] = []
+final class LocationsModel {
+    private(set) var locations: [Location] = []
     private(set) var ejectableVolumes = Set<URL>()
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    @ObservationIgnored private var cloudWatcher: DispatchSourceFileSystemObject?
 
     init() {
         refresh()
@@ -24,12 +27,41 @@ final class VolumesModel {
                 MainActor.assumeIsolated { self?.refresh() }
             })
         }
+        watchCloudStorage()
     }
 
     isolated deinit {
         for observer in observers {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
         }
+        cloudWatcher?.cancel()
+    }
+
+    private static var cloudStorageURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/CloudStorage", isDirectory: true)
+    }
+
+    private static var icloudDriveURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs",
+                                    isDirectory: true)
+    }
+
+    /// Installing/removing a File Provider (Dropbox, OneDrive…) writes into
+    /// ~/Library/CloudStorage — watch it so the section updates live. Mount
+    /// notifications don't fire for File Providers.
+    private func watchCloudStorage() {
+        let fd = open(Self.cloudStorageURL.path, O_EVTONLY)
+        guard fd >= 0 else { return }  // no CloudStorage dir: mounts still refresh
+        let source = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd, eventMask: .write, queue: .main)
+        source.setEventHandler { [weak self] in
+            MainActor.assumeIsolated { self?.refresh() }
+        }
+        source.setCancelHandler { close(fd) }
+        source.resume()
+        cloudWatcher = source
     }
 
     private func refresh() {
@@ -37,23 +69,46 @@ final class VolumesModel {
             .volumeNameKey,
             .volumeIsEjectableKey,
             .volumeIsRemovableKey,
+            .volumeIsInternalKey,
+            .volumeIsLocalKey,
         ]
         let urls = FileManager.default.mountedVolumeURLs(
             includingResourceValuesForKeys: keys,
             options: [.skipHiddenVolumes]) ?? []
-        var ejectable = Set<URL>()
-        volumes = urls.map { url in
+        let volumes = urls.map { url -> VolumeInfo in
             let values = try? url.resourceValues(forKeys: Set(keys))
-            let name = values?.volumeName ?? url.lastPathComponent
-            let isRoot = url.standardizedFileURL.path == "/"
-            if !isRoot,
-               values?.volumeIsEjectable == true || values?.volumeIsRemovable == true {
-                ejectable.insert(url.standardizedFileURL)
-            }
-            return StandardPlaces.Place(name: name, url: url,
-                                        systemImage: "externaldrive")
+            return VolumeInfo(
+                url: url,
+                name: values?.volumeName ?? url.lastPathComponent,
+                isRoot: url.standardizedFileURL.path == "/",
+                isInternal: values?.volumeIsInternal ?? false,
+                isEjectable: values?.volumeIsEjectable == true
+                    || values?.volumeIsRemovable == true,
+                isLocal: values?.volumeIsLocal ?? true)
         }
-        ejectableVolumes = ejectable
+
+        let fm = FileManager.default
+        let cloudFolders = ((try? fm.contentsOfDirectory(
+            at: Self.cloudStorageURL,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles])) ?? [])
+            .filter {
+                (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory)
+                    == true
+            }
+            .map { (name: fm.displayName(atPath: $0.path), url: $0) }
+
+        var isDirectory: ObjCBool = false
+        let hasICloud = fm.fileExists(atPath: Self.icloudDriveURL.path,
+                                      isDirectory: &isDirectory)
+            && isDirectory.boolValue
+
+        locations = LocationsBuilder.build(
+            volumes: volumes,
+            cloudFolders: cloudFolders,
+            icloudURL: hasICloud ? Self.icloudDriveURL : nil)
+        ejectableVolumes = Set(locations.filter(\.isEjectable)
+            .map { $0.url.standardizedFileURL })
     }
 
     func isEjectable(_ url: URL) -> Bool {
@@ -76,7 +131,7 @@ final class VolumesModel {
 
 struct SidebarView: View {
     @Bindable var session: SessionState
-    var volumesModel: VolumesModel
+    var locationsModel: LocationsModel
     var settings: SettingsModel
 
     var body: some View {
@@ -108,14 +163,15 @@ struct SidebarView: View {
                     }
                 }
             }
-            Section("Volumes") {
-                ForEach(volumesModel.volumes) { place in
-                    row(place)
+            Section("Locations") {
+                ForEach(locationsModel.locations) { location in
+                    row(name: location.name, systemImage: location.systemImage,
+                        url: location.url)
                         .contextMenu {
-                            if volumesModel.isEjectable(place.url) {
+                            if locationsModel.isEjectable(location.url) {
                                 Button("Eject") {
-                                    volumesModel.eject(place.url,
-                                                       reportingTo: session.activePane)
+                                    locationsModel.eject(location.url,
+                                                         reportingTo: session.activePane)
                                 }
                             }
                         }
@@ -217,12 +273,16 @@ struct SidebarView: View {
     }
 
     private func row(_ place: StandardPlaces.Place) -> some View {
-        let isCurrent = place.url.standardizedFileURL.path
+        row(name: place.name, systemImage: place.systemImage, url: place.url)
+    }
+
+    private func row(name: String, systemImage: String, url: URL) -> some View {
+        let isCurrent = url.standardizedFileURL.path
             == session.activePane.currentURL.path
         return Button {
-            Task { await session.activePane.navigate(to: place.url) }
+            Task { await session.activePane.navigate(to: url) }
         } label: {
-            Label(place.name, systemImage: place.systemImage)
+            Label(name, systemImage: systemImage)
                 .fontWeight(isCurrent ? .semibold : .regular)
         }
         .buttonStyle(.plain)

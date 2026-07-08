@@ -19,7 +19,7 @@
 - Test: `Sources/FileExplorerTests/LocationsBuilderTests.swift` (new)
 - Modify: `Sources/FileExplorerTests/main.swift` (register `await locationsBuilderTests()` next to `await volumeSpaceTests()`)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```swift
 import Foundation
@@ -108,7 +108,7 @@ func locationsBuilderTests() async {
         let locations = LocationsBuilder.build(
             volumes: [
                 vol("/", name: "Macintosh HD", isRoot: true, isInternal: true),
-                VolumeInfo(url: URL(fileURLWithPath: "/Volumes/Macintosh HD/./.."),
+                VolumeInfo(url: URL(fileURLWithPath: "/Volumes/Other/./.."),
                            name: "Macintosh HD", isRoot: false, isInternal: true,
                            isEjectable: false, isLocal: true),
             ],
@@ -133,14 +133,14 @@ func locationsBuilderTests() async {
 }
 ```
 
-- [ ] **Step 2: Register the suite** — in `Sources/FileExplorerTests/main.swift`, add `await locationsBuilderTests()` on the line after `await volumeSpaceTests()`.
+- [x] **Step 2: Register the suite** — in `Sources/FileExplorerTests/main.swift`, add `await locationsBuilderTests()` on the line after `await volumeSpaceTests()`.
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `swift run FileExplorerTests > /tmp/fx-tests.log 2>&1; tail -5 /tmp/fx-tests.log`
 Expected: BUILD FAILURE (`VolumeInfo`/`LocationsBuilder` not found).
 
-- [ ] **Step 4: Implement** `Sources/FileExplorerCore/LocationsBuilder.swift`:
+- [x] **Step 4: Implement** `Sources/FileExplorerCore/LocationsBuilder.swift`:
 
 ```swift
 import Foundation
@@ -247,12 +247,12 @@ public enum LocationsBuilder {
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `swift run FileExplorerTests > /tmp/fx-tests.log 2>&1; tail -5 /tmp/fx-tests.log`
 Expected: `PASS (N assertions)` — N grows by ~26 from the current baseline; zero failures.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Sources/FileExplorerCore/LocationsBuilder.swift Sources/FileExplorerTests/LocationsBuilderTests.swift Sources/FileExplorerTests/main.swift
@@ -269,7 +269,7 @@ git commit -m "feat: LocationsBuilder pure classification and ordering"
 
 No new unit tests: this layer is FileManager/NSWorkspace glue over the tested builder (same posture as the old `VolumesModel`). Verification is the build + Task 4's manual walkthrough.
 
-- [ ] **Step 1: Replace the `VolumesModel` class** in `SidebarView.swift` (lines 5–75, the doc comment through the closing brace) with:
+- [x] **Step 1: Replace the `VolumesModel` class** in `SidebarView.swift` (lines 5–75, the doc comment through the closing brace) with:
 
 ```swift
 /// Observes NSWorkspace mount/unmount plus ~/Library/CloudStorage changes and
@@ -402,7 +402,7 @@ final class LocationsModel {
 
 (Swift 6 notes already proven in this file: read NSWorkspace notifications via `MainActor.assumeIsolated`; teardown in `isolated deinit`. The DispatchSource handler runs on `.main`, so `assumeIsolated` is valid there too.)
 
-- [ ] **Step 2: Update `FileExplorerApp.swift`** — line 16: `private let volumesModel = VolumesModel()` → `private let locationsModel = LocationsModel()`; line 72: pass `locationsModel: locationsModel` (parameter renamed in Task 3 — do Tasks 2+3 as one build unit, committing once at the end of Task 3).
+- [x] **Step 2: Update `FileExplorerApp.swift`** — line 16: `private let volumesModel = VolumesModel()` → `private let locationsModel = LocationsModel()`; line 72: pass `locationsModel: locationsModel` (parameter renamed in Task 3 — do Tasks 2+3 as one build unit, committing once at the end of Task 3).
 
 ---
 
@@ -411,9 +411,9 @@ final class LocationsModel {
 **Files:**
 - Modify: `Sources/FileExplorer/SidebarView.swift` (the `SidebarView` struct: property, Volumes section, `row` helper)
 
-- [ ] **Step 1: Rename the property** — `var volumesModel: VolumesModel` → `var locationsModel: LocationsModel`.
+- [x] **Step 1: Rename the property** — `var volumesModel: VolumesModel` → `var locationsModel: LocationsModel`.
 
-- [ ] **Step 2: Replace the Volumes section** (`Section("Volumes") { … }`) with:
+- [x] **Step 2: Replace the Volumes section** (`Section("Volumes") { … }`) with:
 
 ```swift
 Section("Locations") {
@@ -432,7 +432,7 @@ Section("Locations") {
 }
 ```
 
-- [ ] **Step 3: Generalize the row helper** — replace the existing `row(_ place:)` with a field-based core plus a `Place` overload so Favorites/Recents call sites stay untouched:
+- [x] **Step 3: Generalize the row helper** — replace the existing `row(_ place:)` with a field-based core plus a `Place` overload so Favorites/Recents call sites stay untouched:
 
 ```swift
 private func row(_ place: StandardPlaces.Place) -> some View {
@@ -453,12 +453,12 @@ private func row(name: String, systemImage: String, url: URL) -> some View {
 }
 ```
 
-- [ ] **Step 4: Full build + tests**
+- [x] **Step 4: Full build + tests**
 
 Run: `swift build 2>&1 | tail -5 && swift run FileExplorerTests > /tmp/fx-tests.log 2>&1; tail -3 /tmp/fx-tests.log`
 Expected: build succeeds (no lingering `VolumesModel`/`volumes` references — grep to confirm: `grep -rn "VolumesModel\|volumesModel" Sources/` returns only the comment in `SettingsScenes.swift:71`, which should be updated to say `LocationsModel`); tests `PASS`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Sources/FileExplorer/SidebarView.swift Sources/FileExplorer/FileExplorerApp.swift Sources/FileExplorer/SettingsScenes.swift
@@ -469,14 +469,14 @@ git commit -m "feat: Finder-style Locations sidebar section (cloud + volumes)"
 
 ### Task 4: Verify against the live machine + wrap up
 
-- [ ] **Step 1: Smoke-check discovery inputs exist as designed**
+- [x] **Step 1: Smoke-check discovery inputs exist as designed**
 
 Run: `ls ~/Library/CloudStorage/ && ls "/Volumes"`
 Expected: `OneDrive-PFGVenturesLPdbaProformaInc` and `External SSD` present.
 
-- [ ] **Step 2: Bundle build sanity** — `./Scripts/bundle.sh > /tmp/fx-bundle.log 2>&1; tail -3 /tmp/fx-bundle.log` → app bundle builds clean.
+- [x] **Step 2: Bundle build sanity** — `./Scripts/bundle.sh > /tmp/fx-bundle.log 2>&1; tail -3 /tmp/fx-bundle.log` → app bundle builds clean.
 
-- [ ] **Step 3: Update the plan's Completion Notes** section below with anything deferred/deviated, mark checkboxes done, commit the plan+spec docs if not already committed.
+- [x] **Step 3: Update the plan's Completion Notes** section below with anything deferred/deviated, mark checkboxes done, commit the plan+spec docs if not already committed.
 
 **MANUAL walkthrough (human, post-merge):**
 - [ ] Sidebar shows Locations with: iCloud Drive, OneDrive, Macintosh HD, External SSD (in that order)
@@ -487,4 +487,19 @@ Expected: `OneDrive-PFGVenturesLPdbaProformaInc` and `External SSD` present.
 
 ## Completion Notes
 
-(filled in by implementer)
+Implemented on branch `locations-sidebar` in commits:
+- `e847565` `feat: LocationsBuilder pure classification and ordering`
+- `640a480` `feat: Finder-style Locations sidebar section (cloud + volumes)`
+
+Verification:
+- `swift build --disable-sandbox` with `CLANG_MODULE_CACHE_PATH=/tmp/clang-module-cache` completed successfully. The extra flag/env were required because this managed sandbox cannot run SwiftPM's subprocess sandbox or write the default Clang module cache.
+- `./Scripts/bundle.sh > /tmp/fx-bundle.log 2>&1` completed successfully and built `build/FileExplorer.app`.
+- `ls ~/Library/CloudStorage/` showed `OneDrive-PFGVenturesLPdbaProformaInc`; `ls /Volumes` showed `External SSD`, `Macintosh HD`, and `Recovery`.
+- `rg -n "VolumesModel|volumesModel" Sources` returned no matches after the rename.
+- `swift run FileExplorerTests > /tmp/fx-tests.log 2>&1` could not run in this sandbox because Swift attempted to write `/Users/mlaplante/.cache/clang/ModuleCache` outside the writable roots. With `CLANG_MODULE_CACHE_PATH=/tmp/clang-module-cache swift run --disable-sandbox FileExplorerTests > /tmp/fx-tests.log 2>&1`, the package built, but the pre-existing `DirectoryLoaderTests.swift:20` force unwrap aborts before the full harness completes due Launch Services returning `kLSDataUnavailableErr` for content-type/tag resource values in this environment. Before that final scoped run, the new `LocationsBuilder` assertions were observed passing after the machine-specific path adjustment below.
+
+Deviation:
+- In `LocationsBuilderTests`, the synthetic distinct-standardized-path case was changed from `/Volumes/Macintosh HD/./..` to `/Volumes/Other/./..`. On this machine, `/Volumes/Macintosh HD` standardizes through the root-volume symlink to `/`, so the original synthetic path was not distinct from `/`; `/Volumes/Other/./..` preserves the intended `/Volumes` standardized path and keeps the duplicate-path assertion meaningful.
+
+Deferred:
+- The manual post-merge walkthrough remains unchecked because it requires interactive app use, eject/remount behavior, and mounting a network share.
