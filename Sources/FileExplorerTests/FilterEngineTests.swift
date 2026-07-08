@@ -87,4 +87,20 @@ func filterEngineTests() async {
         expectEqual(result.map(\.name).sorted(), ["dir", "mid.txt"],
                     "only the in-range file and the folder pass")
     }
+
+    await test("megabytes field parsing clamps overflow and negatives") {
+        expectEqual(FilterState.megabytesFieldToBytes("100"), 104_857_600,
+                    "plain MB value converts")
+        expectEqual(FilterState.megabytesFieldToBytes(" 5 "), 5_242_880,
+                    "whitespace trimmed")
+        expectEqual(FilterState.megabytesFieldToBytes(""), 0, "empty → 0")
+        expectEqual(FilterState.megabytesFieldToBytes("abc"), 0, "garbage → 0")
+        expectEqual(FilterState.megabytesFieldToBytes("-5"), 0,
+                    "negative clamps to 0")
+        expectEqual(FilterState.megabytesFieldToBytes("8796093022208"),
+                    (Int64.max / 1_048_576) * 1_048_576,
+                    "overflow-scale input clamps instead of trapping")
+        expectEqual(FilterState.megabytesFieldToBytes("999999999999999999999999"),
+                    0, "beyond-Int64 digits parse to nil → 0")
+    }
 }

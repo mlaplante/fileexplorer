@@ -107,7 +107,7 @@ struct FilterBarView: View {
                             return range.lowerBound == 0 ? "" : String(range.lowerBound / 1_048_576)
                         },
                         set: { text in
-                            let minBytes = (Int64(text.trimmingCharacters(in: .whitespaces)) ?? 0) * 1_048_576
+                            let minBytes = FilterState.megabytesFieldToBytes(text)
                             let maxBytes = pane.filter.customSizeRange?.upperBound ?? Int64.max
                             pane.filter.customSizeRange = min(minBytes, maxBytes)...max(minBytes, maxBytes)
                         }))
@@ -119,9 +119,8 @@ struct FilterBarView: View {
                             return String(range.upperBound / 1_048_576)
                         },
                         set: { text in
-                            let trimmed = text.trimmingCharacters(in: .whitespaces)
-                            let maxBytes = trimmed.isEmpty ? Int64.max
-                                : (Int64(trimmed) ?? 0) * 1_048_576
+                            let maxBytes = text.trimmingCharacters(in: .whitespaces).isEmpty ? Int64.max
+                                : FilterState.megabytesFieldToBytes(text)
                             let minBytes = pane.filter.customSizeRange?.lowerBound ?? 0
                             pane.filter.customSizeRange = min(minBytes, maxBytes)...max(minBytes, maxBytes)
                         }))
