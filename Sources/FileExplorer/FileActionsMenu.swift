@@ -143,6 +143,26 @@ struct FileActions {
             }
         }
         .disabled(targets.isEmpty)
+        Menu("Resize Image") {
+            Button("25%") {
+                Task { await pane.resizeSelected(targets, mode: .percent(25),
+                                                 jpegQuality: settings.settings.jpegQuality) }
+            }
+            Button("50%") {
+                Task { await pane.resizeSelected(targets, mode: .percent(50),
+                                                 jpegQuality: settings.settings.jpegQuality) }
+            }
+            Divider()
+            Button("Max 1024 px") {
+                Task { await pane.resizeSelected(targets, mode: .maxEdge(1024),
+                                                 jpegQuality: settings.settings.jpegQuality) }
+            }
+            Button("Max 2048 px") {
+                Task { await pane.resizeSelected(targets, mode: .maxEdge(2048),
+                                                 jpegQuality: settings.settings.jpegQuality) }
+            }
+        }
+        .disabled(targets.isEmpty)
         Button("Compress") {
             Task { await pane.compressSelected(targets) }
         }

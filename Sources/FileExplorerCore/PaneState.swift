@@ -412,6 +412,34 @@ public final class PaneState {
         }
     }
 
+    public func resizeSelected(_ urls: [URL], mode: ImageResizer.Mode,
+                               jpegQuality: Double = 0.85) async {
+        let quality = jpegQuality
+        let results = await Task.detached(priority: .userInitiated) {
+            ImageResizer.resize(urls, mode: mode, jpegQuality: quality)
+        }.value
+        let created = results.compactMap { result -> URL? in
+            if case .success(let url) = result.outcome { return url }
+            return nil
+        }
+        let failures = results.compactMap { result -> String? in
+            if case .failure(let error) = result.outcome { return error.message }
+            return nil
+        }
+        if let undoManager, !created.isEmpty {
+            UndoRecorder.recordCreation(created, actionName: "Resize Image",
+                                        on: undoManager, pane: self)
+        }
+        await reload()
+        opErrorMessage = failures.isEmpty
+            ? nil
+            : failures.prefix(3).joined(separator: " ")
+                + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
+        if !created.isEmpty {
+            selection = Set(created.map { $0.standardizedFileURL })
+        }
+    }
+
     public func compressSelected(_ urls: [URL]) async {
         let destination = currentURL
         let result = await Task.detached(priority: .userInitiated) {

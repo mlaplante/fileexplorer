@@ -39,5 +39,6 @@ await contentScannerTests()
 await folderComparatorTests()
 await syncExecutorTests()
 await renameTokensTests()
+await imageResizerTests()
 
 finish()
