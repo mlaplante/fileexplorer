@@ -29,5 +29,6 @@ await dropDecisionTests()
 await settingsModelTests()
 await renameExecutorTests()
 await fuzzyMatcherTests()
+await collisionNamerTests()
 
 finish()
