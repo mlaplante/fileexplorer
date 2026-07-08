@@ -143,6 +143,7 @@ public final class PaneState {
 
     /// Window-level UndoManager, injected by the UI (or tests).
     @ObservationIgnored public weak var undoManager: UndoManager?
+    @ObservationIgnored public var trashRegistry: TrashRegistryModel?
 
     public init(url: URL) {
         // Standardize so NavigationHistory's exact-URL-equality no-op check
@@ -279,11 +280,44 @@ public final class PaneState {
         selection.removeAll()
         await reload()
         finishOperation(results: results) { successes in
+            for success in successes {
+                trashRegistry?.record(original: success.source,
+                                      trashed: success.destination)
+            }
             guard let undoManager else { return }
             UndoRecorder.recordTrash(
                 successes.map { (original: $0.source, trashed: $0.destination) },
                 on: undoManager, pane: self)
         }
+    }
+
+    public func putBackSelected(_ urls: [URL]) async {
+        guard let trashRegistry else {
+            opErrorMessage = "No trash registry is available."
+            return
+        }
+        var successes: [(from: URL, to: URL)] = []
+        var failures: [String] = []
+        for trashed in urls {
+            guard let original = trashRegistry.original(forTrashed: trashed) else {
+                failures.append("No original location recorded for “\(trashed.lastPathComponent)”.")
+                continue
+            }
+            switch FileOperationService.relocate(trashed, toExactly: original) {
+            case .success:
+                successes.append((from: trashed, to: original))
+                trashRegistry.remove(trashed: trashed)
+            case .failure(let error):
+                failures.append(error.message)
+            }
+        }
+        selection.removeAll()
+        await reload()
+        if let undoManager {
+            UndoRecorder.recordMove(successes, actionName: "Put Back",
+                                    on: undoManager, pane: self)
+        }
+        opErrorMessage = OperationFailureSummary.message(failures)
     }
 
     public func renameSelected(_ url: URL, to newName: String) async {

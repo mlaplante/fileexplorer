@@ -9,6 +9,7 @@ struct PaneView: View {
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
     var settings: SettingsModel
+    var trashRegistry: TrashRegistryModel?
     /// Compare-mode context: this pane's side and the shared result, valid
     /// only while the pane is still at the compared root.
     var compareSide: FolderComparator.Side? = nil
@@ -30,7 +31,8 @@ struct PaneView: View {
                                              otherPane: otherPane,
                                              renameModel: renameModel,
                                              batchRenameModel: batchRenameModel,
-                                             settings: settings)) { open($0) }
+                                             settings: settings,
+                                             trashRegistry: trashRegistry)) { open($0) }
                 } else if pane.viewMode == .columns {
                     ColumnBrowserView(
                         pane: pane,
@@ -38,7 +40,8 @@ struct PaneView: View {
                                              otherPane: otherPane,
                                              renameModel: renameModel,
                                              batchRenameModel: batchRenameModel,
-                                             settings: settings)) { open($0) }
+                                             settings: settings,
+                                             trashRegistry: trashRegistry)) { open($0) }
                 } else {
                     table
                 }
@@ -122,8 +125,14 @@ struct PaneView: View {
             Divider()
             statusBar
         }
-        .onAppear { pane.undoManager = undoManager }
-        .onChange(of: pane.currentURL) { _, _ in pane.undoManager = undoManager }
+        .onAppear {
+            pane.undoManager = undoManager
+            pane.trashRegistry = trashRegistry
+        }
+        .onChange(of: pane.currentURL) { _, _ in
+            pane.undoManager = undoManager
+            pane.trashRegistry = trashRegistry
+        }
         .onChange(of: pane.pendingRenameURL) { _, url in
             guard let url else { return }
             renameModel.present(for: url, in: pane)
@@ -261,7 +270,8 @@ struct PaneView: View {
                         otherPane: otherPane,
                         renameModel: renameModel,
                         batchRenameModel: batchRenameModel,
-                        settings: settings).menu(for: urls)
+                        settings: settings,
+                        trashRegistry: trashRegistry).menu(for: urls)
         } primaryAction: { urls in
             open(urls)
         }

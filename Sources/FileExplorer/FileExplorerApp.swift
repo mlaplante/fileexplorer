@@ -11,6 +11,7 @@ struct FileExplorerApp: App {
     private let syncPreviewModel = SyncPreviewModel()
     private let volumesModel = VolumesModel()
     private let settings: SettingsModel
+    private let trashRegistry: TrashRegistryModel
     private let infoModel = GetInfoModel()
     private let updateModel = UpdateModel()
     private let shortcutRecorder = ShortcutRecorderModel()
@@ -20,6 +21,7 @@ struct FileExplorerApp: App {
             directory: SessionPersister.defaultDirectory)
         let settings = SettingsModel(persister: persister)
         self.settings = settings
+        self.trashRegistry = TrashRegistryModel(directory: persister.directory)
         let home = FileManager.default.homeDirectoryForCurrentUser
         let session: SessionState
         if let snapshot = persister.loadSession() {
@@ -69,7 +71,8 @@ struct FileExplorerApp: App {
                 } detail: {
                     TabContentView(session: session, renameModel: renameModel,
                                    batchRenameModel: batchRenameModel,
-                                   syncPreview: syncPreviewModel, settings: settings)
+                                   syncPreview: syncPreviewModel, settings: settings,
+                                   trashRegistry: trashRegistry)
                         .navigationTitle(session.activePane.currentURL.lastPathComponent)
                         .toolbar {
                             ToolbarItemGroup(placement: .navigation) {

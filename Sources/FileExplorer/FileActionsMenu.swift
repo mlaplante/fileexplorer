@@ -12,6 +12,7 @@ struct FileActions {
     let renameModel: RenameSheetModel
     let batchRenameModel: BatchRenameModel
     let settings: SettingsModel
+    let trashRegistry: TrashRegistryModel?
 
     @ViewBuilder
     func menu(for urls: Set<URL>) -> some View {
@@ -277,6 +278,11 @@ struct FileActions {
 
     @ViewBuilder
     private func trashSection(targets: [URL]) -> some View {
+        if trashRegistry?.canPutBack(targets) == true {
+            Button("Put Back") {
+                Task { await pane.putBackSelected(targets) }
+            }
+        }
         Button("Move to Trash") {
             Task { await pane.trashSelected(targets) }
         }

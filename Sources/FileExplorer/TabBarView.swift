@@ -57,6 +57,7 @@ struct TabContentView: View {
     var batchRenameModel: BatchRenameModel
     var syncPreview: SyncPreviewModel
     var settings: SettingsModel
+    var trashRegistry: TrashRegistryModel?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -65,7 +66,8 @@ struct TabContentView: View {
             PaneAreaView(session: session, tab: session.activeTab,
                          renameModel: renameModel,
                          batchRenameModel: batchRenameModel,
-                         syncPreview: syncPreview, settings: settings)
+                         syncPreview: syncPreview, settings: settings,
+                         trashRegistry: trashRegistry)
         }
         .onChange(of: session.activeTabIndex) { _, _ in
             if QuickLookController.shared.isVisible {
@@ -83,6 +85,7 @@ struct PaneAreaView: View {
     var batchRenameModel: BatchRenameModel
     var syncPreview: SyncPreviewModel
     var settings: SettingsModel
+    var trashRegistry: TrashRegistryModel?
 
     var body: some View {
         Group {
@@ -129,6 +132,7 @@ struct PaneAreaView: View {
                      renameModel: renameModel,
                      batchRenameModel: batchRenameModel,
                      settings: settings,
+                     trashRegistry: trashRegistry,
                      compareSide: compareActive ? (index == 0 ? .left : .right) : nil,
                      compareResult: compareActive ? tab.compareResult : nil)
         }
