@@ -64,6 +64,28 @@ func previewRendererTests() async {
                "text file is not a pdf")
     }
 
+    await test("PreviewRenderer reads bounded text and code previews") {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let markdown = dir.appendingPathComponent("README.md")
+        try Data("# Title\n\n```swift\nlet value = 42\n```\n".utf8).write(to: markdown)
+
+        let preview = PreviewRenderer.textPreview(
+            at: markdown, type: UTType(filenameExtension: "md"))
+        expect(preview?.contains("let value = 42") == true, "markdown previews as text")
+
+        let large = dir.appendingPathComponent("large.swift")
+        try Data(String(repeating: "x", count: 128).utf8).write(to: large)
+        let capped = PreviewRenderer.textPreview(
+            at: large, type: UTType(filenameExtension: "swift"),
+            maxBytes: 1024, maxCharacters: 12)
+        expectEqual(capped, "xxxxxxxxxxxx", "text preview is character-capped")
+
+        let rejected = PreviewRenderer.textPreview(
+            at: large, type: UTType(filenameExtension: "swift"), maxBytes: 12)
+        expect(rejected == nil, "oversized text files are not loaded")
+    }
+
     await test("PaneState viewMode defaults to list and toggles") {
         let dir = try makeTempDir()
         defer { try? FileManager.default.removeItem(at: dir) }

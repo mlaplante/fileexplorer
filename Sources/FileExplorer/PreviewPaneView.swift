@@ -94,6 +94,21 @@ struct PreviewPaneView: View {
                 .scaledToFit()
                 .frame(maxHeight: 190)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
+        } else if let text = model.previewText {
+            ScrollView {
+                Text(text)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .padding(8)
+            }
+            .frame(height: 220)
+            .background(.background.opacity(0.72))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay {
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(.separator, lineWidth: 1)
+            }
         } else {
             Image(nsImage: NSWorkspace.shared.icon(forFile: info.url.path))
                 .resizable()

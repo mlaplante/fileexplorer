@@ -27,9 +27,9 @@ func hoverPreviewModelTests() async {
 
     await test("HoverPreviewModel ignores non-previewables and cancels on early exit") {
         let model = HoverPreviewModel(delay: .milliseconds(50))
-        let text = entry("notes.txt", type: UTType(filenameExtension: "txt"))
-        expect(!HoverPreviewModel.isPreviewable(text), "txt not previewable")
-        model.hoverBegan(text)
+        let archive = entry("archive.zip", type: UTType(filenameExtension: "zip"))
+        expect(!HoverPreviewModel.isPreviewable(archive), "zip not previewable")
+        model.hoverBegan(archive)
         try await Task.sleep(for: .milliseconds(150))
         expect(model.presented == nil, "non-previewable never presents")
 
@@ -71,6 +71,27 @@ func hoverPreviewModelTests() async {
         expect(model.presentedImage == nil, "image cleared on hover end")
     }
 
+    await test("HoverPreviewModel renders markdown and code text") {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let markdown = dir.appendingPathComponent("README.md")
+        try Data("# Notes\n\n```swift\nlet preview = true\n```\n".utf8).write(to: markdown)
+        let real = FileEntry(url: markdown, name: "README.md", isDirectory: false,
+                             isHidden: false, isSymlink: false, size: 1,
+                             created: nil, modified: .distantPast,
+                             contentType: UTType(filenameExtension: "md"))
+        expect(HoverPreviewModel.isPreviewable(real), "markdown is previewable")
+
+        let model = HoverPreviewModel(delay: .milliseconds(20))
+        model.hoverBegan(real)
+        try await Task.sleep(for: .milliseconds(400))
+        expect(model.presented != nil, "presented")
+        expect(model.presentedText?.contains("let preview = true") == true,
+               "rendered text published")
+        model.hoverEnded()
+        expect(model.presentedText == nil, "text cleared on hover end")
+    }
+
     await test("retarget clears the previous rendered image immediately") {
         // Slow injected renderer: returns a real 1x1 image after 300 ms, so we
         // can observe the window between retarget and the new render landing.
@@ -83,7 +104,7 @@ func hoverPreviewModelTests() async {
         }()
         let model = HoverPreviewModel(delay: .milliseconds(20)) { _, _ in
             try? await Task.sleep(for: .milliseconds(300))
-            return pixel
+            return .image(pixel)
         }
         func entry(_ name: String) -> FileEntry {
             FileEntry(url: URL(fileURLWithPath: "/t/\(name)"), name: name,

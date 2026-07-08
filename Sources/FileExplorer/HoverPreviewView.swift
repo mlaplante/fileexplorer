@@ -13,6 +13,16 @@ struct HoverPreviewView: View {
                 Image(decorative: image, scale: 1)
                     .resizable()
                     .scaledToFit()
+            } else if let text = model.presentedText {
+                ScrollView {
+                    Text(text)
+                        .font(.system(.body, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .padding(12)
+                }
+                .background(.background.opacity(0.76))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
                 ProgressView()
             }

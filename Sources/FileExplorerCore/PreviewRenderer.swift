@@ -2,6 +2,7 @@ import Foundation
 import CoreGraphics
 import ImageIO
 import PDFKit
+import UniformTypeIdentifiers
 
 /// Pure CGImage producers for hover previews. Blocking — call off the main
 /// actor. Both return nil for files they can't render.
@@ -40,5 +41,23 @@ public enum PreviewRenderer {
         context.translateBy(x: -bounds.minX, y: -bounds.minY)
         page.draw(with: .mediaBox, to: context)
         return context.makeImage()
+    }
+
+    public static func textPreview(at url: URL, type: UTType?,
+                                   maxBytes: Int64 = 256 * 1024,
+                                   maxCharacters: Int = 12_000) -> String? {
+        guard ContentScanner.isTextLike(type, pathExtension: url.pathExtension),
+              let values = try? url.resourceValues(forKeys: [.fileSizeKey]),
+              Int64(values.fileSize ?? 0) <= maxBytes,
+              let data = try? Data(contentsOf: url, options: [.mappedIfSafe]) else {
+            return nil
+        }
+        let decoded = String(data: data, encoding: .utf8)
+            ?? String(data: data, encoding: .isoLatin1)
+        guard let decoded, !decoded.contains("\0") else { return nil }
+        let normalized = decoded.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        if normalized.count <= maxCharacters { return normalized }
+        return String(normalized.prefix(maxCharacters))
     }
 }
