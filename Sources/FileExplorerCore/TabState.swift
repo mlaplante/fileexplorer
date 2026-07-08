@@ -61,4 +61,75 @@ public final class TabState: Identifiable {
             activePaneIndex = 1
         }
     }
+
+    /// Folder-compare mode (dual pane only). Set by runCompare(), cleared
+    /// by endCompare() and whenever either pane navigates away from the
+    /// compared roots (checked by the UI layer before badging).
+    public private(set) var compareResult: FolderComparator.Result?
+    /// Roots the comparison was computed against — badges must not apply
+    /// after either pane navigates elsewhere.
+    public private(set) var compareLeftRoot: URL?
+    public private(set) var compareRightRoot: URL?
+    public private(set) var isComparing = false
+
+    /// Gathers both listings off-main and classifies. No-op unless dual.
+    public func runCompare() async {
+        guard panes.count == 2 else { return }
+        let leftRoot = panes[0].currentURL
+        let rightRoot = panes[1].currentURL
+        let includeHidden = panes[0].showHidden
+        isComparing = true
+        let result = await Task.detached(priority: .userInitiated) {
+            let left = FolderComparator.listing(root: leftRoot,
+                                                includeHidden: includeHidden)
+            let right = FolderComparator.listing(root: rightRoot,
+                                                 includeHidden: includeHidden)
+            return FolderComparator.compare(left: left, right: right)
+        }.value
+        compareResult = result
+        compareLeftRoot = leftRoot.standardizedFileURL
+        compareRightRoot = rightRoot.standardizedFileURL
+        isComparing = false
+    }
+
+    public func endCompare() {
+        compareResult = nil
+        compareLeftRoot = nil
+        compareRightRoot = nil
+        isComparing = false
+    }
+
+    /// One-way sync per the compare result. ONE undo step: the target
+    /// pane's UndoManager groups the creation-undo and the trash-restore.
+    public func syncCompare(direction: FolderComparator.Direction) async {
+        guard let result = compareResult, panes.count == 2 else { return }
+        let sourcePane = direction == .leftToRight ? panes[0] : panes[1]
+        let targetPane = direction == .leftToRight ? panes[1] : panes[0]
+        let sourceRoot = sourcePane.currentURL
+        let targetRoot = targetPane.currentURL
+        let plan = FolderComparator.syncPlan(result: result, direction: direction)
+        guard !plan.isEmpty else { return }
+        let outcome = await Task.detached(priority: .userInitiated) {
+            SyncExecutor.execute(plan, from: sourceRoot, to: targetRoot)
+        }.value
+        if let undoManager = targetPane.undoManager,
+           !outcome.copied.isEmpty || !outcome.trashed.isEmpty {
+            undoManager.beginUndoGrouping()
+            UndoRecorder.recordCreation(outcome.copied, actionName: "Sync Folders",
+                                        on: undoManager, pane: targetPane)
+            UndoRecorder.recordTrash(outcome.trashed, actionName: "Sync Folders",
+                                     on: undoManager, pane: targetPane)
+            undoManager.endUndoGrouping()
+            undoManager.setActionName("Sync Folders")
+        }
+        await targetPane.reload()
+        if !outcome.failures.isEmpty {
+            targetPane.reportTagFailure(
+                outcome.failures.prefix(3).joined(separator: " ")
+                + (outcome.failures.count > 3
+                   ? " (+\(outcome.failures.count - 3) more)" : ""))
+        }
+        // Refresh the comparison against the new on-disk state.
+        await runCompare()
+    }
 }

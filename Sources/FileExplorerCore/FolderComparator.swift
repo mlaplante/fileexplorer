@@ -46,6 +46,11 @@ public enum FolderComparator {
     public struct SyncOperation: Equatable, Sendable {
         public let relativePath: String
         public let kind: OperationKind
+
+        public init(relativePath: String, kind: OperationKind) {
+            self.relativePath = relativePath
+            self.kind = kind
+        }
     }
 
     /// Recursive walk producing root-relative entries. Hidden files skipped
