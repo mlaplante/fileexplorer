@@ -280,26 +280,34 @@ public enum FileOperationService {
     }
 
     static func trashItem(_ source: URL) throws -> URL {
-        var resulting: NSURL?
-        do {
-            try FileManager.default.trashItem(at: source, resultingItemURL: &resulting)
-            if let trashed = resulting as URL? {
-                return trashed
-            }
-        } catch {
-            // Fall back below. FileManager.trashItem can be unavailable under
-            // command-line sandboxing even for writable temporary directories.
-        }
-
         let fm = FileManager.default
-        let trash = source.deletingLastPathComponent().appendingPathComponent(
-            ".Trash", isDirectory: true)
-        try fm.createDirectory(at: trash, withIntermediateDirectories: true)
-        let existing = Set((try? fm.contentsOfDirectory(atPath: trash.path)) ?? [])
-        let name = CollisionNamer.sequentialName(base: source.lastPathComponent,
-                                                 existing: existing)
-        let target = trash.appendingPathComponent(name)
-        try fm.moveItem(at: source, to: target)
-        return target
+        do {
+            var resulting: NSURL?
+            try fm.trashItem(at: source, resultingItemURL: &resulting)
+            guard let trashed = resulting as URL? else {
+                throw FileOpError("No trash location returned.")
+            }
+            return trashed
+        } catch {
+            // FileManager.trashItem can be denied under command-line
+            // sandboxing even inside writable temporary directories (agent
+            // test runs). Only there is a sibling .Trash an acceptable
+            // stand-in — for real user paths the failure must surface rather
+            // than silently diverting files to a hidden folder the system
+            // Trash won't show.
+            let tmp = fm.temporaryDirectory.resolvingSymlinksInPath().path + "/"
+            guard source.resolvingSymlinksInPath().path.hasPrefix(tmp) else {
+                throw error
+            }
+            let trash = source.deletingLastPathComponent().appendingPathComponent(
+                ".Trash", isDirectory: true)
+            try fm.createDirectory(at: trash, withIntermediateDirectories: true)
+            let existing = Set((try? fm.contentsOfDirectory(atPath: trash.path)) ?? [])
+            let name = CollisionNamer.sequentialName(base: source.lastPathComponent,
+                                                     existing: existing)
+            let target = trash.appendingPathComponent(name)
+            try fm.moveItem(at: source, to: target)
+            return target
+        }
     }
 }
