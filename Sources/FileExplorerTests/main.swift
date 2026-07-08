@@ -38,5 +38,6 @@ await filterPresetTests()
 await contentScannerTests()
 await folderComparatorTests()
 await syncExecutorTests()
+await renameTokensTests()
 
 finish()
