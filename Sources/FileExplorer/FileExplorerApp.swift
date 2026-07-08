@@ -10,6 +10,7 @@ struct FileExplorerApp: App {
     private let batchRenameModel = BatchRenameModel()
     private let volumesModel = VolumesModel()
     private let settings: SettingsModel
+    private let infoModel = GetInfoModel()
 
     init() {
         let persister = SessionPersister(
@@ -114,6 +115,7 @@ struct FileExplorerApp: App {
             }
         }
         .commands {
+            GetInfoCommands()
             CommandGroup(replacing: .pasteboard) {
                 Button("Cut") {
                     PasteboardOps.forwardToFieldEditor(#selector(NSText.cut(_:)))
@@ -273,6 +275,24 @@ struct FileExplorerApp: App {
                         .disabled(session.tabs.count < number)
                 }
             }
+        }
+        Window("Info", id: "info") {
+            GetInfoView(session: session, model: infoModel)
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.trailing)
+    }
+}
+
+/// ⌘I lives in its own Commands type because @Environment(\.openWindow)
+/// is available to Commands conformances but not to the App struct itself.
+struct GetInfoCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(after: .newItem) {
+            Button("Get Info") { openWindow(id: "info") }
+                .keyboardShortcut("i", modifiers: .command)
         }
     }
 }

@@ -32,5 +32,6 @@ await fuzzyMatcherTests()
 await collisionNamerTests()
 await dailyOpsTests()
 await archiveTests()
+await infoGathererTests()
 
 finish()
