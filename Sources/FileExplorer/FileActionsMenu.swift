@@ -19,8 +19,53 @@ struct FileActions {
             for url in targets { NSWorkspace.shared.open(url) }
         }
         .disabled(targets.isEmpty)
+        Menu("Open With") {
+            // Candidate apps come from the FIRST item's type (spec decision);
+            // the chosen app opens the whole selection.
+            if let url = targets.first {
+                let defaultApp = NSWorkspace.shared.urlForApplication(toOpen: url)
+                let apps = NSWorkspace.shared.urlsForApplications(toOpen: url)
+                    .sorted {
+                        appDisplayName($0).localizedCaseInsensitiveCompare(
+                            appDisplayName($1)) == .orderedAscending
+                    }
+                if let defaultApp {
+                    Button("\(appDisplayName(defaultApp)) (default)") {
+                        openWith(targets, app: defaultApp)
+                    }
+                    Divider()
+                }
+                ForEach(apps.filter { $0 != defaultApp }, id: \.self) { app in
+                    Button(appDisplayName(app)) { openWith(targets, app: app) }
+                }
+                if apps.isEmpty && defaultApp == nil {
+                    Text("No Available Applications")
+                }
+            }
+        }
+        .disabled(targets.isEmpty)
         Button("Reveal in Finder") {
             NSWorkspace.shared.activateFileViewerSelecting(targets)
+        }
+        .disabled(targets.isEmpty)
+        Button("Copy") {
+            PasteboardOps.copyToPasteboard(targets)
+        }
+        .disabled(targets.isEmpty)
+        Button("Duplicate") {
+            Task { await pane.duplicateSelected(targets) }
+        }
+        .disabled(targets.isEmpty)
+        Menu("Copy Path") {
+            Button("POSIX Path") {
+                PasteboardOps.copyString(
+                    targets.map(\.path).joined(separator: "\n"))
+            }
+            Button("Abbreviated (~) Path") {
+                PasteboardOps.copyString(
+                    targets.map { ($0.path as NSString).abbreviatingWithTildeInPath }
+                        .joined(separator: "\n"))
+            }
         }
         .disabled(targets.isEmpty)
         Divider()
@@ -37,6 +82,9 @@ struct FileActions {
         .disabled(targets.count < 2)
         Button("New Folder") {
             Task { await pane.createNewFolder() }
+        }
+        Button("New File") {
+            Task { await pane.createNewFile() }
         }
         if let otherPane {
             Divider()
@@ -73,6 +121,15 @@ struct FileActions {
             Task { await pane.compressSelected(targets) }
         }
         .disabled(targets.isEmpty)
+        Button("Extract") {
+            let archives = targets.filter {
+                ArchiveKind.detect($0.lastPathComponent) != nil
+            }
+            Task { await pane.extractSelected(archives) }
+        }
+        .disabled(!targets.contains {
+            ArchiveKind.detect($0.lastPathComponent) != nil
+        })
         Button("Calculate Size") {
             Task { await pane.calculateFolderSizes(targets) }
         }
@@ -84,5 +141,14 @@ struct FileActions {
             Task { await pane.trashSelected(targets) }
         }
         .disabled(targets.isEmpty)
+    }
+
+    private func appDisplayName(_ app: URL) -> String {
+        FileManager.default.displayName(atPath: app.path)
+    }
+
+    private func openWith(_ urls: [URL], app: URL) {
+        NSWorkspace.shared.open(urls, withApplicationAt: app,
+                                configuration: NSWorkspace.OpenConfiguration())
     }
 }

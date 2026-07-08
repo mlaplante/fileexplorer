@@ -10,6 +10,7 @@ struct FileExplorerApp: App {
     private let batchRenameModel = BatchRenameModel()
     private let volumesModel = VolumesModel()
     private let settings: SettingsModel
+    private let infoModel = GetInfoModel()
 
     init() {
         let persister = SessionPersister(
@@ -114,6 +115,52 @@ struct FileExplorerApp: App {
             }
         }
         .commands {
+            GetInfoCommands()
+            CommandGroup(replacing: .pasteboard) {
+                Button("Cut") {
+                    PasteboardOps.forwardToFieldEditor(#selector(NSText.cut(_:)))
+                }
+                .keyboardShortcut("x", modifiers: .command)
+                Button("Copy") {
+                    if PasteboardOps.textEditingIsActive {
+                        PasteboardOps.forwardToFieldEditor(#selector(NSText.copy(_:)))
+                    } else {
+                        // Empty selection is a no-op — never wipe whatever
+                        // the user already has on the clipboard.
+                        let targets = Array(session.activePane.selection)
+                        guard !targets.isEmpty else { return }
+                        PasteboardOps.copyToPasteboard(targets)
+                    }
+                }
+                .keyboardShortcut("c", modifiers: .command)
+                Button("Paste") {
+                    if PasteboardOps.textEditingIsActive {
+                        PasteboardOps.forwardToFieldEditor(#selector(NSText.paste(_:)))
+                    } else {
+                        let urls = PasteboardOps.readFileURLs()
+                        guard !urls.isEmpty else { return }
+                        Task { await session.activePane.pasteCopy(urls) }
+                    }
+                }
+                .keyboardShortcut("v", modifiers: .command)
+                Button("Move Item Here") {
+                    let urls = PasteboardOps.readFileURLs()
+                    guard !urls.isEmpty else { return }
+                    let pane = session.activePane
+                    Task { await pane.moveSelected(urls, into: pane.currentURL) }
+                }
+                .keyboardShortcut("v", modifiers: [.command, .option])
+                Button("Select All") {
+                    if PasteboardOps.textEditingIsActive {
+                        PasteboardOps.forwardToFieldEditor(
+                            #selector(NSText.selectAll(_:)))
+                    } else {
+                        session.activePane.selection =
+                            Set(session.activePane.visibleEntries.map(\.url))
+                    }
+                }
+                .keyboardShortcut("a", modifiers: .command)
+            }
             CommandGroup(after: .newItem) {
                 Button("Open") {
                     Task {
@@ -128,6 +175,17 @@ struct FileExplorerApp: App {
                     Task { await session.activePane.createNewFolder() }
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+                Button("New File") {
+                    Task { await session.activePane.createNewFile() }
+                }
+                .keyboardShortcut("n", modifiers: [.command, .option])
+                Button("Duplicate") {
+                    let targets = Array(session.activePane.selection)
+                    guard !targets.isEmpty else { return }
+                    Task { await session.activePane.duplicateSelected(targets) }
+                }
+                .keyboardShortcut("d", modifiers: .command)
+                .disabled(session.activePane.selection.isEmpty)
                 Button("Rename…") {
                     if let url = session.activePane.selection.first,
                        session.activePane.selection.count == 1 {
@@ -217,6 +275,24 @@ struct FileExplorerApp: App {
                         .disabled(session.tabs.count < number)
                 }
             }
+        }
+        Window("Info", id: "info") {
+            GetInfoView(session: session, model: infoModel)
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.trailing)
+    }
+}
+
+/// ⌘I lives in its own Commands type because @Environment(\.openWindow)
+/// is available to Commands conformances but not to the App struct itself.
+struct GetInfoCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(after: .newItem) {
+            Button("Get Info") { openWindow(id: "info") }
+                .keyboardShortcut("i", modifiers: .command)
         }
     }
 }

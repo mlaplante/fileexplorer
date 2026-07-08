@@ -2,7 +2,7 @@
 
 A personal, keyboard-driven macOS file manager: fast
 dual-pane browsing, fuzzy palettes for navigation and commands, previews,
-batch tools (rename / convert / compress), and full undo — built with Swift 6
+batch tools (rename / convert / compress / extract), and full undo — built with Swift 6
 and SwiftUI on top of Swift Package Manager.
 
 ## Building
@@ -59,6 +59,10 @@ All assertions should report PASS.
 | ⌘Y / Space | Quick Look |
 | ⌘O / ⌘↓ | Open |
 | ⇧⌘N | New folder |
+| ⌥⌘N | New file |
+| ⌘C / ⌘V | Copy / paste files (⌥⌘V moves) |
+| ⌘D | Duplicate |
+| ⌘I | Get Info |
 | ⌘⌫ | Move to Trash |
 | Return | Rename selected item |
 | ⌘Z | Undo (⇧⌘Z to redo) |

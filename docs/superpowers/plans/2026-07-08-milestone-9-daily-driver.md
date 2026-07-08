@@ -1465,4 +1465,31 @@ Record in a "Completion Notes" section at the bottom of this plan: honest assert
 
 ## Completion Notes
 
-(filled in at the end of the milestone)
+**Completed 2026-07-08.** All 7 implementation tasks done via subagent-driven development with Codex (GPT) as implementer and Claude reviewers (spec + quality per task). Final suite: **521 assertions, PASS** (462 at start).
+
+**Process notes:**
+- Codex's sandbox cannot run this repo's builds/tests (module-cache permission errors + a pre-existing `DirectoryLoaderTests` force-unwrap that crashes under redirected TMPDIR). Division of labor that worked: Codex edits exactly per plan, controller builds/tests/commits outside the sandbox.
+- Review loop caught and fixed pre-merge: copy-suffix stacking in `CollisionNamer` ("photo copy copy.jpg" → suffix-aware counting), empty-selection ⌘C wiping the clipboard, DailyOpsTests sleep-timing convention drift, Open With multi-selection spec mismatch (caught in plan self-review).
+
+**Deferred / optional (from reviews):**
+- Factor the thrice-duplicated folder-into-itself guard in `FileOperationService` into a shared helper (pre-existing duplication).
+- stderr pipe in `Unarchiver`/`Zipper` reads after `waitUntilExit` — latent deadlock only if a tool writes >64KB of stderr; fine in practice.
+- `ditto -x -k` zip-slip behavior unverified (bsdtar refuses `..` by default; ditto undocumented). Optional post-extraction path check if ever hardened.
+- Get Info's directory Size row says "use Calculate Size", which lives in the context menu, not the panel.
+- `newFile` uses `createFile(atPath:)`, which would silently overwrite in a same-instant TOCTOU race (vs `newFolder`'s fail-loud `createDirectory`); one-in-a-million for a personal tool, noted for completeness.
+
+**Final-review fix (applied):** `pasteCopy` now selects pasted items after reload — it was the lone item-creating op that didn't (gap was in the plan itself; every other creating op and Finder select their output).
+
+**MANUAL walkthrough (human, ~10 min — TCC blocks agent UI automation):**
+- [ ] ⌘C in FileExplorer → ⌘V in Finder copies the file (and the reverse).
+- [ ] ⌘V into the source's own folder produces "name copy.ext".
+- [ ] ⌥⌘V moves; moving onto an existing name reports the error in the status bar.
+- [ ] ⌘C/⌘V/⌘X/⌘A still work **inside text fields** (rename sheet, filter extension field, palette).
+- [ ] Edit menu shows no duplicated Cut/Copy/Paste/Select All rows.
+- [ ] ⌘D duplicates; duplicating a duplicate yields "… copy 2"; ⌘Z removes it.
+- [ ] ⌥⌘N creates "untitled" selected; Return renames it.
+- [ ] Copy Path (both variants) puts the right strings on the clipboard.
+- [ ] Open With lists sensible apps, default first; opening works; single-capable-app case has no dangling divider.
+- [ ] Extract on a .zip and a .tar.gz produces the stem-named folder; ⌘Z trashes it; corrupt archive reports in the status bar.
+- [ ] ⌘I opens the Info window; follows selection; symlink target shown; multi-selection shows counts.
+- [ ] Dock and Finder show the new icon (may need `killall Dock` / re-copy for icon cache).

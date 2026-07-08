@@ -107,6 +107,47 @@ public enum FileOperationService {
         }
     }
 
+    /// Creates "untitled", "untitled 2", … empty file and returns it.
+    public static func newFile(in directory: URL) -> Result<URL, FileOpError> {
+        let fm = FileManager.default
+        let existing = Set((try? fm.contentsOfDirectory(atPath: directory.path)) ?? [])
+        let name = CollisionNamer.sequentialName(base: "untitled", existing: existing)
+        let target = directory.appendingPathComponent(name)
+        guard fm.createFile(atPath: target.path, contents: Data()) else {
+            return .failure(FileOpError("Couldn't create “\(name)”."))
+        }
+        return .success(target)
+    }
+
+    /// Copies into `destination`, auto-renaming Finder-style ("name copy.ext")
+    /// instead of failing on collisions — paste/duplicate semantics, where a
+    /// collision is expected rather than an error. The folder-into-itself
+    /// guard matches `perform`.
+    public static func copyAvoidingCollisions(_ sources: [URL],
+                                              into destination: URL) -> [ItemResult] {
+        let fm = FileManager.default
+        return sources.map { source in
+            let sourcePath = source.standardizedFileURL.path
+            let destinationPath = destination.standardizedFileURL.path
+            if destinationPath == sourcePath
+                || destinationPath.hasPrefix(sourcePath + "/") {
+                return ItemResult(source: source, outcome: .failure(FileOpError(
+                    "Can't put “\(source.lastPathComponent)” inside itself.")))
+            }
+            let existing = Set(
+                (try? fm.contentsOfDirectory(atPath: destination.path)) ?? [])
+            let name = CollisionNamer.copyName(for: source.lastPathComponent,
+                                               existing: existing)
+            let target = destination.appendingPathComponent(name)
+            do {
+                try fm.copyItem(at: source, to: target)
+                return ItemResult(source: source, outcome: .success(target))
+            } catch {
+                return ItemResult(source: source, outcome: .failure(FileOpError(error)))
+            }
+        }
+    }
+
     private static func perform(_ sources: [URL], into destination: URL,
                                 _ operation: (URL, URL) throws -> Void) -> [ItemResult] {
         sources.map { source in

@@ -276,6 +276,71 @@ public final class PaneState {
         }
     }
 
+    public func createNewFile() async {
+        let result = FileOperationService.newFile(in: currentURL)
+        await reload()
+        switch result {
+        case .success(let url):
+            if let undoManager {
+                UndoRecorder.recordCreation([url], actionName: "New File",
+                                            on: undoManager, pane: self)
+            }
+            opErrorMessage = nil
+            selection = [url.standardizedFileURL]
+        case .failure(let error):
+            opErrorMessage = error.message
+        }
+    }
+
+    /// Duplicates each item next to itself ("name copy.ext"), selects the
+    /// duplicates, one undo step (trash the copies).
+    public func duplicateSelected(_ urls: [URL]) async {
+        let results = await Task.detached(priority: .userInitiated) {
+            urls.flatMap { url in
+                FileOperationService.copyAvoidingCollisions(
+                    [url], into: url.deletingLastPathComponent())
+            }
+        }.value
+        await reload()
+        finishOperation(results: results) { successes in
+            guard let undoManager else { return }
+            UndoRecorder.recordCreation(successes.map(\.destination),
+                                        actionName: "Duplicate",
+                                        on: undoManager, pane: self)
+        }
+        let created = results.compactMap { result -> URL? in
+            if case .success(let url) = result.outcome { return url }
+            return nil
+        }
+        if !created.isEmpty {
+            selection = Set(created.map { $0.standardizedFileURL })
+        }
+    }
+
+    /// Paste-as-copy into the current folder: collisions auto-rename
+    /// (Finder ⌘V). Paste-as-move (⌥⌘V) reuses `moveSelected`, whose
+    /// fail-loudly collision policy matches Finder's move-paste prompt.
+    public func pasteCopy(_ urls: [URL]) async {
+        let destination = currentURL
+        let results = await Task.detached(priority: .userInitiated) {
+            FileOperationService.copyAvoidingCollisions(urls, into: destination)
+        }.value
+        await reload()
+        finishOperation(results: results) { successes in
+            guard let undoManager else { return }
+            UndoRecorder.recordCreation(successes.map(\.destination),
+                                        actionName: "Paste",
+                                        on: undoManager, pane: self)
+        }
+        let created = results.compactMap { result -> URL? in
+            if case .success(let url) = result.outcome { return url }
+            return nil
+        }
+        if !created.isEmpty {
+            selection = Set(created.map { $0.standardizedFileURL })
+        }
+    }
+
     /// Applies the plan's clean items; conflicted items are skipped and
     /// reported, `.unchanged` items are skipped silently. One undo step.
     public func batchRename(_ urls: [URL], rules: RenameRules) async {
@@ -340,6 +405,32 @@ public final class PaneState {
             selection = [archive.standardizedFileURL]
         case .failure(let error):
             opErrorMessage = error.message
+        }
+    }
+
+    public func extractSelected(_ urls: [URL]) async {
+        let results = await Task.detached(priority: .userInitiated) {
+            urls.map { (source: $0, result: Unarchiver.extract($0)) }
+        }.value
+        await reload()
+        let created = results.compactMap { item -> URL? in
+            if case .success(let url) = item.result { return url }
+            return nil
+        }
+        let failures = results.compactMap { item -> String? in
+            if case .failure(let error) = item.result { return error.message }
+            return nil
+        }
+        if let undoManager, !created.isEmpty {
+            UndoRecorder.recordCreation(created, actionName: "Extract",
+                                        on: undoManager, pane: self)
+        }
+        opErrorMessage = failures.isEmpty
+            ? nil
+            : failures.prefix(3).joined(separator: " ")
+                + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
+        if !created.isEmpty {
+            selection = Set(created.map { $0.standardizedFileURL })
         }
     }
 
