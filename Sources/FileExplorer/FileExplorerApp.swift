@@ -241,6 +241,10 @@ struct FileExplorerApp: App {
                     PaletteCoordinator.openFiles(palette, session: session)
                 }
                 .keyboardShortcut("p", modifiers: .command)
+                Button("Search File Contents…") {
+                    PaletteCoordinator.openContents(palette, session: session)
+                }
+                .keyboardShortcut("f", modifiers: [.command, .shift])
             }
             CommandGroup(after: .toolbar) {
                 Toggle("Show Hidden Files", isOn: Binding(

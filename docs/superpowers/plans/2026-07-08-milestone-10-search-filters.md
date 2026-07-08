@@ -1083,6 +1083,13 @@ public final class SpotlightSearcher {
             forName: .NSMetadataQueryDidFinishGathering, object: query,
             queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
+                // Read the query back through self: capturing the local
+                // NSMetadataQuery (non-Sendable) in this @Sendable closure
+                // trips Swift 6 region isolation; the @MainActor class is
+                // Sendable, so hopping through it is legal and equivalent
+                // (cancel() replaced/cleared it iff a newer search started,
+                // in which case this stale gather must be dropped anyway).
+                guard let self, let query = self.query else { return }
                 query.disableUpdates()
                 let urls = (0..<query.resultCount).compactMap { index -> URL? in
                     guard let item = query.result(at: index) as? NSMetadataItem,
@@ -1091,7 +1098,7 @@ public final class SpotlightSearcher {
                     else { return nil }
                     return URL(fileURLWithPath: path)
                 }
-                self?.cancel()
+                self.cancel()
                 completion(urls)
             }
         }

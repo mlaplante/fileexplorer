@@ -5,6 +5,13 @@ import FileExplorerCore
 /// Wires palette modes to their data providers and confirm actions.
 @MainActor
 enum PaletteCoordinator {
+    /// Content-search machinery: one searcher app-wide (a new palette
+    /// presentation cancels the previous query), debounce so we don't fire
+    /// a Spotlight query per keystroke.
+    private static let spotlight = SpotlightSearcher()
+    private static var debounce: Task<Void, Never>?
+    private static let deepScanID = "__deep_scan__"
+
     static func openFolders(_ palette: PaletteModel, session: SessionState) {
         palette.present(mode: .folders)
         let pane = session.activePane
@@ -37,6 +44,48 @@ enum PaletteCoordinator {
         }
     }
 
+    static func openContents(_ palette: PaletteModel, session: SessionState) {
+        palette.present(mode: .contents)
+        let pane = session.activePane
+        palette.targetPane = pane
+        let scope = pane.currentURL
+        palette.onQueryChange = { term, token in
+            debounce?.cancel()
+            debounce = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(300))
+                guard !Task.isCancelled, token == palette.presentToken else { return }
+                spotlight.search(term: term, in: scope) { urls in
+                    guard token == palette.presentToken else { return }
+                    var items = urls.prefix(PaletteModel.maxResults).map {
+                        PaletteItem(id: $0.path, title: $0.lastPathComponent,
+                                    subtitle: abbreviate($0.deletingLastPathComponent()))
+                    }
+                    if items.isEmpty, !term.trimmingCharacters(in: .whitespaces).isEmpty {
+                        items = [PaletteItem(
+                            id: deepScanID,
+                            title: "Deep Scan this folder…",
+                            subtitle: "Spotlight found nothing — read text files directly")]
+                    }
+                    palette.setItems(Array(items), token: token)
+                }
+            }
+        }
+    }
+
+    private static func runDeepScan(_ palette: PaletteModel, pane: PaneState) {
+        let token = palette.presentToken
+        let scope = pane.currentURL
+        let term = palette.query
+        Task.detached(priority: .userInitiated) {
+            let urls = ContentScanner.scan(root: scope, query: term)
+            let items = urls.map {
+                PaletteItem(id: $0.path, title: $0.lastPathComponent,
+                            subtitle: abbreviate($0.deletingLastPathComponent()))
+            }
+            await palette.setItems(items, token: token)
+        }
+    }
+
     static func openCommands(_ palette: PaletteModel, session: SessionState,
                              settings: SettingsModel) {
         palette.present(mode: .commands)
@@ -58,7 +107,14 @@ enum PaletteCoordinator {
         case .folders:
             let url = URL(fileURLWithPath: item.id)
             Task { await pane.navigate(to: url) }
-        case .files:
+        case .files, .contents:
+            if item.id == deepScanID {
+                // An in-palette action, not a navigation: reopen and swap in
+                // scanner results under the same token.
+                palette.undismiss()
+                runDeepScan(palette, pane: pane)
+                return
+            }
             let url = URL(fileURLWithPath: item.id)
             Task {
                 await pane.navigate(to: url.deletingLastPathComponent())
