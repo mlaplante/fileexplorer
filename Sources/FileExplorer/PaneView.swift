@@ -115,6 +115,11 @@ struct PaneView: View {
                         .frame(width: 16, height: 16)
                     Text(entry.name)
                         .lineLimit(1)
+                    if entry.isSymlink {
+                        Image(systemName: "arrow.triangle.turn.up.right.circle")
+                            .foregroundStyle(.secondary)
+                            .help("Symbolic link")
+                    }
                 }
                 .draggable(entry.url)
                 .onHover { hovering in

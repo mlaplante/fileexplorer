@@ -8,6 +8,7 @@ struct FileExplorerApp: App {
     private let palette = PaletteModel()
     private let renameModel = RenameSheetModel()
     private let batchRenameModel = BatchRenameModel()
+    private let volumesModel = VolumesModel()
     private let settings: SettingsModel
 
     init() {
@@ -54,7 +55,7 @@ struct FileExplorerApp: App {
         Window("FileExplorer", id: "main") {
             ZStack(alignment: .top) {
                 NavigationSplitView {
-                    SidebarView(session: session)
+                    SidebarView(session: session, volumesModel: volumesModel)
                         .navigationSplitViewColumnWidth(min: 160, ideal: 200)
                 } detail: {
                     TabContentView(session: session, renameModel: renameModel,
@@ -144,9 +145,14 @@ struct FileExplorerApp: App {
                 Divider()
                 Button("New Tab") { session.newTab() }
                     .keyboardShortcut("t", modifiers: .command)
-                Button("Close Tab") { session.closeTab(at: session.activeTabIndex) }
-                    .keyboardShortcut("w", modifiers: .command)
-                    .disabled(session.tabs.count == 1)
+                Button("Close Tab") {
+                    if session.tabs.count == 1 {
+                        NSApp.keyWindow?.performClose(nil)
+                    } else {
+                        session.closeTab(at: session.activeTabIndex)
+                    }
+                }
+                .keyboardShortcut("w", modifiers: .command)
             }
             CommandMenu("Go") {
                 Button("Back") { Task { await session.activePane.goBack() } }

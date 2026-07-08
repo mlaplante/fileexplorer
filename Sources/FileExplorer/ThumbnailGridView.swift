@@ -77,6 +77,13 @@ struct ThumbnailCell: View {
                 }
             }
             .frame(width: 96, height: 96)
+            .overlay(alignment: .bottomLeading) {
+                if entry.isSymlink {
+                    Image(systemName: "arrow.triangle.turn.up.right.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .background(.background, in: Circle())
+                }
+            }
             Text(entry.name)
                 .font(.caption)
                 .lineLimit(2)
