@@ -176,19 +176,7 @@ struct PaneView: View {
               sortOrder: $pane.sortOrder) {
             TableColumn("Name", value: \.name) { entry in
                 HStack(spacing: 6) {
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: entry.url.path))
-                        .resizable()
-                        .frame(width: 16, height: 16)
-                    Text(entry.name)
-                        .lineLimit(1)
-                    if entry.isSymlink {
-                        Image(systemName: "arrow.triangle.turn.up.right.circle")
-                            .foregroundStyle(.secondary)
-                            .help("Symbolic link")
-                    }
-                    if !entry.tags.isEmpty {
-                        TagDotsView(tags: entry.tags)
-                    }
+                    FileEntryLabel(entry: entry)
                     if let compareResult, let compareSide,
                        let badge = FolderComparator.badge(
                            for: entry.url.standardizedFileURL.path.replacingOccurrences(

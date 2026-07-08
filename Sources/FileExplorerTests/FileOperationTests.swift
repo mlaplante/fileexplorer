@@ -133,6 +133,31 @@ func fileOperationTests() async {
         }
     }
 
+    await test("copyAvoidingCollisions keeps generated names unique in one batch") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let left = dir.appendingPathComponent("left")
+        let right = dir.appendingPathComponent("right")
+        let dst = dir.appendingPathComponent("dst")
+        try fm.createDirectory(at: left, withIntermediateDirectories: false)
+        try fm.createDirectory(at: right, withIntermediateDirectories: false)
+        try fm.createDirectory(at: dst, withIntermediateDirectories: false)
+        try Data("left".utf8).write(to: left.appendingPathComponent("same.txt"))
+        try Data("right".utf8).write(to: right.appendingPathComponent("same.txt"))
+
+        let results = FileOperationService.copyAvoidingCollisions(
+            [left.appendingPathComponent("same.txt"),
+             right.appendingPathComponent("same.txt")],
+            into: dst)
+
+        let names = results.compactMap { result -> String? in
+            if case .success(let url) = result.outcome { return url.lastPathComponent }
+            return nil
+        }.sorted()
+        expectEqual(names, ["same copy.txt", "same.txt"],
+                    "batch outputs get distinct Finder-style names")
+    }
+
     await test("rename validates names and allows case-only changes") {
         let dir = try makeTempDir()
         defer { try? fm.removeItem(at: dir) }

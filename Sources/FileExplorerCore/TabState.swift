@@ -149,9 +149,7 @@ public final class TabState: Identifiable {
         await targetPane.reload()
         if !outcome.failures.isEmpty {
             targetPane.reportTagFailure(
-                outcome.failures.prefix(3).joined(separator: " ")
-                + (outcome.failures.count > 3
-                   ? " (+\(outcome.failures.count - 3) more)" : ""))
+                OperationFailureSummary.message(outcome.failures) ?? "")
         }
         // Refresh the comparison against the new on-disk state.
         await runCompare()

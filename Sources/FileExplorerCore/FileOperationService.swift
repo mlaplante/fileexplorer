@@ -126,6 +126,7 @@ public enum FileOperationService {
     public static func copyAvoidingCollisions(_ sources: [URL],
                                               into destination: URL) -> [ItemResult] {
         let fm = FileManager.default
+        var existing = Set((try? fm.contentsOfDirectory(atPath: destination.path)) ?? [])
         return sources.map { source in
             let sourcePath = source.standardizedFileURL.path
             let destinationPath = destination.standardizedFileURL.path
@@ -134,13 +135,12 @@ public enum FileOperationService {
                 return ItemResult(source: source, outcome: .failure(FileOpError(
                     "Can't put “\(source.lastPathComponent)” inside itself.")))
             }
-            let existing = Set(
-                (try? fm.contentsOfDirectory(atPath: destination.path)) ?? [])
             let name = CollisionNamer.copyName(for: source.lastPathComponent,
                                                existing: existing)
             let target = destination.appendingPathComponent(name)
             do {
                 try fm.copyItem(at: source, to: target)
+                existing.insert(name)
                 return ItemResult(source: source, outcome: .success(target))
             } catch {
                 return ItemResult(source: source, outcome: .failure(FileOpError(error)))

@@ -301,9 +301,8 @@ struct FileActions {
             }
         }
         await pane.reload()
-        if !failures.isEmpty {
-            pane.reportTagFailure(failures.prefix(3).joined(separator: " ")
-                + (failures.count > 3 ? " (+\(failures.count - 3) more)" : ""))
+        if let message = OperationFailureSummary.message(failures) {
+            pane.reportTagFailure(message)
         }
     }
 }

@@ -67,21 +67,7 @@ struct ColumnBrowserView: View {
     private var currentColumn: some View {
         List(selection: $pane.selection) {
             ForEach(pane.visibleEntries) { entry in
-                HStack(spacing: 6) {
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: entry.url.path))
-                        .resizable()
-                        .frame(width: 16, height: 16)
-                    Text(entry.name)
-                        .lineLimit(1)
-                    if entry.isSymlink {
-                        Image(systemName: "arrow.triangle.turn.up.right.circle")
-                            .foregroundStyle(.secondary)
-                            .help("Symbolic link")
-                    }
-                    if !entry.tags.isEmpty {
-                        TagDotsView(tags: entry.tags)
-                    }
-                }
+                FileEntryLabel(entry: entry)
                 .tag(entry.url)
                 .draggable(entry.url)
             }
@@ -95,12 +81,6 @@ struct ColumnBrowserView: View {
     }
 
     private func entryLabel(_ entry: FileEntry) -> some View {
-        HStack(spacing: 6) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: entry.url.path))
-                .resizable()
-                .frame(width: 16, height: 16)
-            Text(entry.name)
-                .lineLimit(1)
-        }
+        FileEntryLabel(entry: entry, showsTags: false)
     }
 }

@@ -385,9 +385,7 @@ public final class PaneState {
         }
         await reload()
         opErrorMessage = outcome.failures.isEmpty
-            ? nil
-            : outcome.failures.prefix(3).joined(separator: " ")
-                + (outcome.failures.count > 3 ? " (+\(outcome.failures.count - 3) more)" : "")
+            ? nil : OperationFailureSummary.message(outcome.failures)
         if !outcome.pairs.isEmpty {
             selection = Set(outcome.pairs.map { $0.to.standardizedFileURL })
         }
@@ -399,26 +397,7 @@ public final class PaneState {
         let results = await Task.detached(priority: .userInitiated) {
             ImageConverter.convert(urls, to: format, jpegQuality: quality)
         }.value
-        let created = results.compactMap { result -> URL? in
-            if case .success(let url) = result.outcome { return url }
-            return nil
-        }
-        let failures = results.compactMap { result -> String? in
-            if case .failure(let error) = result.outcome { return error.message }
-            return nil
-        }
-        if let undoManager, !created.isEmpty {
-            UndoRecorder.recordCreation(created, actionName: "Convert Image",
-                                        on: undoManager, pane: self)
-        }
-        await reload()
-        opErrorMessage = failures.isEmpty
-            ? nil
-            : failures.prefix(3).joined(separator: " ")
-                + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
-        if !created.isEmpty {
-            selection = Set(created.map { $0.standardizedFileURL })
-        }
+        await finishCreatedOutputs(results, actionName: "Convert Image") { $0.outcome }
     }
 
     public func resizeSelected(_ urls: [URL], mode: ImageResizer.Mode,
@@ -427,26 +406,7 @@ public final class PaneState {
         let results = await Task.detached(priority: .userInitiated) {
             ImageResizer.resize(urls, mode: mode, jpegQuality: quality)
         }.value
-        let created = results.compactMap { result -> URL? in
-            if case .success(let url) = result.outcome { return url }
-            return nil
-        }
-        let failures = results.compactMap { result -> String? in
-            if case .failure(let error) = result.outcome { return error.message }
-            return nil
-        }
-        if let undoManager, !created.isEmpty {
-            UndoRecorder.recordCreation(created, actionName: "Resize Image",
-                                        on: undoManager, pane: self)
-        }
-        await reload()
-        opErrorMessage = failures.isEmpty
-            ? nil
-            : failures.prefix(3).joined(separator: " ")
-                + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
-        if !created.isEmpty {
-            selection = Set(created.map { $0.standardizedFileURL })
-        }
+        await finishCreatedOutputs(results, actionName: "Resize Image") { $0.outcome }
     }
 
     public func compressSelected(_ urls: [URL]) async {
@@ -473,25 +433,7 @@ public final class PaneState {
             urls.map { (source: $0, result: Unarchiver.extract($0)) }
         }.value
         await reload()
-        let created = results.compactMap { item -> URL? in
-            if case .success(let url) = item.result { return url }
-            return nil
-        }
-        let failures = results.compactMap { item -> String? in
-            if case .failure(let error) = item.result { return error.message }
-            return nil
-        }
-        if let undoManager, !created.isEmpty {
-            UndoRecorder.recordCreation(created, actionName: "Extract",
-                                        on: undoManager, pane: self)
-        }
-        opErrorMessage = failures.isEmpty
-            ? nil
-            : failures.prefix(3).joined(separator: " ")
-                + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
-        if !created.isEmpty {
-            selection = Set(created.map { $0.standardizedFileURL })
-        }
+        finishCreatedOutputsAfterReload(results, actionName: "Extract") { $0.result }
     }
 
     /// Icon-grid click handling: Finder-style plain/⌘/⇧ semantics plus
@@ -541,6 +483,39 @@ public final class PaneState {
         let destination: URL
     }
 
+    private func finishCreatedOutputs<ResultItem>(
+        _ results: [ResultItem],
+        actionName: String,
+        outcome: (ResultItem) -> Result<URL, FileOperationService.FileOpError>
+    ) async {
+        await reload()
+        finishCreatedOutputsAfterReload(results, actionName: actionName,
+                                        outcome: outcome)
+    }
+
+    private func finishCreatedOutputsAfterReload<ResultItem>(
+        _ results: [ResultItem],
+        actionName: String,
+        outcome: (ResultItem) -> Result<URL, FileOperationService.FileOpError>
+    ) {
+        let created = results.compactMap { result -> URL? in
+            if case .success(let url) = outcome(result) { return url }
+            return nil
+        }
+        let failures = results.compactMap { result -> String? in
+            if case .failure(let error) = outcome(result) { return error.message }
+            return nil
+        }
+        if let undoManager, !created.isEmpty {
+            UndoRecorder.recordCreation(created, actionName: actionName,
+                                        on: undoManager, pane: self)
+        }
+        opErrorMessage = OperationFailureSummary.message(failures)
+        if !created.isEmpty {
+            selection = Set(created.map { $0.standardizedFileURL })
+        }
+    }
+
     private func finishOperation(
         results: [FileOperationService.ItemResult],
         recordUndo: ([OperationSuccess]) -> Void
@@ -558,12 +533,11 @@ public final class PaneState {
         if failures.isEmpty {
             opErrorMessage = nil
         } else {
-            let details = failures.prefix(3).compactMap { result -> String? in
+            let messages = failures.compactMap { result -> String? in
                 if case .failure(let error) = result.outcome { return error.message }
                 return nil
-            }.joined(separator: " ")
-            let suffix = failures.count > 3 ? " (+\(failures.count - 3) more)" : ""
-            opErrorMessage = details + suffix
+            }
+            opErrorMessage = OperationFailureSummary.message(messages)
         }
         recordUndo(successes)
     }
