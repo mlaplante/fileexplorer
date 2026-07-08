@@ -18,6 +18,9 @@ public final class PaneState {
     /// Transient (not persisted); the resolver degrades to plain-click when
     /// the anchor is no longer in visibleEntries.
     @ObservationIgnored public var selectionAnchor: URL?
+    /// Selection as of the last non-shift click; shift-ranges recompute from
+    /// this pivot so they can shrink as well as grow (Finder behavior).
+    @ObservationIgnored public var selectionPivot = Set<URL>()
     public var sortOrder: [KeyPathComparator<FileEntry>] = [
         KeyPathComparator(\FileEntry.name, comparator: .localizedStandard)
     ] {
@@ -335,6 +338,24 @@ public final class PaneState {
             selection = [archive.standardizedFileURL]
         case .failure(let error):
             opErrorMessage = error.message
+        }
+    }
+
+    /// Icon-grid click handling: Finder-style plain/⌘/⇧ semantics plus
+    /// anchor+pivot bookkeeping. A ⇧-click whose anchor is missing or stale
+    /// degrades to a plain click AND establishes the anchor, so a range can
+    /// start from a shift-click.
+    public func clickSelect(_ url: URL, commandDown: Bool, shiftDown: Bool) {
+        let ordered = visibleEntries.map(\.url)
+        let anchorUsable = shiftDown && !commandDown
+            && selectionAnchor.map(ordered.contains) == true
+        selection = SelectionResolver.resolve(
+            clicked: url, in: ordered, current: selection,
+            baseline: selectionPivot, anchor: selectionAnchor,
+            commandDown: commandDown, shiftDown: shiftDown)
+        if !anchorUsable {
+            selectionAnchor = url
+            selectionPivot = selection
         }
     }
 

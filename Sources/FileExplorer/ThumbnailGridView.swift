@@ -109,16 +109,9 @@ struct ThumbnailGridView: View {
                         })
                         .simultaneousGesture(TapGesture(count: 1).onEnded {
                             let flags = NSEvent.modifierFlags
-                            pane.selection = SelectionResolver.resolve(
-                                clicked: entry.url,
-                                in: pane.visibleEntries.map(\.url),
-                                current: pane.selection,
-                                anchor: pane.selectionAnchor,
-                                commandDown: flags.contains(.command),
-                                shiftDown: flags.contains(.shift))
-                            if !flags.contains(.shift) {
-                                pane.selectionAnchor = entry.url
-                            }
+                            pane.clickSelect(entry.url,
+                                             commandDown: flags.contains(.command),
+                                             shiftDown: flags.contains(.shift))
                         })
                         .contextMenu {
                             actions.menu(for: pane.selection.contains(entry.url)
