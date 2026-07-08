@@ -23,6 +23,7 @@ await batchToolsTests()
 await paneBatchToolsTests()
 await sessionSnapshotTests()
 await sessionPersisterTests()
+await sessionAutosaverTests()
 await fuzzyMatcherTests()
 
 finish()
