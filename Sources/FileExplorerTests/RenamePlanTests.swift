@@ -61,4 +61,25 @@ func renamePlanTests() async {
         expectEqual(items[0].conflict, .unchanged,
                     "unchanged flagged (not existingFile, even though it exists)")
     }
+
+    await test("plan allows targets vacated by the batch, blocks outside holders") {
+        let a = URL(fileURLWithPath: "/t/a.txt")
+        let ax = URL(fileURLWithPath: "/t/ax.txt")
+        var rules = RenameRules()
+        rules.suffix = "x"
+
+        let plan = RenamePlan.plan(urls: [a, ax], rules: rules,
+                                   existingNames: ["a.txt", "ax.txt"])
+        expectEqual(plan[0].newName, "ax.txt", "suffix applied to first item")
+        expect(plan[0].conflict == nil,
+               "in-batch vacated name is not a conflict")
+        expectEqual(plan[1].newName, "axx.txt", "second item moves away")
+        expect(plan[1].conflict == nil, "vacating item itself is clean")
+
+        // Same target, but the holder is NOT in the batch → still blocked.
+        let blocked = RenamePlan.plan(urls: [a], rules: rules,
+                                      existingNames: ["a.txt", "ax.txt"])
+        expectEqual(blocked[0].conflict, .existingFile,
+                    "outside-holder target stays blocked")
+    }
 }

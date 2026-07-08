@@ -30,6 +30,12 @@ public enum RenamePlan {
         public let source: URL
         public let newName: String
         public let conflict: Conflict?
+
+        public init(source: URL, newName: String, conflict: Conflict?) {
+            self.source = source
+            self.newName = newName
+            self.conflict = conflict
+        }
     }
 
     public static func plan(urls: [URL], rules: RenameRules,
@@ -59,6 +65,11 @@ public enum RenamePlan {
             targetCounts[name, default: 0] += 1
         }
 
+        // Names the batch itself is renaming away; a target equal to one of
+        // these is legal (two-phase execution makes the handoff safe).
+        let vacated = Set(proposals.filter { $0.0.lastPathComponent != $0.1 }
+            .map { $0.0.lastPathComponent })
+
         return proposals.map { source, newName in
             let conflict: Conflict?
             if newName.isEmpty || newName.contains("/")
@@ -68,7 +79,7 @@ public enum RenamePlan {
                 conflict = .unchanged
             } else if targetCounts[newName, default: 0] > 1 {
                 conflict = .duplicateTarget
-            } else if existingNames.contains(newName) {
+            } else if existingNames.contains(newName), !vacated.contains(newName) {
                 conflict = .existingFile
             } else {
                 conflict = nil

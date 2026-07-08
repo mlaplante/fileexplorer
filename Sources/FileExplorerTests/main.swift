@@ -27,6 +27,7 @@ await sessionAutosaverTests()
 await selectionResolverTests()
 await dropDecisionTests()
 await settingsModelTests()
+await renameExecutorTests()
 await fuzzyMatcherTests()
 
 finish()

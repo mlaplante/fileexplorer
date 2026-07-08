@@ -268,34 +268,18 @@ public final class PaneState {
     public func batchRename(_ urls: [URL], rules: RenameRules) async {
         let existing = Set(entries.map(\.name))
         let plan = RenamePlan.plan(urls: urls, rules: rules, existingNames: existing)
-        var pairs: [(from: URL, to: URL)] = []
-        var failures: [String] = []
-        for item in plan {
-            switch item.conflict {
-            case .unchanged:
-                continue
-            case .some(let conflict):
-                failures.append("“\(item.source.lastPathComponent)” skipped (\(conflict)).")
-            case nil:
-                switch FileOperationService.rename(item.source, to: item.newName) {
-                case .success(let newURL):
-                    pairs.append((from: item.source, to: newURL))
-                case .failure(let error):
-                    failures.append(error.message)
-                }
-            }
-        }
-        if let undoManager, !pairs.isEmpty {
-            UndoRecorder.recordMove(pairs, actionName: "Batch Rename",
+        let outcome = RenameExecutor.execute(plan)
+        if let undoManager, !outcome.pairs.isEmpty {
+            UndoRecorder.recordMove(outcome.pairs, actionName: "Batch Rename",
                                     on: undoManager, pane: self)
         }
         await reload()
-        opErrorMessage = failures.isEmpty
+        opErrorMessage = outcome.failures.isEmpty
             ? nil
-            : failures.prefix(3).joined(separator: " ")
-                + (failures.count > 3 ? " (+\(failures.count - 3) more)" : "")
-        if !pairs.isEmpty {
-            selection = Set(pairs.map { $0.to.standardizedFileURL })
+            : outcome.failures.prefix(3).joined(separator: " ")
+                + (outcome.failures.count > 3 ? " (+\(outcome.failures.count - 3) more)" : "")
+        if !outcome.pairs.isEmpty {
+            selection = Set(outcome.pairs.map { $0.to.standardizedFileURL })
         }
     }
 
