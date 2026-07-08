@@ -67,6 +67,18 @@ struct SidebarView: View {
             .dropDestination(for: URL.self) { urls, _ in
                 addDroppedFavorites(urls)
             }
+            if !recentPlaces.isEmpty {
+                Section("Recents") {
+                    ForEach(recentPlaces) { place in
+                        row(place)
+                    }
+                    .contextMenu {
+                        Button("Clear Recents") {
+                            session.clearRecentFolders()
+                        }
+                    }
+                }
+            }
             Section("Volumes") {
                 ForEach(volumesModel.volumes) { place in row(place) }
             }
@@ -105,6 +117,14 @@ struct SidebarView: View {
                 systemImage: "folder")
         }
         return builtIns + userPlaces
+    }
+
+    private var builtInFavoritePaths: Set<String> {
+        Set(StandardPlaces.favorites().map { $0.url.standardizedFileURL.path })
+    }
+
+    private var recentPlaces: [StandardPlaces.Place] {
+        session.recentPlaces(limit: 8, excluding: builtInFavoritePaths)
     }
 
     private func row(_ place: StandardPlaces.Place) -> some View {

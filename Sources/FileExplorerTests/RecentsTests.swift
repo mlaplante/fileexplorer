@@ -86,4 +86,45 @@ func recentsTests() async {
         expectEqual(session.recentFolders, afterForward,
                     "boundary goForward leaves recents unchanged")
     }
+
+    await test("clearRecentFolders empties recents and snapshot stays empty") {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let sub = dir.appendingPathComponent("sub")
+        try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: false)
+
+        let session = SessionState(url: dir)
+        await session.activePane.navigate(to: sub)
+        expect(!session.recentFolders.isEmpty, "recent recorded")
+
+        session.clearRecentFolders()
+        expect(session.recentFolders.isEmpty, "recents cleared")
+
+        let restored = SessionState(snapshot: session.snapshot(), fallback: dir)
+        expect(restored.recentFolders.isEmpty, "snapshot round-trip stays empty")
+    }
+
+    await test("recentPlaces caps, excludes, and preserves MRU order") {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let session = SessionState(url: dir)
+        var folders: [URL] = []
+        for index in 0..<10 {
+            let sub = dir.appendingPathComponent("d\(index)")
+            try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: false)
+            folders.append(sub)
+            await session.activePane.navigate(to: sub)
+        }
+
+        let excluded = Set([folders[9].standardizedFileURL.path,
+                            folders[4].standardizedFileURL.path])
+        let places = session.recentPlaces(limit: 8, excluding: excluded)
+
+        expectEqual(places.count, 8, "limit applied after exclusions")
+        expectEqual(places.map { $0.url.standardizedFileURL },
+                    [folders[8], folders[7], folders[6], folders[5],
+                     folders[3], folders[2], folders[1], folders[0]]
+                        .map { $0.standardizedFileURL },
+                    "MRU order preserved with exclusions removed")
+    }
 }

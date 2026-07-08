@@ -71,6 +71,23 @@ public final class SessionState {
         }
     }
 
+    public func clearRecentFolders() {
+        recentFolders.removeAll()
+    }
+
+    public func recentPlaces(limit: Int,
+                             excluding excludedPaths: Set<String>) -> [StandardPlaces.Place] {
+        recentFolders.compactMap { url -> StandardPlaces.Place? in
+            let standardized = url.standardizedFileURL
+            guard !excludedPaths.contains(standardized.path),
+                  Self.isExistingFolder(standardized) else { return nil }
+            return StandardPlaces.Place(
+                name: FileManager.default.displayName(atPath: standardized.path),
+                url: standardized,
+                systemImage: "clock")
+        }.prefix(limit).map { $0 }
+    }
+
     public func isFavoriteFolder(_ url: URL) -> Bool {
         let path = url.standardizedFileURL.path
         return favoriteFolders.contains { $0.standardizedFileURL.path == path }
