@@ -12,6 +12,7 @@ and SwiftUI on top of Swift Package Manager.
 
 - Preview pane with metadata and large previews, toggled with `⌥⌘P`.
 - Sort By and Group By menus for list and icon views.
+- Finder-style inline folder expansion in list view, with per-level sort and filter.
 - Share from the file context menu, including AirDrop through macOS sharing services.
 - Put Back for items moved to Trash by FileExplorer.
 - Tags and Recents in the sidebar, with tag clicks filtering the active pane.
@@ -76,6 +77,8 @@ All assertions should report PASS.
 | ⌥⌘P | Preview Pane |
 | ⌘Y / Space | Quick Look |
 | ⌘O / ⌘↓ | Open |
+| → / ⌥→ | Expand selected folder inline / expand entire subtree (list view) |
+| ← | Collapse selected folder, or jump to parent row (list view) |
 | ⇧⌘N | New folder |
 | ⌥⌘N | New file |
 | ⌘C / ⌘V | Copy / paste files (⌥⌘V moves) |
