@@ -53,7 +53,19 @@ struct SidebarView: View {
     var body: some View {
         List {
             Section("Favorites") {
-                ForEach(StandardPlaces.favorites()) { place in row(place) }
+                ForEach(favoritePlaces) { place in
+                    row(place)
+                        .contextMenu {
+                            if session.isFavoriteFolder(place.url) {
+                                Button("Unfavorite") {
+                                    session.removeFavoriteFolder(place.url)
+                                }
+                            }
+                        }
+                }
+            }
+            .dropDestination(for: URL.self) { urls, _ in
+                addDroppedFavorites(urls)
             }
             Section("Volumes") {
                 ForEach(volumesModel.volumes) { place in row(place) }
@@ -80,6 +92,21 @@ struct SidebarView: View {
         .listStyle(.sidebar)
     }
 
+    private var favoritePlaces: [StandardPlaces.Place] {
+        let builtIns = StandardPlaces.favorites()
+        var seen = Set(builtIns.map { $0.url.standardizedFileURL.path })
+        let userPlaces = session.favoriteFolders.compactMap { url -> StandardPlaces.Place? in
+            let standardized = url.standardizedFileURL
+            guard seen.insert(standardized.path).inserted,
+                  isFolder(standardized) else { return nil }
+            return StandardPlaces.Place(
+                name: FileManager.default.displayName(atPath: standardized.path),
+                url: standardized,
+                systemImage: "folder")
+        }
+        return builtIns + userPlaces
+    }
+
     private func row(_ place: StandardPlaces.Place) -> some View {
         let isCurrent = place.url.standardizedFileURL.path
             == session.activePane.currentURL.path
@@ -101,5 +128,20 @@ struct SidebarView: View {
         pane.filter = preset.filter
         pane.filterExtensionsText = preset.filter.extensions.sorted()
             .joined(separator: ", ")
+    }
+
+    private func addDroppedFavorites(_ urls: [URL]) -> Bool {
+        let folders = urls.filter { isFolder($0) }
+        for folder in folders {
+            _ = session.addFavoriteFolder(folder)
+        }
+        return !folders.isEmpty
+    }
+
+    private func isFolder(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path,
+                                              isDirectory: &isDirectory)
+            && isDirectory.boolValue
     }
 }

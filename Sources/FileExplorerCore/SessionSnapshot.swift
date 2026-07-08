@@ -155,15 +155,19 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
     public var tabs: [Tab]
     public var activeTabIndex: Int
     public var recentFolders: [String]
+    public var favoriteFolders: [String]
 
     public init(tabs: [Tab], activeTabIndex: Int = 0,
-                recentFolders: [String] = []) {
+                recentFolders: [String] = [], favoriteFolders: [String] = []) {
         self.tabs = tabs
         self.activeTabIndex = activeTabIndex
         self.recentFolders = recentFolders
+        self.favoriteFolders = favoriteFolders
     }
 
-    enum CodingKeys: String, CodingKey { case tabs, activeTabIndex, recentFolders }
+    enum CodingKeys: String, CodingKey {
+        case tabs, activeTabIndex, recentFolders, favoriteFolders
+    }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -172,5 +176,7 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
             Int.self, forKey: .activeTabIndex) ?? 0
         recentFolders = try container.decodeIfPresent(
             [String].self, forKey: .recentFolders) ?? []
+        favoriteFolders = try container.decodeIfPresent(
+            [String].self, forKey: .favoriteFolders) ?? []
     }
 }

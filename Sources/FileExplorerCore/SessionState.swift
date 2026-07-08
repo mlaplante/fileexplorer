@@ -12,6 +12,7 @@ public final class SessionState {
     /// Most-recently-visited folders across all tabs/panes, newest first.
     public private(set) var recentFolders: [URL] = []
     private static let recentsCap = 30
+    public private(set) var favoriteFolders: [URL] = []
 
     public init(url: URL) {
         tabs = []
@@ -32,6 +33,9 @@ public final class SessionState {
             activeTabIndex = max(0, min(snapshot.activeTabIndex, tabs.count - 1))
         }
         recentFolders = snapshot.recentFolders.map { URL(fileURLWithPath: $0) }
+        favoriteFolders = Self.dedupedFolders(snapshot.favoriteFolders.map {
+            URL(fileURLWithPath: $0)
+        })
     }
 
     public var activeTab: TabState {
@@ -43,7 +47,8 @@ public final class SessionState {
     public func snapshot() -> SessionSnapshot {
         SessionSnapshot(tabs: tabs.map { $0.snapshot() },
                         activeTabIndex: activeTabIndex,
-                        recentFolders: recentFolders.map(\.path))
+                        recentFolders: recentFolders.map(\.path),
+                        favoriteFolders: favoriteFolders.map(\.path))
     }
 
     /// New tab opens at the current active pane's folder (like Finder/WhimFiles).
@@ -64,6 +69,52 @@ public final class SessionState {
         if recentFolders.count > Self.recentsCap {
             recentFolders.removeLast(recentFolders.count - Self.recentsCap)
         }
+    }
+
+    public func isFavoriteFolder(_ url: URL) -> Bool {
+        let path = url.standardizedFileURL.path
+        return favoriteFolders.contains { $0.standardizedFileURL.path == path }
+    }
+
+    @discardableResult
+    public func addFavoriteFolder(_ url: URL) -> Bool {
+        let standardized = url.standardizedFileURL
+        guard Self.isExistingFolder(standardized),
+              !isFavoriteFolder(standardized) else { return false }
+        favoriteFolders = favoriteFolders + [standardized]
+        return true
+    }
+
+    public func removeFavoriteFolder(_ url: URL) {
+        let path = url.standardizedFileURL.path
+        favoriteFolders = favoriteFolders.filter {
+            $0.standardizedFileURL.path != path
+        }
+    }
+
+    public func toggleFavoriteFolder(_ url: URL) {
+        if isFavoriteFolder(url) {
+            removeFavoriteFolder(url)
+        } else {
+            _ = addFavoriteFolder(url)
+        }
+    }
+
+    private static func dedupedFolders(_ urls: [URL]) -> [URL] {
+        var seen = Set<String>()
+        return urls.compactMap { url in
+            let standardized = url.standardizedFileURL
+            guard isExistingFolder(standardized),
+                  seen.insert(standardized.path).inserted else { return nil }
+            return standardized
+        }
+    }
+
+    private static func isExistingFolder(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path,
+                                              isDirectory: &isDirectory)
+            && isDirectory.boolValue
     }
 
     public func selectTab(_ index: Int) {

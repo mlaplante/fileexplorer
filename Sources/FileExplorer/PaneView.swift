@@ -4,6 +4,7 @@ import AppKit
 
 struct PaneView: View {
     @Bindable var pane: PaneState
+    @Bindable var session: SessionState
     var otherPane: PaneState?
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
@@ -25,14 +26,16 @@ struct PaneView: View {
                 if pane.viewMode == .icons {
                     ThumbnailGridView(
                         pane: pane,
-                        actions: FileActions(pane: pane, otherPane: otherPane,
+                        actions: FileActions(pane: pane, session: session,
+                                             otherPane: otherPane,
                                              renameModel: renameModel,
                                              batchRenameModel: batchRenameModel,
                                              settings: settings)) { open($0) }
                 } else if pane.viewMode == .columns {
                     ColumnBrowserView(
                         pane: pane,
-                        actions: FileActions(pane: pane, otherPane: otherPane,
+                        actions: FileActions(pane: pane, session: session,
+                                             otherPane: otherPane,
                                              renameModel: renameModel,
                                              batchRenameModel: batchRenameModel,
                                              settings: settings)) { open($0) }
@@ -246,7 +249,8 @@ struct PaneView: View {
             }
         }
         .contextMenu(forSelectionType: URL.self) { urls in
-            FileActions(pane: pane, otherPane: otherPane,
+            FileActions(pane: pane, session: session,
+                        otherPane: otherPane,
                         renameModel: renameModel,
                         batchRenameModel: batchRenameModel,
                         settings: settings).menu(for: urls)

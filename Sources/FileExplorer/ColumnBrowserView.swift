@@ -83,6 +83,7 @@ struct ColumnBrowserView: View {
                     }
                 }
                 .tag(entry.url)
+                .draggable(entry.url)
             }
         }
         .frame(width: 220)

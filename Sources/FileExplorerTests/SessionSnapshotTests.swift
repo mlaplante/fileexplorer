@@ -85,10 +85,13 @@ func sessionSnapshotTests() async {
         session.activePane.viewMode = .icons
         session.activePane.filter.preset = .images
         session.activePane.filterExtensionsText = "png, jpg"
+        _ = session.addFavoriteFolder(home)
 
         let snapshot = session.snapshot()
         expectEqual(snapshot.tabs.count, 2, "two tabs captured")
         expectEqual(snapshot.activeTabIndex, 1, "active tab captured")
+        expectEqual(snapshot.favoriteFolders, ["/tmp"],
+                    "favorite folders captured as paths")
         expectEqual(snapshot.tabs[0].panes.count, 2, "dual pane captured")
         expectEqual(snapshot.tabs[0].activePaneIndex, 1, "active pane captured")
 
@@ -130,6 +133,8 @@ func sessionSnapshotTests() async {
         expectEqual(pane.filter, FilterState(), "missing filter defaults to empty")
         expect(pane.sort.isEmpty, "missing sort defaults to empty tokens")
         expect(decoded.recentFolders.isEmpty, "missing recents default to empty")
+        expect(decoded.favoriteFolders.isEmpty,
+               "missing favorite folders default to empty")
     }
 
     await test("restore rebuilds the session graph") {
@@ -163,6 +168,26 @@ func sessionSnapshotTests() async {
         expect(pane.sortOrder[0].keyPath == \FileEntry.modified,
                "sort field restored")
         expectEqual(pane.sortOrder[0].order, .reverse, "sort direction restored")
+    }
+
+    await test("restore rebuilds favorite folders and drops invalid entries") {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory
+            .appendingPathComponent("favorite-restore-\(UUID().uuidString)")
+        let folder = root.appendingPathComponent("Keep")
+        let file = root.appendingPathComponent("skip.txt")
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data().write(to: file)
+        defer { try? fm.removeItem(at: root) }
+
+        let snapshot = SessionSnapshot(
+            tabs: [SessionSnapshot.Tab(panes: [SessionSnapshot.Pane(path: "/tmp")])],
+            favoriteFolders: [folder.path, folder.path, file.path, "/no/such/folder"])
+        let restored = SessionState(snapshot: snapshot,
+                                    fallback: URL(fileURLWithPath: "/tmp"))
+        expectEqual(restored.favoriteFolders.map(\.path),
+                    [folder.standardizedFileURL.path],
+                    "only existing folder favorites restore once")
     }
 
     await test("restore falls back to nearest existing ancestor") {

@@ -7,6 +7,7 @@ import FileExplorerCore
 @MainActor
 struct FileActions {
     let pane: PaneState
+    let session: SessionState
     let otherPane: PaneState?
     let renameModel: RenameSheetModel
     let batchRenameModel: BatchRenameModel
@@ -16,6 +17,7 @@ struct FileActions {
     func menu(for urls: Set<URL>) -> some View {
         let targets = Array(urls)
         openSection(targets: targets)
+        favoriteSection(targets: targets)
         clipboardSection(targets: targets)
         tagsSection(targets: targets)
         Divider()
@@ -65,6 +67,22 @@ struct FileActions {
             NSWorkspace.shared.activateFileViewerSelecting(targets)
         }
         .disabled(targets.isEmpty)
+    }
+
+    @ViewBuilder
+    private func favoriteSection(targets: [URL]) -> some View {
+        let folders = targets.filter { isFolder($0) }
+        if folders.count == 1, let folder = folders.first {
+            Button(session.isFavoriteFolder(folder) ? "Unfavorite" : "Favorite") {
+                session.toggleFavoriteFolder(folder)
+            }
+        } else if !folders.isEmpty {
+            Button("Favorite") {
+                for folder in folders {
+                    _ = session.addFavoriteFolder(folder)
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -258,6 +276,13 @@ struct FileActions {
 
     private func appDisplayName(_ app: URL) -> String {
         FileManager.default.displayName(atPath: app.path)
+    }
+
+    private func isFolder(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path,
+                                              isDirectory: &isDirectory)
+            && isDirectory.boolValue
     }
 
     private func openWith(_ urls: [URL], app: URL) {

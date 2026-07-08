@@ -62,7 +62,8 @@ struct TabContentView: View {
         VStack(spacing: 0) {
             TabBarView(session: session)
             Divider()
-            PaneAreaView(tab: session.activeTab, renameModel: renameModel,
+            PaneAreaView(session: session, tab: session.activeTab,
+                         renameModel: renameModel,
                          batchRenameModel: batchRenameModel,
                          syncPreview: syncPreview, settings: settings)
         }
@@ -76,6 +77,7 @@ struct TabContentView: View {
 
 /// Single- or dual-pane area for one tab, with active-pane highlight.
 struct PaneAreaView: View {
+    @Bindable var session: SessionState
     @Bindable var tab: TabState
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
@@ -122,6 +124,7 @@ struct PaneAreaView: View {
                       ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
                 .frame(height: 2)
             PaneView(pane: paneState,
+                     session: session,
                      otherPane: tab.isDual ? tab.panes[1 - index] : nil,
                      renameModel: renameModel,
                      batchRenameModel: batchRenameModel,

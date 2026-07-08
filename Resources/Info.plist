@@ -2,27 +2,27 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key>
-    <string>FileExplorer</string>
-    <key>CFBundleDisplayName</key>
-    <string>FileExplorer</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.mlaplante.FileExplorer</string>
-    <key>CFBundleExecutable</key>
-    <string>FileExplorer</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>3.0.1</string>
-    <key>CFBundleVersion</key>
-    <string>4</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>15.0</string>
-    <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>CFBundleIconFile</key>
-    <string>FileExplorer</string>
+	<key>CFBundleDisplayName</key>
+	<string>FileExplorer</string>
+	<key>CFBundleExecutable</key>
+	<string>FileExplorer</string>
+	<key>CFBundleIconFile</key>
+	<string>FileExplorer</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.mlaplante.FileExplorer</string>
+	<key>CFBundleName</key>
+	<string>FileExplorer</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>3.0.2</string>
+	<key>CFBundleVersion</key>
+	<string>5</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>15.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
 </dict>
 </plist>

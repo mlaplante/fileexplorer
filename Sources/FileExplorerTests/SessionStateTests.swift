@@ -49,4 +49,29 @@ func sessionStateTests() async {
         expect(session.activePane === session.tabs[1].panes[0],
                "activePane follows new tab")
     }
+
+    await test("SessionState toggles and dedupes favorite folders") {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory
+            .appendingPathComponent("favorites-\(UUID().uuidString)")
+        let folder = root.appendingPathComponent("Pinned")
+        let file = root.appendingPathComponent("note.txt")
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data().write(to: file)
+        defer { try? fm.removeItem(at: root) }
+
+        let session = SessionState(url: home)
+        expect(session.addFavoriteFolder(folder), "folder can be favorited")
+        expect(!session.addFavoriteFolder(folder),
+               "duplicate favorite is ignored")
+        expect(!session.addFavoriteFolder(file),
+               "files cannot be added as folder favorites")
+        expectEqual(session.favoriteFolders.map(\.path), [folder.standardizedFileURL.path],
+                    "one standardized favorite stored")
+
+        session.toggleFavoriteFolder(folder)
+        expect(session.favoriteFolders.isEmpty, "toggle removes existing favorite")
+        session.toggleFavoriteFolder(folder)
+        expect(session.isFavoriteFolder(folder), "toggle adds missing favorite")
+    }
 }
