@@ -67,5 +67,6 @@ await gridNavigatorTests()
 await springLoadTests()
 await gitStatusParserTests()
 await gitStatusIndexTests()
+await gitRepoLocatorTests()
 
 finish()
