@@ -235,77 +235,82 @@ struct FileExplorerApp: App {
         }
         .commands {
             GetInfoCommands(settings: settings)
-            CommandMenu("Network") {
-                Button("Connect to Server…") {
-                    connectServerModel.present()
-                }
-                .keyboardShortcut("k", modifiers: .command)
-            }
-            CommandMenu("Workspace") {
-                Button("Save Workspace…") {
-                    let formatter = DateFormatter()
-                    formatter.dateStyle = .short
-                    formatter.timeStyle = .short
-                    workspaceProfileModel.present(
-                        defaultName: "Workspace \(formatter.string(from: Date()))")
-                }
-                if !settings.settings.workspaceProfiles.isEmpty {
-                    Divider()
-                    ForEach(settings.settings.workspaceProfiles) { profile in
-                        Button("Restore \(profile.name)") {
-                            session.restoreWorkspace(
-                                profile,
-                                fallback: FileManager.default.homeDirectoryForCurrentUser)
-                        }
+            // Grouped so the top-level CommandsBuilder stays within the
+            // 10-argument buildBlock cap of older SDKs (CI's Xcode rejects
+            // an 11th entry with "extra argument in call").
+            Group {
+                CommandMenu("Network") {
+                    Button("Connect to Server…") {
+                        connectServerModel.present()
                     }
-                    Divider()
-                    ForEach(settings.settings.workspaceProfiles) { profile in
-                        Button("Delete \(profile.name)") {
-                            settings.deleteWorkspaceProfile(name: profile.name)
-                        }
+                    .keyboardShortcut("k", modifiers: .command)
+                }
+                CommandMenu("Workspace") {
+                    Button("Save Workspace…") {
+                        let formatter = DateFormatter()
+                        formatter.dateStyle = .short
+                        formatter.timeStyle = .short
+                        workspaceProfileModel.present(
+                            defaultName: "Workspace \(formatter.string(from: Date()))")
                     }
-                }
-            }
-            CommandMenu("Smart Folders") {
-                Button("Save Current Filter as Smart Folder…") {
-                    let pane = session.activePane
-                    pane.saveSmartFolderNameDraft = pane.currentURL.lastPathComponent
-                    pane.showsSaveSmartFolderPopover = true
-                }
-                .disabled(!session.activePane.filter.isActive)
-                if !settings.settings.smartFolders.isEmpty {
-                    Divider()
-                    ForEach(settings.settings.smartFolders) { smartFolder in
-                        Button("Open \(smartFolder.name)") {
-                            Task {
-                                await session.activePane.applySmartFolder(smartFolder)
+                    if !settings.settings.workspaceProfiles.isEmpty {
+                        Divider()
+                        ForEach(settings.settings.workspaceProfiles) { profile in
+                            Button("Restore \(profile.name)") {
+                                session.restoreWorkspace(
+                                    profile,
+                                    fallback: FileManager.default.homeDirectoryForCurrentUser)
+                            }
+                        }
+                        Divider()
+                        ForEach(settings.settings.workspaceProfiles) { profile in
+                            Button("Delete \(profile.name)") {
+                                settings.deleteWorkspaceProfile(name: profile.name)
                             }
                         }
                     }
-                    Divider()
-                    ForEach(settings.settings.smartFolders) { smartFolder in
-                        Button("Delete \(smartFolder.name)") {
-                            settings.deleteSmartFolder(name: smartFolder.name)
+                }
+                CommandMenu("Smart Folders") {
+                    Button("Save Current Filter as Smart Folder…") {
+                        let pane = session.activePane
+                        pane.saveSmartFolderNameDraft = pane.currentURL.lastPathComponent
+                        pane.showsSaveSmartFolderPopover = true
+                    }
+                    .disabled(!session.activePane.filter.isActive)
+                    if !settings.settings.smartFolders.isEmpty {
+                        Divider()
+                        ForEach(settings.settings.smartFolders) { smartFolder in
+                            Button("Open \(smartFolder.name)") {
+                                Task {
+                                    await session.activePane.applySmartFolder(smartFolder)
+                                }
+                            }
+                        }
+                        Divider()
+                        ForEach(settings.settings.smartFolders) { smartFolder in
+                            Button("Delete \(smartFolder.name)") {
+                                settings.deleteSmartFolder(name: smartFolder.name)
+                            }
                         }
                     }
                 }
-            }
-            CommandMenu("Tools") {
-                Button("Analyze Disk Usage…") {
-                    usageModel.present(root: session.activePane.currentURL,
-                                       pane: session.activePane)
-                }
-                Button("Find Duplicates…") {
-                    duplicatesModel.present(root: session.activePane.currentURL,
-                                            pane: session.activePane)
-                }
-                Divider()
-                Button("Browse Archive…") {
-                    if let archive = WorkflowActions.singleSelectedArchive(in: session.activePane) {
-                        archiveBrowser.open(archive: archive)
+                CommandMenu("Tools") {
+                    Button("Analyze Disk Usage…") {
+                        usageModel.present(root: session.activePane.currentURL,
+                                           pane: session.activePane)
                     }
+                    Button("Find Duplicates…") {
+                        duplicatesModel.present(root: session.activePane.currentURL,
+                                                pane: session.activePane)
+                    }
+                    Divider()
+                    Button("Browse Archive…") {
+                        if let archive = WorkflowActions.singleSelectedArchive(in: session.activePane) {
+                            archiveBrowser.open(archive: archive)
+                        }
+                    }
+                    .disabled(WorkflowActions.singleSelectedArchive(in: session.activePane) == nil)
                 }
-                .disabled(WorkflowActions.singleSelectedArchive(in: session.activePane) == nil)
             }
             CommandGroup(replacing: .pasteboard) {
                 Button("Cut") {
