@@ -140,10 +140,9 @@ private enum UsageScanRunner {
         // Reused across every entry: constructing this from `rootPrefix` per
         // entry (250k+ times on a full scan) dominated the hot path.
         let childBaseURL = URL(fileURLWithPath: rootPrefix)
-        // Keyed by top-level path component name; the deep/wide fixture has
-        // orders of magnitude more entries than distinct top-level children,
-        // so caching the standardized ancestor URL turns O(entries) URL
-        // construction into O(distinct top-level children).
+        // Real trees have orders of magnitude more descendants than
+        // top-level children, so ancestor URLs repeat constantly; cache
+        // them by name.
         var childURLCache: [String: URL] = [:]
         let keys: [URLResourceKey] = [
             .isDirectoryKey,
@@ -221,6 +220,8 @@ private enum UsageScanRunner {
     /// caller must not recompute it), and ancestor URLs are cached by name
     /// since a scan revisits the same handful of top-level children for
     /// every descendant entry.
+    /// Callers must supply a cache scoped to a single rootPrefix — entries
+    /// are keyed by name only.
     private static func immediateChild(
         for url: URL, rootPrefix: String, childBaseURL: URL,
         cache: inout [String: URL]
