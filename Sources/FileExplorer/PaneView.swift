@@ -277,6 +277,13 @@ struct PaneView: View {
                 Text(availableSpaceText)
                     .lineLimit(1)
             }
+            if let git = pane.gitStatus.index,
+               let branchLabel = git.branchLabel {
+                Text(git.changedCount == 0
+                     ? "⎇ \(branchLabel)"
+                     : "⎇ \(branchLabel) · \(git.changedCount) changed")
+                    .lineLimit(1)
+            }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -298,7 +305,10 @@ struct PaneView: View {
                             .padding(.leading,
                                      CGFloat(pane.depth(of: entry.url)) * 14)
                     }
-                    FileEntryLabel(entry: entry)
+                    FileEntryLabel(
+                        entry: entry,
+                        gitState: gitState(for: entry),
+                        gitIgnored: gitIgnored(entry))
                     if let compareResult, let compareSide,
                        let badge = FolderComparator.badge(
                            for: entry.url.standardizedFileURL.path.replacingOccurrences(
@@ -498,5 +508,13 @@ struct PaneView: View {
         case .differs: "Differs from the other pane"
         case .containsChanges: "Contains differences"
         }
+    }
+
+    private func gitState(for entry: FileEntry) -> GitFileState {
+        pane.gitStatus.index?.state(for: entry.url) ?? .clean
+    }
+
+    private func gitIgnored(_ entry: FileEntry) -> Bool {
+        pane.gitStatus.index?.isIgnored(entry.url) ?? false
     }
 }
