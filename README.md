@@ -15,6 +15,7 @@ and SwiftUI on top of Swift Package Manager.
 - Finder-style inline folder expansion in list view, with per-level sort and filter.
 - Share from the file context menu, including AirDrop through macOS sharing services.
 - Open the active pane in a configured terminal or editor, and run user scripts against the selection.
+- Git awareness in repo panes: colored read-only status dots, branch and changed count in the status bar, dimmed ignored files, and a Hide ignored filter toggle.
 - Put Back for items moved to Trash by FileExplorer.
 - Tags and Recents in the sidebar, with tag clicks filtering the active pane.
 - Finder comments in Get Info.
@@ -132,3 +133,9 @@ Scripts run directly, with the pane folder as cwd. Selected paths are passed as
 argv in selection order; when nothing is selected, the pane folder is passed as
 the sole argument. Successful scripts show a transient banner, failures show an
 alert with stderr, and the active pane reloads when the process exits.
+
+## Git awareness walkthrough
+
+For release checks, open a busy git repo and verify status dots match `git status`,
+ignored entries are dimmed and hidden by Hide ignored, the status bar branch works
+in normal repos and worktrees, and large repos stay responsive while status loads.
