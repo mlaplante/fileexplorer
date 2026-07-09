@@ -77,6 +77,8 @@ final class ThumbnailStore {
 struct ThumbnailCell: View {
     let entry: FileEntry
     let isSelected: Bool
+    var gitState: GitFileState = .clean
+    var gitIgnored = false
 
     /// Card geometry shared with the grid's column sizing.
     static let cardWidth: CGFloat = 188
@@ -93,14 +95,18 @@ struct ThumbnailCell: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             card
-            Text(entry.name)
-                .font(.callout)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .padding(.horizontal, 2)
-                .frame(width: Self.cardWidth, alignment: .leading)
+            HStack(spacing: 6) {
+                Text(entry.name)
+                    .font(.callout)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                GitStatusDot(state: gitState)
+            }
+            .padding(.horizontal, 2)
+            .frame(width: Self.cardWidth, alignment: .leading)
         }
         .padding(8)
+        .opacity(gitIgnored ? 0.5 : 1)
         .background(isSelected ? AnyShapeStyle(Color.accentColor.opacity(0.14))
                                : AnyShapeStyle(.clear),
                     in: RoundedRectangle(cornerRadius: Self.cornerRadius + 4))
@@ -236,7 +242,9 @@ struct ThumbnailGridView: View {
 
     private func cell(for entry: FileEntry) -> some View {
         ThumbnailCell(entry: entry,
-                      isSelected: pane.selection.contains(entry.url))
+                      isSelected: pane.selection.contains(entry.url),
+                      gitState: pane.gitState(for: entry),
+                      gitIgnored: pane.isGitIgnored(entry))
             .id(entry.url)
             .onGeometryChange(for: CGRect.self) { proxy in
                 proxy.frame(in: .named("fxGrid"))

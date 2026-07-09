@@ -67,7 +67,7 @@ struct ColumnBrowserView: View {
     private var currentColumn: some View {
         List(selection: $pane.selection) {
             ForEach(pane.visibleEntries) { entry in
-                FileEntryLabel(entry: entry)
+                entryLabel(entry)
                 .tag(entry.url)
                 .draggable(entry.url)
             }
@@ -81,6 +81,10 @@ struct ColumnBrowserView: View {
     }
 
     private func entryLabel(_ entry: FileEntry) -> some View {
-        FileEntryLabel(entry: entry, showsTags: false)
+        FileEntryLabel(
+            entry: entry,
+            showsTags: false,
+            gitState: pane.gitState(for: entry),
+            gitIgnored: pane.isGitIgnored(entry))
     }
 }

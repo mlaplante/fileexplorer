@@ -161,6 +161,14 @@ struct FilterBarView: View {
                 .controlSize(.small)
                 .frame(width: 120)
 
+            if pane.gitStatus.isInRepo {
+                Toggle("Hide ignored", isOn: Binding(
+                    get: { pane.filter.hideGitIgnored == true },
+                    set: { pane.filter.hideGitIgnored = $0 ? true : nil }))
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+            }
+
             Spacer()
 
             if pane.filter.isActive {

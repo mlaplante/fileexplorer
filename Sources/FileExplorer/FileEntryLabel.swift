@@ -27,6 +27,8 @@ struct FileEntryLabel: View {
     let entry: FileEntry
     var showsTags = true
     var symlinkSymbol = "arrow.triangle.turn.up.right.circle"
+    var gitState: GitFileState = .clean
+    var gitIgnored = false
 
     var body: some View {
         HStack(spacing: 6) {
@@ -40,9 +42,47 @@ struct FileEntryLabel: View {
                     .foregroundStyle(.secondary)
                     .help("Symbolic link")
             }
+            GitStatusDot(state: gitState)
             if showsTags, !entry.tags.isEmpty {
                 TagDotsView(tags: entry.tags)
             }
+        }
+        .opacity(gitIgnored ? 0.5 : 1)
+    }
+}
+
+struct GitStatusDot: View {
+    let state: GitFileState
+
+    var body: some View {
+        if let color = state.gitBadgeColor {
+            Circle()
+                .fill(color)
+                .frame(width: 7, height: 7)
+                .help("Git: \(state.gitBadgeLabel)")
+        }
+    }
+}
+
+extension GitFileState {
+    var gitBadgeColor: Color? {
+        switch self {
+        case .modified: .orange
+        case .staged: .green
+        case .untracked: .blue
+        case .conflicted: .red
+        case .clean, .ignored: nil
+        }
+    }
+
+    var gitBadgeLabel: String {
+        switch self {
+        case .clean: "clean"
+        case .ignored: "ignored"
+        case .untracked: "untracked"
+        case .modified: "modified"
+        case .staged: "staged"
+        case .conflicted: "conflicted"
         }
     }
 }

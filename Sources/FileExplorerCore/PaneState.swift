@@ -11,6 +11,7 @@ public final class PaneState {
     public let hoverPreview = HoverPreviewModel()
     public let columnsModel = ColumnsModel()
     public let springLoad = SpringLoadModel()
+    public let gitStatus = GitStatusModel()
     public private(set) var history: NavigationHistory
     /// Invoked after every completed navigation (navigate/back/forward/up)
     /// with the new current URL; used by the session layer to record recents.
@@ -195,6 +196,9 @@ public final class PaneState {
         // Standardize so NavigationHistory's exact-URL-equality no-op check
         // works for equivalent paths (trailing slash, "." components).
         history = NavigationHistory(current: url.standardizedFileURL)
+        gitStatus.onChange = { [weak self] in
+            self?.recomputeVisible()
+        }
     }
 
     /// Restore from a saved snapshot. Setting `filter` before
@@ -260,6 +264,7 @@ public final class PaneState {
         let myID = reloadID
         let url = currentURL
         let includeHidden = showHidden
+        gitStatus.refresh(for: url)
         do {
             let (loaded, spaceText) = try await Task.detached(priority: .userInitiated) {
                 let entries = try DirectoryLoader.load(url, includeHidden: includeHidden)
@@ -294,6 +299,14 @@ public final class PaneState {
     }
 
     public func depth(of url: URL) -> Int { rowDepths[url] ?? 0 }
+
+    public func gitState(for entry: FileEntry) -> GitFileState {
+        gitStatus.index?.state(for: entry.url) ?? .clean
+    }
+
+    public func isGitIgnored(_ entry: FileEntry) -> Bool {
+        gitStatus.index?.isIgnored(entry.url) ?? false
+    }
 
     public func toggleExpansion(of url: URL, recursively: Bool = false) async {
         if isExpanded(url) {
@@ -953,16 +966,18 @@ public final class PaneState {
     }
 
     private func recomputeVisible() {
-        let prepared = FileSorter.sort(
-            FilterEngine.apply(filter, to: entries), using: sortOrder)
+        let prepared = prepareEntries(entries)
         rootVisibleCount = prepared.count
         if viewMode == .list, groupBy == .none, !expandedFolders.isEmpty {
             let rows = TreeFlattener.flatten(
                 roots: entries,
                 children: childEntries,
-                expanded: expandedFolders) { [filter, sortOrder] level in
-                FileSorter.sort(FilterEngine.apply(filter, to: level),
-                                using: sortOrder)
+                expanded: expandedFolders) { [filter, sortOrder, gitStatus] level in
+                var filtered = FilterEngine.apply(filter, to: level)
+                if filter.hideGitIgnored == true, let index = gitStatus.index {
+                    filtered.removeAll { index.isIgnored($0.url) }
+                }
+                return FileSorter.sort(filtered, using: sortOrder)
             }
             visibleEntries = rows.map(\.entry)
             rowDepths = Dictionary(uniqueKeysWithValues: rows.map {
@@ -975,12 +990,21 @@ public final class PaneState {
         groupedEntries = Grouper.group(visibleEntries, by: groupBy, now: Date())
     }
 
+    private func prepareEntries(_ source: [FileEntry]) -> [FileEntry] {
+        var filtered = FilterEngine.apply(filter, to: source)
+        if filter.hideGitIgnored == true, let index = gitStatus.index {
+            filtered.removeAll { index.isIgnored($0.url) }
+        }
+        return FileSorter.sort(filtered, using: sortOrder)
+    }
+
     private func afterNavigation() async {
         selection.removeAll()
         clearTreeState()
         opErrorMessage = nil
         folderSizes.removeAll()
         applyStoredFolderViewSettings()
+        gitStatus.refresh(for: currentURL)
         watchCurrent()
         await reload()
         onNavigated?(currentURL)
