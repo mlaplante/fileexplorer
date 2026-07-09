@@ -66,5 +66,6 @@ await rubberBandTests()
 await gridNavigatorTests()
 await springLoadTests()
 await gitStatusParserTests()
+await gitStatusIndexTests()
 
 finish()
