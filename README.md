@@ -16,6 +16,15 @@ and SwiftUI on top of Swift Package Manager.
 - Share from the file context menu, including AirDrop through macOS sharing services.
 - Open the active pane in a configured terminal or editor, and run user scripts against the selection.
 - Git awareness in repo panes: colored read-only status dots, branch and changed count in the status bar, dimmed ignored files, and a Hide ignored filter toggle.
+- Analyze Disk Usage from Tools, the command palette, or a folder context menu:
+  scans the current folder recursively, ranks immediate children by size,
+  supports drill-down, and caps scans at 250k entries with a partial-results note.
+- Find Duplicates from the same entry points: scans the current folder
+  recursively, groups byte-identical files by size + SHA-256, supports newest,
+  oldest, or custom keep choices, and caps scans at 100k files with a
+  partial-results note.
+- Disk usage and duplicate cleanup move files through FileExplorer's undo-able
+  Trash path, so Undo and Put Back records apply.
 - Put Back for items moved to Trash by FileExplorer.
 - Tags and Recents in the sidebar, with tag clicks filtering the active pane.
 - Finder comments in Get Info.
