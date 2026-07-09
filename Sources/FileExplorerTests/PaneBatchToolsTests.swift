@@ -184,4 +184,48 @@ func paneBatchToolsTests() async {
         expectEqual(try String(contentsOf: target, encoding: .utf8), "old",
                     "undo restores old destination")
     }
+
+    await test("trash urls entry point registers undo registry and partial failures") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let keepGoing = dir.appendingPathComponent("keep-going.txt")
+        let missing = dir.appendingPathComponent("missing.txt")
+        try Data("body".utf8).write(to: keepGoing)
+
+        let undoManager = UndoManager()
+        let registry = TrashRegistryModel(directory: dir.appendingPathComponent("registry"))
+        let pane = PaneState(url: dir)
+        pane.undoManager = undoManager
+        pane.trashRegistry = registry
+        await pane.reload()
+
+        await pane.trash(urls: [missing, keepGoing])
+
+        expect(!fm.fileExists(atPath: keepGoing.path), "existing file moved to trash")
+        let record = registry.registry.records.first
+        expectEqual(record?.original, keepGoing.standardizedFileURL,
+                    "trash registry records original")
+        expect(record?.trashed.pathComponents.contains(".Trash") == true,
+               "trash registry records trashed location")
+        expect(record.map { fm.fileExists(atPath: $0.trashed.path) } == true,
+               "trashed file exists at recorded path")
+        expect(undoManager.canUndo, "undo registered for successful trash")
+        expect(pane.opErrorMessage != nil, "missing URL failure surfaced")
+
+        undoManager.undo()
+        await waitForPaneBatchCondition {
+            fm.fileExists(atPath: keepGoing.path)
+        }
+        expect(fm.fileExists(atPath: keepGoing.path), "undo restores trashed file")
+        expectEqual(try? String(contentsOf: keepGoing, encoding: .utf8), "body",
+                    "undo preserves contents")
+    }
+}
+
+@MainActor
+private func waitForPaneBatchCondition(_ condition: @escaping @MainActor () -> Bool) async {
+    let deadline = Date().addingTimeInterval(5)
+    while !condition(), Date() < deadline {
+        try? await Task.sleep(for: .milliseconds(10))
+    }
 }

@@ -460,10 +460,14 @@ public final class PaneState {
     }
 
     public func trashSelected(_ urls: [URL]) async {
+        selection.removeAll()
+        await trash(urls: urls)
+    }
+
+    public func trash(urls: [URL]) async {
         let results = await Task.detached(priority: .userInitiated) {
             FileOperationService.trash(urls)
         }.value
-        selection.removeAll()
         await reload()
         finishOperation(results: results) { successes in
             for success in successes {
