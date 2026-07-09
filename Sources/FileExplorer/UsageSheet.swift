@@ -7,6 +7,7 @@ final class UsageSheetModel {
     let scanner = UsageScanner()
     var root: URL?
     var breadcrumbs: [URL] = []
+    var errorMessage: String?
     @ObservationIgnored weak var pane: PaneState?
 
     var isPresented: Bool { root != nil }
@@ -16,6 +17,7 @@ final class UsageSheetModel {
         self.pane = pane
         self.root = standardized
         breadcrumbs = [standardized]
+        errorMessage = nil
         scanner.scan(root: standardized)
     }
 
@@ -23,11 +25,13 @@ final class UsageSheetModel {
         scanner.cancel()
         root = nil
         breadcrumbs = []
+        errorMessage = nil
         pane = nil
     }
 
     func drillDown(to url: URL) {
         let standardized = url.standardizedFileURL
+        errorMessage = nil
         root = standardized
         breadcrumbs.append(standardized)
         scanner.scan(root: standardized)
@@ -35,6 +39,7 @@ final class UsageSheetModel {
 
     func jump(to url: URL) {
         let standardized = url.standardizedFileURL
+        errorMessage = nil
         if let index = breadcrumbs.firstIndex(of: standardized) {
             breadcrumbs = Array(breadcrumbs.prefix(index + 1))
         } else {
@@ -57,8 +62,11 @@ final class UsageSheetModel {
     func trash(_ row: UsageRow) {
         guard let pane else { return }
         Task {
-            await pane.trash(urls: [row.url])
-            scanner.remove(url: row.url, bytes: row.bytes)
+            let successes = await pane.trash(urls: [row.url])
+            if successes.contains(where: { $0.standardizedFileURL == row.url.standardizedFileURL }) {
+                scanner.remove(url: row.url, bytes: row.bytes)
+            }
+            errorMessage = pane.opErrorMessage
         }
     }
 }
@@ -71,6 +79,11 @@ struct UsageSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
+            if let error = model.errorMessage {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
             breadcrumb
             List(model.scanner.rows) { row in
                 usageRow(row)

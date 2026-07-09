@@ -220,6 +220,56 @@ func paneBatchToolsTests() async {
         expectEqual(try? String(contentsOf: keepGoing, encoding: .utf8), "body",
                     "undo preserves contents")
     }
+
+    await test("trash urls returns successes and prunes only those from selection") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let trashed = dir.appendingPathComponent("trashed.txt")
+        let missing = dir.appendingPathComponent("missing.txt")
+        try Data("trash".utf8).write(to: trashed)
+
+        let pane = PaneState(url: dir)
+        await pane.reload()
+        pane.selection = [trashed.standardizedFileURL, missing.standardizedFileURL]
+
+        let successes = await pane.trash(urls: [trashed, missing])
+
+        expectEqual(successes, [trashed.standardizedFileURL],
+                    "trash(urls:) returns successfully trashed sources")
+        expect(!pane.selection.contains(trashed.standardizedFileURL),
+               "successfully trashed URL pruned from selection")
+        expect(pane.selection.contains(missing.standardizedFileURL),
+               "failed URL remains selected")
+        expect(pane.opErrorMessage != nil, "partial failure still surfaced")
+    }
+
+    await test("trash successes drive usage-row subtraction for partial failure") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let doomed = dir.appendingPathComponent("doomed.bin")
+        let kept = dir.appendingPathComponent("kept.bin")
+        let missing = dir.appendingPathComponent("missing.bin")
+        try Data(count: 10).write(to: doomed)
+        try Data(count: 20).write(to: kept)
+
+        let scanner = UsageScanner()
+        scanner.scan(root: dir)
+        await waitForPaneBatchCondition { !scanner.isScanning }
+        let pane = PaneState(url: dir)
+        await pane.reload()
+
+        let successes = await pane.trash(urls: [doomed, missing])
+        for url in successes {
+            scanner.remove(url: url, bytes: url == doomed.standardizedFileURL ? 10 : 0)
+        }
+
+        expect(!scanner.rows.contains { $0.url == doomed.standardizedFileURL },
+               "successful trash removed from usage rows")
+        expect(scanner.rows.contains { $0.url == kept.standardizedFileURL },
+               "untrashed sibling remains in usage rows")
+        expectEqual(scanner.totalBytes, 20, "only successful trash bytes subtracted")
+        expect(pane.opErrorMessage != nil, "failed URL still surfaced")
+    }
 }
 
 @MainActor

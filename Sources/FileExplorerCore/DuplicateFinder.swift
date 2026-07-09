@@ -64,9 +64,10 @@ private struct DuplicateScanSnapshot: Sendable {
 private enum DuplicateScanRunner {
     static func stream(root: URL, cap: Int) -> AsyncStream<DuplicateScanSnapshot> {
         AsyncStream { continuation in
-            Task.detached(priority: .userInitiated) {
+            let task = Task.detached(priority: .userInitiated) {
                 scan(root: root, cap: cap, continuation: continuation)
             }
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 
@@ -99,6 +100,7 @@ private enum DuplicateScanRunner {
         }
 
         for case let url as URL in enumerator {
+            if Task.isCancelled { break }
             guard let values = try? url.resourceValues(forKeys: Set(keys)) else {
                 continue
             }
@@ -128,9 +130,11 @@ private enum DuplicateScanRunner {
 
         var groups: [DuplicateGroup] = []
         for size in bySize.keys.sorted() {
+            if Task.isCancelled { break }
             guard let urls = bySize[size], urls.count >= 2 else { continue }
             var byHash: [String: [DuplicateMember]] = [:]
             for url in urls.sorted(by: { $0.path < $1.path }) {
+                if Task.isCancelled { break }
                 guard case .success(let hash) = FileHasher.sha256(of: url) else {
                     continue
                 }

@@ -1,6 +1,11 @@
 import Foundation
 import Observation
 
+public struct UsageRemovalToken: Sendable {
+    fileprivate let generation: Int
+    fileprivate let root: URL
+}
+
 @MainActor
 @Observable
 public final class UsageScanner {
@@ -8,11 +13,14 @@ public final class UsageScanner {
     public private(set) var totalBytes: Int64 = 0
     public private(set) var isScanning = false
     public private(set) var isPartial = false
+    public private(set) var visitedEntryCount = 0
 
     public static let entryCap = 250_000
 
     @ObservationIgnored private var scanTask: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
+    @ObservationIgnored private var root: URL?
+    @ObservationIgnored private var removals: [URL: Int64] = [:]
 
     public init() {}
 
@@ -26,17 +34,20 @@ public final class UsageScanner {
         let currentGeneration = generation
         rows = []
         totalBytes = 0
+        visitedEntryCount = 0
         isPartial = false
         isScanning = true
+        self.root = root.standardizedFileURL
+        removals = [:]
 
         let stream = UsageScanRunner.stream(root: root.standardizedFileURL, cap: cap)
         scanTask = Task { [weak self] in
             for await snapshot in stream {
                 guard !Task.isCancelled else { break }
                 guard let self, self.generation == currentGeneration else { continue }
-                self.rows = snapshot.rows
-                self.totalBytes = snapshot.totalBytes
+                self.apply(snapshot)
                 self.isPartial = snapshot.isPartial
+                self.visitedEntryCount = snapshot.visitedEntryCount
                 if snapshot.isFinished {
                     self.isScanning = false
                 }
@@ -53,9 +64,43 @@ public final class UsageScanner {
         isScanning = false
     }
 
+    public func removalToken() -> UsageRemovalToken? {
+        guard let root else { return nil }
+        return UsageRemovalToken(generation: generation, root: root)
+    }
+
     public func remove(url: URL, bytes: Int64) {
-        rows = UsageRanking.subtracting(url, bytes: bytes, from: rows)
+        guard let token = removalToken() else { return }
+        remove(url: url, bytes: bytes, token: token)
+    }
+
+    public func remove(url: URL, bytes: Int64, token: UsageRemovalToken) {
+        guard token.generation == generation,
+              let root,
+              token.root.standardizedFileURL == root.standardizedFileURL,
+              isUnderRoot(url: url, root: root)
+        else { return }
+        let standardized = url.standardizedFileURL
+        removals[standardized, default: 0] += bytes
+        rows = UsageRanking.subtracting(standardized, bytes: bytes, from: rows)
         totalBytes = max(0, totalBytes - bytes)
+    }
+
+    private func apply(_ snapshot: UsageScanSnapshot) {
+        var nextRows = snapshot.rows
+        var nextTotal = snapshot.totalBytes
+        for (url, bytes) in removals {
+            nextRows = UsageRanking.subtracting(url, bytes: bytes, from: nextRows)
+            nextTotal = max(0, nextTotal - bytes)
+        }
+        rows = nextRows
+        totalBytes = nextTotal
+    }
+
+    private func isUnderRoot(url: URL, root: URL) -> Bool {
+        let rootPath = root.standardizedFileURL.path
+        let path = url.standardizedFileURL.path
+        return path == rootPath || path.hasPrefix(rootPath == "/" ? "/" : rootPath + "/")
     }
 }
 
@@ -64,6 +109,7 @@ private struct UsageScanSnapshot: Sendable {
     let totalBytes: Int64
     let isPartial: Bool
     let isFinished: Bool
+    let visitedEntryCount: Int
 }
 
 private enum UsageScanRunner {
@@ -75,9 +121,10 @@ private enum UsageScanRunner {
 
     static func stream(root: URL, cap: Int) -> AsyncStream<UsageScanSnapshot> {
         AsyncStream { continuation in
-            Task.detached(priority: .userInitiated) {
+            let task = Task.detached(priority: .userInitiated) {
                 scan(root: root, cap: cap, continuation: continuation)
             }
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 
@@ -108,6 +155,7 @@ private enum UsageScanRunner {
         }
 
         for case let url as URL in enumerator {
+            if Task.isCancelled { break }
             if visited >= cap {
                 isPartial = true
                 break
@@ -147,12 +195,14 @@ private enum UsageScanRunner {
 
             if visited.isMultiple(of: 200) {
                 continuation.yield(snapshot(totals: totals, totalBytes: totalBytes,
-                                            isPartial: false, isFinished: false))
+                                            isPartial: false, isFinished: false,
+                                            visited: visited))
             }
         }
 
         continuation.yield(snapshot(totals: totals, totalBytes: totalBytes,
-                                    isPartial: isPartial, isFinished: true))
+                                    isPartial: isPartial, isFinished: true,
+                                    visited: visited))
     }
 
     private static func immediateChild(for url: URL, rootPrefix: String) -> URL? {
@@ -174,7 +224,8 @@ private enum UsageScanRunner {
     }
 
     private static func snapshot(totals: [URL: ChildTotal], totalBytes: Int64,
-                                 isPartial: Bool, isFinished: Bool)
+                                 isPartial: Bool, isFinished: Bool,
+                                 visited: Int = 0)
         -> UsageScanSnapshot {
         let rankingInput = Dictionary(uniqueKeysWithValues: totals.map { url, total in
             (url, (bytes: total.bytes, items: total.items,
@@ -184,6 +235,7 @@ private enum UsageScanRunner {
             rows: UsageRanking.rows(childTotals: rankingInput),
             totalBytes: totalBytes,
             isPartial: isPartial,
-            isFinished: isFinished)
+            isFinished: isFinished,
+            visitedEntryCount: visited)
     }
 }

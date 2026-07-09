@@ -121,6 +121,28 @@ func duplicateFinderTests() async {
         expectEqual(finder.groups.first?.size, 12, "second scan group is published")
     }
 
+    await test("DuplicateFinder detached scan stops advancing after cancel") {
+        let fm = FileManager.default
+        let root = try makeTempDir()
+        defer { try? fm.removeItem(at: root) }
+        for index in 0..<8_000 {
+            try Data(repeating: UInt8(index % 251), count: 8)
+                .write(to: root.appendingPathComponent("\(index).bin"))
+        }
+
+        let finder = DuplicateFinder()
+        finder.scan(root: root)
+        finder.cancel()
+        let scanned = finder.scannedFileCount
+        await waitUntilDuplicate {
+            finder.scannedFileCount != scanned || !finder.isScanning
+        }
+
+        expectEqual(finder.scannedFileCount, scanned,
+                    "cancelled duplicate scan stops publishing scanned count")
+        expect(finder.scannedFileCount < 8_000, "cancelled before full synthetic tree")
+    }
+
     await test("DuplicateFinder cap marks partial results") {
         let fm = FileManager.default
         let root = try makeTempDir()

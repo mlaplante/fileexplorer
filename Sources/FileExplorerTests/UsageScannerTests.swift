@@ -110,6 +110,76 @@ func usageScannerTests() async {
         expectEqual(scanner.rows, rows, "cancelled scan does not publish later rows")
     }
 
+    await test("UsageScanner removal overlay survives terminal snapshot") {
+        let fm = FileManager.default
+        let root = try makeTempDir()
+        defer { try? fm.removeItem(at: root) }
+        let folder = root.appendingPathComponent("many")
+        try fm.createDirectory(at: folder, withIntermediateDirectories: false)
+        for index in 0..<4_000 {
+            try Data(count: 1).write(to: folder.appendingPathComponent("\(index).bin"))
+        }
+
+        let scanner = UsageScanner()
+        scanner.scan(root: root)
+        await waitUntil { scanner.rows.contains { $0.url == folder.standardizedFileURL } }
+        scanner.remove(url: folder, bytes: 4_000)
+        await waitForUsageScanner(scanner)
+
+        expect(!scanner.rows.contains { $0.url == folder.standardizedFileURL },
+               "removed row stays removed after terminal snapshot")
+        expectEqual(scanner.totalBytes, 0, "removed bytes stay subtracted after terminal snapshot")
+    }
+
+    await test("UsageScanner stale removal token is ignored after new generation") {
+        let fm = FileManager.default
+        let first = try makeTempDir()
+        let second = try makeTempDir()
+        defer {
+            try? fm.removeItem(at: first)
+            try? fm.removeItem(at: second)
+        }
+        let old = first.appendingPathComponent("old.bin")
+        let new = second.appendingPathComponent("new.bin")
+        try Data(count: 10).write(to: old)
+        try Data(count: 20).write(to: new)
+
+        let scanner = UsageScanner()
+        scanner.scan(root: first)
+        guard let token = scanner.removalToken() else {
+            expect(false, "token available for active scan")
+            return
+        }
+        scanner.scan(root: second)
+        scanner.remove(url: old, bytes: 10, token: token)
+        await waitForUsageScanner(scanner)
+
+        expectEqual(scanner.totalBytes, 20, "stale removal did not affect new generation")
+        expectEqual(scanner.rows.map(\.url), [new.standardizedFileURL],
+                    "new generation rows remain intact")
+    }
+
+    await test("UsageScanner detached scan stops advancing after cancel") {
+        let fm = FileManager.default
+        let root = try makeTempDir()
+        defer { try? fm.removeItem(at: root) }
+        let folder = root.appendingPathComponent("many")
+        try fm.createDirectory(at: folder, withIntermediateDirectories: false)
+        for index in 0..<8_000 {
+            try Data(count: 1).write(to: folder.appendingPathComponent("\(index).bin"))
+        }
+
+        let scanner = UsageScanner()
+        scanner.scan(root: root)
+        scanner.cancel()
+        let visited = scanner.visitedEntryCount
+        await spinPollingLoop()
+
+        expectEqual(scanner.visitedEntryCount, visited,
+                    "cancelled usage scan stops publishing visited count")
+        expect(scanner.visitedEntryCount < 8_000, "cancelled before full synthetic tree")
+    }
+
     await test("UsageScanner cap marks partial results") {
         let fm = FileManager.default
         let root = try makeTempDir()

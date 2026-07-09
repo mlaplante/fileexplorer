@@ -16,6 +16,8 @@ final class DuplicatesSheetModel {
     var root: URL?
     var modes: [String: DuplicateMode] = [:]
     var customKeeps: [String: Set<URL>] = [:]
+    private var planCache: [String: [URL]] = [:]
+    private var invalidPlanIDs = Set<String>()
     @ObservationIgnored weak var pane: PaneState?
 
     var isPresented: Bool { root != nil }
@@ -26,6 +28,8 @@ final class DuplicatesSheetModel {
         self.root = standardized
         modes = [:]
         customKeeps = [:]
+        planCache = [:]
+        invalidPlanIDs = []
         finder.scan(root: standardized)
     }
 
@@ -34,6 +38,8 @@ final class DuplicatesSheetModel {
         root = nil
         modes = [:]
         customKeeps = [:]
+        planCache = [:]
+        invalidPlanIDs = []
         pane = nil
     }
 
@@ -43,11 +49,13 @@ final class DuplicatesSheetModel {
 
     func setMode(_ mode: DuplicateMode, for group: DuplicateGroup) {
         modes[group.id] = mode
+        invalidatePlans()
         if mode == .custom, customKeeps[group.id] == nil {
             let keep = DuplicateKeepPlanner.trashPlan(group: group, strategy: .newest)
                 .map { trashed in Set(group.members.map(\.url)).subtracting(trashed) }
                 ?? Set(group.members.prefix(1).map(\.url))
             customKeeps[group.id] = keep
+            invalidatePlans()
         }
     }
 
@@ -64,6 +72,7 @@ final class DuplicatesSheetModel {
             set.remove(member.url)
         }
         customKeeps[group.id] = set
+        invalidatePlans()
     }
 
     func strategy(for group: DuplicateGroup) -> KeepStrategy {
@@ -77,26 +86,47 @@ final class DuplicatesSheetModel {
         }
     }
 
+    func trashPlan(for group: DuplicateGroup) -> [URL]? {
+        if invalidPlanIDs.contains(group.id) { return nil }
+        if let cached = planCache[group.id] { return cached }
+        let plan = DuplicateKeepPlanner.trashPlan(group: group,
+                                                  strategy: strategy(for: group))
+        if let plan {
+            planCache[group.id] = plan
+        } else {
+            invalidPlanIDs.insert(group.id)
+        }
+        return plan
+    }
+
+    var footerSummary: DuplicateFooterSummary {
+        var urls: [URL] = []
+        var reclaimable: Int64 = 0
+        var hasInvalid = false
+        for group in finder.groups {
+            guard let plan = trashPlan(for: group) else {
+                if mode(for: group) == .custom { hasInvalid = true }
+                continue
+            }
+            urls.append(contentsOf: plan)
+            reclaimable += group.size * Int64(plan.count)
+        }
+        return DuplicateFooterSummary(
+            trashURLs: urls,
+            reclaimableBytes: reclaimable,
+            hasInvalidCustomSelection: hasInvalid)
+    }
+
     var selectedTrashURLs: [URL] {
-        DuplicateKeepPlanner.combinedPlan(finder.groups.map {
-            ($0, strategy(for: $0))
-        })
+        footerSummary.trashURLs
     }
 
     var hasInvalidCustomSelection: Bool {
-        finder.groups.contains { group in
-            if mode(for: group) != .custom { return false }
-            return DuplicateKeepPlanner.trashPlan(group: group,
-                                                 strategy: strategy(for: group)) == nil
-        }
+        footerSummary.hasInvalidCustomSelection
     }
 
     var selectedReclaimableBytes: Int64 {
-        finder.groups.reduce(0) { total, group in
-            let count = DuplicateKeepPlanner.trashPlan(group: group,
-                                                       strategy: strategy(for: group))?.count ?? 0
-            return total + group.size * Int64(count)
-        }
+        footerSummary.reclaimableBytes
     }
 
     func trashSelected() {
@@ -108,6 +138,17 @@ final class DuplicatesSheetModel {
             dismiss()
         }
     }
+
+    private func invalidatePlans() {
+        planCache = [:]
+        invalidPlanIDs = []
+    }
+}
+
+struct DuplicateFooterSummary {
+    let trashURLs: [URL]
+    let reclaimableBytes: Int64
+    let hasInvalidCustomSelection: Bool
 }
 
 struct DuplicatesSheet: View {
@@ -154,18 +195,19 @@ struct DuplicatesSheet: View {
     }
 
     private var footer: some View {
-        HStack {
+        let summary = model.footerSummary
+        return HStack {
             if model.finder.isPartial {
                 Label("Partial results", systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
             }
             Spacer()
-            Text(model.selectedReclaimableBytes, format: .byteCount(style: .file))
+            Text(summary.reclaimableBytes, format: .byteCount(style: .file))
                 .foregroundStyle(.secondary)
-            Button("Move \(model.selectedTrashURLs.count) to Trash") {
+            Button("Move \(summary.trashURLs.count) to Trash") {
                 model.trashSelected()
             }
-            .disabled(model.selectedTrashURLs.isEmpty || model.hasInvalidCustomSelection
+            .disabled(summary.trashURLs.isEmpty || summary.hasInvalidCustomSelection
                       || model.finder.isScanning)
             Button("Cancel") { model.dismiss() }
                 .keyboardShortcut(.cancelAction)
@@ -233,8 +275,7 @@ struct DuplicatesSheet: View {
 
     private func keptByStrategy(_ member: DuplicateMember,
                                 group: DuplicateGroup) -> Bool {
-        let trashed = DuplicateKeepPlanner.trashPlan(group: group,
-                                                     strategy: model.strategy(for: group)) ?? []
+        let trashed = model.trashPlan(for: group) ?? []
         return !trashed.contains(member.url)
     }
 
