@@ -8,6 +8,8 @@ struct PaneView: View {
     var otherPane: PaneState?
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
+    var usageModel: UsageSheetModel
+    var duplicatesModel: DuplicatesSheetModel
     var settings: SettingsModel
     var trashRegistry: TrashRegistryModel?
     var conflictResolution: ConflictResolutionModel?
@@ -35,6 +37,8 @@ struct PaneView: View {
                                              otherPane: otherPane,
                                              renameModel: renameModel,
                                              batchRenameModel: batchRenameModel,
+                                             usageModel: usageModel,
+                                             duplicatesModel: duplicatesModel,
                                              settings: settings,
                                              trashRegistry: trashRegistry,
                                              conflictResolution: conflictResolution,
@@ -48,6 +52,8 @@ struct PaneView: View {
                                              otherPane: otherPane,
                                              renameModel: renameModel,
                                              batchRenameModel: batchRenameModel,
+                                             usageModel: usageModel,
+                                             duplicatesModel: duplicatesModel,
                                              settings: settings,
                                              trashRegistry: trashRegistry,
                                              conflictResolution: conflictResolution,
@@ -389,6 +395,8 @@ struct PaneView: View {
                         otherPane: otherPane,
                         renameModel: renameModel,
                         batchRenameModel: batchRenameModel,
+                        usageModel: usageModel,
+                        duplicatesModel: duplicatesModel,
                         settings: settings,
                         trashRegistry: trashRegistry,
                         conflictResolution: conflictResolution,

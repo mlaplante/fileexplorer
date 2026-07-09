@@ -460,12 +460,19 @@ public final class PaneState {
     }
 
     public func trashSelected(_ urls: [URL]) async {
+        selection.removeAll()
+        await trash(urls: urls)
+    }
+
+    @discardableResult
+    public func trash(urls: [URL]) async -> [URL] {
         let results = await Task.detached(priority: .userInitiated) {
             FileOperationService.trash(urls)
         }.value
-        selection.removeAll()
         await reload()
+        var trashedSources: [URL] = []
         finishOperation(results: results) { successes in
+            trashedSources = successes.map { $0.source.standardizedFileURL }
             for success in successes {
                 trashRegistry?.record(original: success.source,
                                       trashed: success.destination)
@@ -475,6 +482,11 @@ public final class PaneState {
                 successes.map { (original: $0.source, trashed: $0.destination) },
                 on: undoManager, pane: self)
         }
+        let trashedPaths = Set(trashedSources.map { $0.standardizedFileURL.path })
+        selection = selection.filter {
+            !trashedPaths.contains($0.standardizedFileURL.path)
+        }
+        return trashedSources
     }
 
     public func putBackSelected(_ urls: [URL]) async {

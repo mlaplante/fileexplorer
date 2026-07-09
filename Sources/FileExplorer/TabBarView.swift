@@ -55,6 +55,8 @@ struct TabContentView: View {
     @Bindable var session: SessionState
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
+    var usageModel: UsageSheetModel
+    var duplicatesModel: DuplicatesSheetModel
     var syncPreview: SyncPreviewModel
     var settings: SettingsModel
     var trashRegistry: TrashRegistryModel?
@@ -70,6 +72,8 @@ struct TabContentView: View {
             PaneAreaView(session: session, tab: session.activeTab,
                          renameModel: renameModel,
                          batchRenameModel: batchRenameModel,
+                         usageModel: usageModel,
+                         duplicatesModel: duplicatesModel,
                          syncPreview: syncPreview, settings: settings,
                          trashRegistry: trashRegistry,
                          conflictResolution: conflictResolution,
@@ -91,6 +95,8 @@ struct PaneAreaView: View {
     @Bindable var tab: TabState
     var renameModel: RenameSheetModel
     var batchRenameModel: BatchRenameModel
+    var usageModel: UsageSheetModel
+    var duplicatesModel: DuplicatesSheetModel
     var syncPreview: SyncPreviewModel
     var settings: SettingsModel
     var trashRegistry: TrashRegistryModel?
@@ -154,6 +160,8 @@ struct PaneAreaView: View {
                      otherPane: tab.isDual ? tab.panes[1 - index] : nil,
                      renameModel: renameModel,
                      batchRenameModel: batchRenameModel,
+                     usageModel: usageModel,
+                     duplicatesModel: duplicatesModel,
                      settings: settings,
                      trashRegistry: trashRegistry,
                      conflictResolution: conflictResolution,

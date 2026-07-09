@@ -89,10 +89,14 @@ enum PaletteCoordinator {
 
     static func openCommands(_ palette: PaletteModel, session: SessionState,
                              settings: SettingsModel,
+                             usageModel: UsageSheetModel,
+                             duplicatesModel: DuplicatesSheetModel,
                              scriptRunner: ScriptRunner,
                              scriptsModel: ScriptsModel) {
         palette.present(mode: .commands)
         let commands = commands(for: session, settings: settings,
+                                usageModel: usageModel,
+                                duplicatesModel: duplicatesModel,
                                 scriptRunner: scriptRunner,
                                 scriptsModel: scriptsModel)
         commandActions = Dictionary(uniqueKeysWithValues: commands.map {
@@ -105,6 +109,8 @@ enum PaletteCoordinator {
 
     static func confirm(_ item: PaletteItem, palette: PaletteModel,
                         session: SessionState, settings: SettingsModel,
+                        usageModel: UsageSheetModel,
+                        duplicatesModel: DuplicatesSheetModel,
                         scriptRunner: ScriptRunner,
                         scriptsModel: ScriptsModel) {
         // Capture the mode and the palette's opening-time pane before
@@ -151,6 +157,8 @@ enum PaletteCoordinator {
 
     static func commands(for session: SessionState,
                          settings: SettingsModel,
+                         usageModel: UsageSheetModel,
+                         duplicatesModel: DuplicatesSheetModel,
                          scriptRunner: ScriptRunner,
                          scriptsModel: ScriptsModel) -> [AppCommand] {
         var base = [
@@ -191,6 +199,14 @@ enum PaletteCoordinator {
             AppCommand(id: "reveal", name: "Reveal in Finder", shortcut: "") {
                 NSWorkspace.shared.activateFileViewerSelecting(
                     [session.activePane.currentURL])
+            },
+            AppCommand(id: "usage", name: "Analyze Disk Usage", shortcut: "") {
+                usageModel.present(root: session.activePane.currentURL,
+                                   pane: session.activePane)
+            },
+            AppCommand(id: "duplicates", name: "Find Duplicates", shortcut: "") {
+                duplicatesModel.present(root: session.activePane.currentURL,
+                                        pane: session.activePane)
             },
         ]
         if settings.settings.terminalAppPath != nil {

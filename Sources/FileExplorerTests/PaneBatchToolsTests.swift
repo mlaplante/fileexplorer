@@ -184,4 +184,98 @@ func paneBatchToolsTests() async {
         expectEqual(try String(contentsOf: target, encoding: .utf8), "old",
                     "undo restores old destination")
     }
+
+    await test("trash urls entry point registers undo registry and partial failures") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let keepGoing = dir.appendingPathComponent("keep-going.txt")
+        let missing = dir.appendingPathComponent("missing.txt")
+        try Data("body".utf8).write(to: keepGoing)
+
+        let undoManager = UndoManager()
+        let registry = TrashRegistryModel(directory: dir.appendingPathComponent("registry"))
+        let pane = PaneState(url: dir)
+        pane.undoManager = undoManager
+        pane.trashRegistry = registry
+        await pane.reload()
+
+        await pane.trash(urls: [missing, keepGoing])
+
+        expect(!fm.fileExists(atPath: keepGoing.path), "existing file moved to trash")
+        let record = registry.registry.records.first
+        expectEqual(record?.original, keepGoing.standardizedFileURL,
+                    "trash registry records original")
+        expect(record?.trashed.pathComponents.contains(".Trash") == true,
+               "trash registry records trashed location")
+        expect(record.map { fm.fileExists(atPath: $0.trashed.path) } == true,
+               "trashed file exists at recorded path")
+        expect(undoManager.canUndo, "undo registered for successful trash")
+        expect(pane.opErrorMessage != nil, "missing URL failure surfaced")
+
+        undoManager.undo()
+        await waitForPaneBatchCondition {
+            fm.fileExists(atPath: keepGoing.path)
+        }
+        expect(fm.fileExists(atPath: keepGoing.path), "undo restores trashed file")
+        expectEqual(try? String(contentsOf: keepGoing, encoding: .utf8), "body",
+                    "undo preserves contents")
+    }
+
+    await test("trash urls returns successes and prunes only those from selection") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let trashed = dir.appendingPathComponent("trashed.txt")
+        let missing = dir.appendingPathComponent("missing.txt")
+        try Data("trash".utf8).write(to: trashed)
+
+        let pane = PaneState(url: dir)
+        await pane.reload()
+        pane.selection = [trashed.standardizedFileURL, missing.standardizedFileURL]
+
+        let successes = await pane.trash(urls: [trashed, missing])
+
+        expectEqual(successes, [trashed.standardizedFileURL],
+                    "trash(urls:) returns successfully trashed sources")
+        expect(!pane.selection.contains(trashed.standardizedFileURL),
+               "successfully trashed URL pruned from selection")
+        expect(pane.selection.contains(missing.standardizedFileURL),
+               "failed URL remains selected")
+        expect(pane.opErrorMessage != nil, "partial failure still surfaced")
+    }
+
+    await test("trash successes drive usage-row subtraction for partial failure") {
+        let dir = try makeTempDir()
+        defer { try? fm.removeItem(at: dir) }
+        let doomed = dir.appendingPathComponent("doomed.bin")
+        let kept = dir.appendingPathComponent("kept.bin")
+        let missing = dir.appendingPathComponent("missing.bin")
+        try Data(count: 10).write(to: doomed)
+        try Data(count: 20).write(to: kept)
+
+        let scanner = UsageScanner()
+        scanner.scan(root: dir)
+        await waitForPaneBatchCondition { !scanner.isScanning }
+        let pane = PaneState(url: dir)
+        await pane.reload()
+
+        let successes = await pane.trash(urls: [doomed, missing])
+        for url in successes {
+            scanner.remove(url: url, bytes: url == doomed.standardizedFileURL ? 10 : 0)
+        }
+
+        expect(!scanner.rows.contains { $0.url == doomed.standardizedFileURL },
+               "successful trash removed from usage rows")
+        expect(scanner.rows.contains { $0.url == kept.standardizedFileURL },
+               "untrashed sibling remains in usage rows")
+        expectEqual(scanner.totalBytes, 20, "only successful trash bytes subtracted")
+        expect(pane.opErrorMessage != nil, "failed URL still surfaced")
+    }
+}
+
+@MainActor
+private func waitForPaneBatchCondition(_ condition: @escaping @MainActor () -> Bool) async {
+    let deadline = Date().addingTimeInterval(5)
+    while !condition(), Date() < deadline {
+        try? await Task.sleep(for: .milliseconds(10))
+    }
 }
