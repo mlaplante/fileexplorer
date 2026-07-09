@@ -8,6 +8,8 @@ struct FileExplorerApp: App {
     private let palette = PaletteModel()
     private let renameModel = RenameSheetModel()
     private let batchRenameModel = BatchRenameModel()
+    private let usageModel = UsageSheetModel()
+    private let duplicatesModel = DuplicatesSheetModel()
     private let syncPreviewModel = SyncPreviewModel()
     private let conflictResolutionModel = ConflictResolutionModel()
     private let operationQueue = OperationQueueModel()
@@ -77,6 +79,8 @@ struct FileExplorerApp: App {
                 } detail: {
                     TabContentView(session: session, renameModel: renameModel,
                                    batchRenameModel: batchRenameModel,
+                                   usageModel: usageModel,
+                                   duplicatesModel: duplicatesModel,
                                    syncPreview: syncPreviewModel, settings: settings,
                                    trashRegistry: trashRegistry,
                                    conflictResolution: conflictResolutionModel,
@@ -115,6 +119,8 @@ struct FileExplorerApp: App {
                         PaletteCoordinator.confirm(item, palette: palette,
                                                    session: session,
                                                    settings: settings,
+                                                   usageModel: usageModel,
+                                                   duplicatesModel: duplicatesModel,
                                                    scriptRunner: scriptRunner,
                                                    scriptsModel: scriptsModel)
                     }
@@ -164,6 +170,16 @@ struct FileExplorerApp: App {
                 get: { syncPreviewModel.isPresented },
                 set: { if !$0 { syncPreviewModel.dismiss() } })) {
                 SyncPreviewSheet(model: syncPreviewModel)
+            }
+            .sheet(isPresented: Binding(
+                get: { usageModel.isPresented },
+                set: { if !$0 { usageModel.dismiss() } })) {
+                UsageSheet(model: usageModel)
+            }
+            .sheet(isPresented: Binding(
+                get: { duplicatesModel.isPresented },
+                set: { if !$0 { duplicatesModel.dismiss() } })) {
+                DuplicatesSheet(model: duplicatesModel)
             }
             .sheet(isPresented: Binding(
                 get: { conflictResolutionModel.isPresented },
@@ -247,6 +263,16 @@ struct FileExplorerApp: App {
                             settings.deleteSmartFolder(name: smartFolder.name)
                         }
                     }
+                }
+            }
+            CommandMenu("Tools") {
+                Button("Analyze Disk Usage…") {
+                    usageModel.present(root: session.activePane.currentURL,
+                                       pane: session.activePane)
+                }
+                Button("Find Duplicates…") {
+                    duplicatesModel.present(root: session.activePane.currentURL,
+                                            pane: session.activePane)
                 }
             }
             CommandGroup(replacing: .pasteboard) {
@@ -485,6 +511,8 @@ struct FileExplorerApp: App {
                 Button("Command Palette…") {
                     PaletteCoordinator.openCommands(palette, session: session,
                                                     settings: settings,
+                                                    usageModel: usageModel,
+                                                    duplicatesModel: duplicatesModel,
                                                     scriptRunner: scriptRunner,
                                                     scriptsModel: scriptsModel)
                 }

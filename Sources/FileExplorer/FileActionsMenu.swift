@@ -11,6 +11,8 @@ struct FileActions {
     let otherPane: PaneState?
     let renameModel: RenameSheetModel
     let batchRenameModel: BatchRenameModel
+    let usageModel: UsageSheetModel
+    let duplicatesModel: DuplicatesSheetModel
     let settings: SettingsModel
     let trashRegistry: TrashRegistryModel?
     let conflictResolution: ConflictResolutionModel?
@@ -356,6 +358,19 @@ struct FileActions {
 
     @ViewBuilder
     private func sizeSection(targets: [URL]) -> some View {
+        let folders = targets.filter { isFolder($0) }
+        Button("Analyze Disk Usage…") {
+            if let folder = folders.first {
+                usageModel.present(root: folder, pane: pane)
+            }
+        }
+        .disabled(folders.count != 1 || targets.count != 1)
+        Button("Find Duplicates…") {
+            if let folder = folders.first {
+                duplicatesModel.present(root: folder, pane: pane)
+            }
+        }
+        .disabled(folders.count != 1 || targets.count != 1)
         Button("Calculate Size") {
             Task { await pane.calculateFolderSizes(targets) }
         }

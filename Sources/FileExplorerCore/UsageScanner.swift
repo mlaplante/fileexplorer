@@ -52,6 +52,11 @@ public final class UsageScanner {
         scanTask = nil
         isScanning = false
     }
+
+    public func remove(url: URL, bytes: Int64) {
+        rows = UsageRanking.subtracting(url, bytes: bytes, from: rows)
+        totalBytes = max(0, totalBytes - bytes)
+    }
 }
 
 private struct UsageScanSnapshot: Sendable {
