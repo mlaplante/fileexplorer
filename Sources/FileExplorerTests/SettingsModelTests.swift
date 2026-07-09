@@ -35,6 +35,56 @@ func settingsModelTests() async {
                     "missing folderViewSettings defaults empty")
         expectEqual(decoded.smartFolders, [],
                     "missing smartFolders defaults empty")
+        expectEqual(decoded.terminalAppPath, nil,
+                    "missing terminal app path defaults nil")
+        expectEqual(decoded.editorAppPath, nil,
+                    "missing editor app path defaults nil")
+    }
+
+    await test("AppSettings round-trips terminal and editor app paths") {
+        let settings = AppSettings(terminalAppPath: "/Applications/iTerm.app",
+                                   editorAppPath: "/Applications/Code.app")
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: data)
+
+        expectEqual(decoded.terminalAppPath, "/Applications/iTerm.app",
+                    "terminal path survives encode/decode")
+        expectEqual(decoded.editorAppPath, "/Applications/Code.app",
+                    "editor path survives encode/decode")
+    }
+
+    await test("SettingsModel persists and clears integration app paths") {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("m1-settings-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let persister = SessionPersister(directory: dir)
+        let model = SettingsModel(persister: persister)
+
+        model.setTerminalAppPath("/Applications/iTerm.app")
+        model.setEditorAppPath("/Applications/Code.app")
+
+        expectEqual(model.settings.terminalAppPath, "/Applications/iTerm.app",
+                    "terminal path updates in memory")
+        expectEqual(model.settings.editorAppPath, "/Applications/Code.app",
+                    "editor path updates in memory")
+        expectEqual(persister.loadSettings().terminalAppPath,
+                    "/Applications/iTerm.app",
+                    "terminal path persists")
+        expectEqual(persister.loadSettings().editorAppPath,
+                    "/Applications/Code.app",
+                    "editor path persists")
+
+        model.setTerminalAppPath(nil)
+        model.setEditorAppPath(nil)
+
+        expectEqual(model.settings.terminalAppPath, nil,
+                    "terminal path clears in memory")
+        expectEqual(model.settings.editorAppPath, nil,
+                    "editor path clears in memory")
+        expectEqual(persister.loadSettings().terminalAppPath, nil,
+                    "terminal path clear persists")
+        expectEqual(persister.loadSettings().editorAppPath, nil,
+                    "editor path clear persists")
     }
 
     await test("SettingsModel persists known tags sorted and deduped") {
