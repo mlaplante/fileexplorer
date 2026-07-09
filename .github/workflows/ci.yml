@@ -1,0 +1,21 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-bench:
+    # Pinned: macos-latest floats between images (see release-binary.yml —
+    # v5.1.0 drew macos-15 whose Xcode 16.4 lacks `isolated deinit`).
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run test harness
+        run: swift run FileExplorerTests
+
+      - name: Benchmark smoke (gross-regression gate only)
+        run: swift run -c release FileExplorerBench --smoke
