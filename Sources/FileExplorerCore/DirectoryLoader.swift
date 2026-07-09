@@ -4,7 +4,7 @@ public enum DirectoryLoader {
     private static let resourceKeys: [URLResourceKey] = [
         .isDirectoryKey, .isHiddenKey, .isSymbolicLinkKey,
         .fileSizeKey, .creationDateKey, .contentModificationDateKey,
-        .tagNamesKey,
+        .tagNamesKey, .contentTypeKey,
     ]
     private static let resourceKeySet = Set(resourceKeys)
 
@@ -36,9 +36,7 @@ public enum DirectoryLoader {
                 }
             }
             let contentType = FileContentType.resolve(
-                for: url,
-                resourceType: try? url.resourceValues(forKeys: [.contentTypeKey])
-                    .contentType)
+                for: url, resourceType: rv.contentType)
             return FileEntry(
                 url: url,
                 name: url.lastPathComponent,
