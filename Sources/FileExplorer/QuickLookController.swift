@@ -38,6 +38,28 @@ final class QuickLookController: NSObject, QLPreviewPanelDataSource,
         }
     }
 
+    func preview(url: URL) {
+        guard let panel = QLPreviewPanel.shared() else { return }
+        urls = [url]
+        panel.dataSource = self
+        panel.delegate = self
+        panel.reloadData()
+        panel.currentPreviewItemIndex = 0
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    func dismissIfShowing(under root: URL) {
+        let rootPath = root.standardizedFileURL.path
+        let isShowingRootURL = urls.contains {
+            let path = $0.standardizedFileURL.path
+            return path == rootPath || path.hasPrefix(rootPath + "/")
+        }
+        guard isShowingRootURL,
+              QLPreviewPanel.sharedPreviewPanelExists() else { return }
+        QLPreviewPanel.shared().orderOut(nil)
+        urls = []
+    }
+
     var isVisible: Bool {
         QLPreviewPanel.sharedPreviewPanelExists()
             && QLPreviewPanel.shared().isVisible

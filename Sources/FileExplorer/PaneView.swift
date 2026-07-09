@@ -16,6 +16,7 @@ struct PaneView: View {
     var operationQueue: OperationQueueModel?
     @Bindable var scriptRunner: ScriptRunner
     var scriptsModel: ScriptsModel
+    var archiveBrowser: ArchiveBrowserModel
     /// Compare-mode context: this pane's side and the shared result, valid
     /// only while the pane is still at the compared root.
     var compareSide: FolderComparator.Side? = nil
@@ -44,6 +45,7 @@ struct PaneView: View {
                                              conflictResolution: conflictResolution,
                                              scriptRunner: scriptRunner,
                                              scriptsModel: scriptsModel,
+                                             archiveBrowser: archiveBrowser,
                                              share: share)) { open($0) }
                 } else if pane.viewMode == .columns {
                     ColumnBrowserView(
@@ -59,6 +61,7 @@ struct PaneView: View {
                                              conflictResolution: conflictResolution,
                                              scriptRunner: scriptRunner,
                                              scriptsModel: scriptsModel,
+                                             archiveBrowser: archiveBrowser,
                                              share: share)) { open($0) }
                 } else {
                     table
@@ -402,6 +405,7 @@ struct PaneView: View {
                         conflictResolution: conflictResolution,
                         scriptRunner: scriptRunner,
                         scriptsModel: scriptsModel,
+                        archiveBrowser: archiveBrowser,
                         share: share).menu(for: urls)
         } primaryAction: { urls in
             open(urls)

@@ -18,6 +18,7 @@ struct FileActions {
     let conflictResolution: ConflictResolutionModel?
     let scriptRunner: ScriptRunner
     let scriptsModel: ScriptsModel
+    let archiveBrowser: ArchiveBrowserModel
     let share: (@MainActor ([URL]) -> Void)?
 
     @ViewBuilder
@@ -326,6 +327,12 @@ struct FileActions {
         .disabled(!targets.contains {
             ArchiveKind.detect($0.lastPathComponent) != nil
         })
+        Button("Browse Archive…") {
+            if let archive = WorkflowActions.singleArchive(in: targets) {
+                archiveBrowser.open(archive: archive)
+            }
+        }
+        .disabled(WorkflowActions.singleArchive(in: targets) == nil)
     }
 
     @ViewBuilder
