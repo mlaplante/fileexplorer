@@ -5,22 +5,26 @@ import Observation
 @Observable
 public final class ScriptRunner {
     public var banner: String?
+    public var bannerPaneID: UUID?
     public var pendingAlert: ScriptResultFormatter.AlertContent?
-    public var onCompleted: (() -> Void)?
 
     private var running: [UUID: Process] = [:]
     private var timeoutTasks: [UUID: Task<Void, Never>] = [:]
     private var dismissTask: Task<Void, Never>?
+    private var completions: [UUID: @MainActor () -> Void] = [:]
+    private var bannerPaneIDs: [UUID: UUID] = [:]
 
     public init() {}
 
     public func run(invocation: ScriptInvocationPlanner.Invocation,
-                    timeout: Duration = .seconds(60)) {
+                    timeout: Duration = .seconds(60),
+                    bannerPaneID: UUID? = nil,
+                    onCompleted: (@MainActor () -> Void)? = nil) {
         let id = UUID()
         let name = invocation.executable.lastPathComponent
         let process = Process()
         let stderr = Pipe()
-        let stderrBuffer = LockedDataBuffer(limit: 4096)
+        let stderrBuffer = LockedDataBuffer(limit: ScriptResultFormatter.stderrCap + 1)
 
         guard FileManager.default.fileExists(atPath: invocation.executable.path) else {
             pendingAlert = ScriptResultFormatter.launchFailureAlert(
@@ -44,6 +48,10 @@ public final class ScriptRunner {
 
         process.terminationHandler = { [weak self] process in
             stderr.fileHandleForReading.readabilityHandler = nil
+            let remaining = stderr.fileHandleForReading.readDataToEndOfFile()
+            if !remaining.isEmpty {
+                stderrBuffer.append(remaining)
+            }
             let data = stderrBuffer.data()
             Task { @MainActor [weak self] in
                 self?.finish(id: id, name: name,
@@ -53,10 +61,18 @@ public final class ScriptRunner {
         }
 
         running[id] = process
+        if let onCompleted {
+            completions[id] = onCompleted
+        }
+        if let bannerPaneID {
+            bannerPaneIDs[id] = bannerPaneID
+        }
         do {
             try process.run()
         } catch {
             running[id] = nil
+            completions[id] = nil
+            bannerPaneIDs[id] = nil
             stderr.fileHandleForReading.readabilityHandler = nil
             pendingAlert = ScriptResultFormatter.launchFailureAlert(name: name,
                                                                     error: error)
@@ -68,7 +84,8 @@ public final class ScriptRunner {
             await MainActor.run { [weak self] in
                 guard let self, self.running[id] != nil else { return }
                 self.showBanner(ScriptResultFormatter.bannerText(
-                    name: name, outcome: .stillRunning))
+                    name: name, outcome: .stillRunning),
+                    paneID: self.bannerPaneIDs[id])
             }
         }
     }
@@ -77,27 +94,32 @@ public final class ScriptRunner {
         guard running.removeValue(forKey: id) != nil else { return }
         timeoutTasks[id]?.cancel()
         timeoutTasks[id] = nil
+        let completion = completions.removeValue(forKey: id)
+        let paneID = bannerPaneIDs.removeValue(forKey: id)
 
         if exitCode == 0 {
             showBanner(ScriptResultFormatter.bannerText(name: name,
-                                                        outcome: .finished))
+                                                        outcome: .finished),
+                       paneID: paneID)
         } else {
             pendingAlert = ScriptResultFormatter.alert(
                 name: name,
                 exitCode: exitCode,
                 stderr: ScriptResultFormatter.truncatedStderr(stderr))
         }
-        onCompleted?()
+        completion?()
     }
 
-    private func showBanner(_ text: String) {
+    private func showBanner(_ text: String, paneID: UUID?) {
         banner = text
+        bannerPaneID = paneID
         dismissTask?.cancel()
         dismissTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(2500))
             await MainActor.run { [weak self] in
                 guard let self, self.banner == text else { return }
                 self.banner = nil
+                self.bannerPaneID = nil
             }
         }
     }

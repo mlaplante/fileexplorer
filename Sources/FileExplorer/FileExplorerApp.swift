@@ -20,6 +20,7 @@ struct FileExplorerApp: App {
     private let updateModel = UpdateModel()
     private let shortcutRecorder = ShortcutRecorderModel()
     private let scriptRunner = ScriptRunner()
+    private let scriptsModel = ScriptsModel()
 
     init() {
         let persister = SessionPersister(
@@ -40,9 +41,6 @@ struct FileExplorerApp: App {
             Task { await session.activePane.navigate(to: launchURL) }
         }
         self.session = session
-        scriptRunner.onCompleted = { [session] in
-            Task { await session.activePane.reload() }
-        }
         let autosaver = SessionAutosaver(session: session, persister: persister)
         autosaver.start()
         self.autosaver = autosaver
@@ -83,7 +81,8 @@ struct FileExplorerApp: App {
                                    trashRegistry: trashRegistry,
                                    conflictResolution: conflictResolutionModel,
                                    operationQueue: operationQueue,
-                                   scriptRunner: scriptRunner)
+                                   scriptRunner: scriptRunner,
+                                   scriptsModel: scriptsModel)
                         .navigationTitle(session.activePane.currentURL.lastPathComponent)
                         .toolbar {
                             ToolbarItemGroup(placement: .navigation) {
@@ -116,7 +115,8 @@ struct FileExplorerApp: App {
                         PaletteCoordinator.confirm(item, palette: palette,
                                                    session: session,
                                                    settings: settings,
-                                                   scriptRunner: scriptRunner)
+                                                   scriptRunner: scriptRunner,
+                                                   scriptsModel: scriptsModel)
                     }
                     .padding(.top, 60)
                 }
@@ -318,32 +318,37 @@ struct FileExplorerApp: App {
                 .keyboardShortcut("o", modifiers: .command)
                 .disabled(session.activePane.selection.isEmpty)
                 Button("Open in Terminal") {
-                    openInTerminal(pane: session.activePane,
-                                   selection: activeSelectionEntries())
+                    WorkflowActions.openInTerminal(pane: session.activePane,
+                                                   settings: settings,
+                                                   scriptRunner: scriptRunner)
                 }
                 .keyboardShortcut(settings.chord(for: .openInTerminal).keyboardShortcut)
                 .disabled(settings.settings.terminalAppPath == nil)
                 Button("Open in Editor") {
-                    openInEditor(pane: session.activePane,
-                                 selection: activeSelectionEntries())
+                    WorkflowActions.openInEditor(pane: session.activePane,
+                                                 settings: settings,
+                                                 scriptRunner: scriptRunner)
                 }
                 .keyboardShortcut(settings.chord(for: .openInEditor).keyboardShortcut)
                 .disabled(settings.settings.editorAppPath == nil)
                 Menu("Scripts") {
-                    let scripts = ScriptLister.scripts(in: ScriptLister.defaultFolder)
-                    if scripts.isEmpty {
+                    if scriptsModel.scripts.isEmpty {
                         Text("No scripts installed")
                     } else {
-                        ForEach(scripts, id: \.self) { script in
+                        ForEach(scriptsModel.scripts, id: \.self) { script in
                             Button(script.lastPathComponent) {
-                                runScript(script, pane: session.activePane,
-                                          selection: activeSelectionEntries())
+                                WorkflowActions.runScript(script,
+                                                          pane: session.activePane,
+                                                          scriptRunner: scriptRunner)
                             }
                         }
                     }
                     Divider()
                     Button("Open Scripts Folder") {
-                        openScriptsFolder(in: session.activePane)
+                        WorkflowActions.openScriptsFolder(
+                            in: session.activePane,
+                            scriptsModel: scriptsModel,
+                            scriptRunner: scriptRunner)
                     }
                 }
                 Divider()
@@ -480,7 +485,8 @@ struct FileExplorerApp: App {
                 Button("Command Palette…") {
                     PaletteCoordinator.openCommands(palette, session: session,
                                                     settings: settings,
-                                                    scriptRunner: scriptRunner)
+                                                    scriptRunner: scriptRunner,
+                                                    scriptsModel: scriptsModel)
                 }
                 .keyboardShortcut(settings.chord(for: .commandPalette).keyboardShortcut)
             }
@@ -504,61 +510,6 @@ struct FileExplorerApp: App {
         }
     }
 
-    private func activeSelectionEntries() -> [FileEntry] {
-        let pane = session.activePane
-        return pane.visibleEntries.filter { pane.selection.contains($0.url) }
-    }
-
-    private func openInTerminal(pane: PaneState, selection: [FileEntry]) {
-        guard let path = settings.settings.terminalAppPath else { return }
-        let target = ScriptInvocationPlanner.terminalTarget(selection: selection,
-                                                            paneFolder: pane.currentURL)
-        Task {
-            let result = await AppLauncher.open(urls: [target], withAppAt: path)
-            handleAppLaunch(result, kind: "Terminal")
-        }
-    }
-
-    private func openInEditor(pane: PaneState, selection: [FileEntry]) {
-        guard let path = settings.settings.editorAppPath else { return }
-        let targets = ScriptInvocationPlanner.editorTargets(selection: selection,
-                                                            paneFolder: pane.currentURL)
-        Task {
-            let result = await AppLauncher.open(urls: targets, withAppAt: path)
-            handleAppLaunch(result, kind: "Editor")
-        }
-    }
-
-    private func runScript(_ script: URL, pane: PaneState, selection: [FileEntry]) {
-        scriptRunner.run(invocation: ScriptInvocationPlanner.scriptInvocation(
-            script: script, selection: selection, paneFolder: pane.currentURL))
-    }
-
-    private func openScriptsFolder(in pane: PaneState) {
-        do {
-            try ScriptLister.ensureFolderExists(ScriptLister.defaultFolder)
-            Task { await pane.navigate(to: ScriptLister.defaultFolder) }
-        } catch {
-            scriptRunner.pendingAlert = ScriptResultFormatter.AlertContent(
-                title: "Scripts folder could not be opened",
-                message: String(describing: error))
-        }
-    }
-
-    private func handleAppLaunch(_ result: Result<Void, AppLaunchError>,
-                                 kind: String) {
-        guard case .failure(let error) = result else { return }
-        switch error {
-        case .appMissing(let path):
-            scriptRunner.pendingAlert = ScriptResultFormatter.AlertContent(
-                title: "\(kind) app missing",
-                message: "\(path) no longer exists. Open Settings > Integrations to choose another app.")
-        case .openFailed(let message):
-            scriptRunner.pendingAlert = ScriptResultFormatter.AlertContent(
-                title: "\(kind) could not open",
-                message: message)
-        }
-    }
 }
 
 /// ⌘I lives in its own Commands type because @Environment(\.openWindow)

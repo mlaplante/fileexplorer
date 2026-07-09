@@ -15,6 +15,7 @@ struct FileActions {
     let trashRegistry: TrashRegistryModel?
     let conflictResolution: ConflictResolutionModel?
     let scriptRunner: ScriptRunner
+    let scriptsModel: ScriptsModel
     let share: (@MainActor ([URL]) -> Void)?
 
     @ViewBuilder
@@ -41,32 +42,37 @@ struct FileActions {
 
     @ViewBuilder
     private func workflowSection(targets: [URL]) -> some View {
-        let entries = selectedEntries(for: targets)
+        let entries = SelectionResolver.entries(matching: targets,
+                                                in: pane.visibleEntries)
         Button("Open in Terminal") {
-            openInTerminal(entries: entries)
+            WorkflowActions.openInTerminal(pane: pane, settings: settings,
+                                           scriptRunner: scriptRunner,
+                                           selection: entries)
         }
         .disabled(settings.settings.terminalAppPath == nil)
         Button("Open in Editor") {
-            openInEditor(entries: entries)
+            WorkflowActions.openInEditor(pane: pane, settings: settings,
+                                         scriptRunner: scriptRunner,
+                                         selection: entries)
         }
         .disabled(settings.settings.editorAppPath == nil)
         Menu("Scripts") {
-            let scripts = ScriptLister.scripts(in: ScriptLister.defaultFolder)
-            if scripts.isEmpty {
+            if scriptsModel.scripts.isEmpty {
                 Text("No scripts installed")
             } else {
-                ForEach(scripts, id: \.self) { script in
+                ForEach(scriptsModel.scripts, id: \.self) { script in
                     Button(script.lastPathComponent) {
-                        scriptRunner.run(invocation: ScriptInvocationPlanner
-                            .scriptInvocation(script: script,
-                                              selection: entries,
-                                              paneFolder: pane.currentURL))
+                        WorkflowActions.runScript(script, pane: pane,
+                                                  scriptRunner: scriptRunner,
+                                                  selection: entries)
                     }
                 }
             }
             Divider()
             Button("Open Scripts Folder") {
-                openScriptsFolder()
+                WorkflowActions.openScriptsFolder(in: pane,
+                                                  scriptsModel: scriptsModel,
+                                                  scriptRunner: scriptRunner)
             }
         }
         Divider()
@@ -418,59 +424,6 @@ struct FileActions {
     private func openWith(_ urls: [URL], app: URL) {
         NSWorkspace.shared.open(urls, withApplicationAt: app,
                                 configuration: NSWorkspace.OpenConfiguration())
-    }
-
-    private func selectedEntries(for targets: [URL]) -> [FileEntry] {
-        let targetSet = Set(targets.map(\.standardizedFileURL))
-        return pane.visibleEntries.filter {
-            targetSet.contains($0.url.standardizedFileURL)
-        }
-    }
-
-    private func openInTerminal(entries: [FileEntry]) {
-        guard let path = settings.settings.terminalAppPath else { return }
-        let target = ScriptInvocationPlanner.terminalTarget(selection: entries,
-                                                            paneFolder: pane.currentURL)
-        Task {
-            let result = await AppLauncher.open(urls: [target], withAppAt: path)
-            handleAppLaunch(result, kind: "Terminal")
-        }
-    }
-
-    private func openInEditor(entries: [FileEntry]) {
-        guard let path = settings.settings.editorAppPath else { return }
-        let targets = ScriptInvocationPlanner.editorTargets(selection: entries,
-                                                            paneFolder: pane.currentURL)
-        Task {
-            let result = await AppLauncher.open(urls: targets, withAppAt: path)
-            handleAppLaunch(result, kind: "Editor")
-        }
-    }
-
-    private func openScriptsFolder() {
-        do {
-            try ScriptLister.ensureFolderExists(ScriptLister.defaultFolder)
-            Task { await pane.navigate(to: ScriptLister.defaultFolder) }
-        } catch {
-            scriptRunner.pendingAlert = ScriptResultFormatter.AlertContent(
-                title: "Scripts folder could not be opened",
-                message: String(describing: error))
-        }
-    }
-
-    private func handleAppLaunch(_ result: Result<Void, AppLaunchError>,
-                                 kind: String) {
-        guard case .failure(let error) = result else { return }
-        switch error {
-        case .appMissing(let path):
-            scriptRunner.pendingAlert = ScriptResultFormatter.AlertContent(
-                title: "\(kind) app missing",
-                message: "\(path) no longer exists. Open Settings > Integrations to choose another app.")
-        case .openFailed(let message):
-            scriptRunner.pendingAlert = ScriptResultFormatter.AlertContent(
-                title: "\(kind) could not open",
-                message: message)
-        }
     }
 
     private func transfer(_ targets: [URL], to destinationPane: PaneState,

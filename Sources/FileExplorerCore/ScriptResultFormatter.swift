@@ -6,6 +6,8 @@ public enum ScriptOutcome: Equatable, Sendable {
 }
 
 public enum ScriptResultFormatter {
+    public static let stderrCap = 4096
+
     public struct AlertContent: Equatable, Identifiable, Sendable {
         public let title: String
         public let message: String
@@ -36,11 +38,10 @@ public enum ScriptResultFormatter {
     }
 
     public static func truncatedStderr(_ data: Data) -> String {
-        let limit = 4096
-        if data.count <= limit {
+        if data.count <= stderrCap {
             return String(decoding: data, as: UTF8.self)
         }
-        return "…" + String(decoding: data.suffix(limit), as: UTF8.self)
+        return "…" + String(decoding: data.suffix(stderrCap), as: UTF8.self)
     }
 
     public static func launchFailureAlert(name: String,

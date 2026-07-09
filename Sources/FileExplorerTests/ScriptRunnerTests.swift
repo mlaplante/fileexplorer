@@ -34,10 +34,10 @@ func scriptRunnerTests() async {
         let script = try writeScript(dir, name: "ok.sh", body: "exit 0\n")
         let runner = ScriptRunner()
         var completed = 0
-        runner.onCompleted = { completed += 1 }
 
         runner.run(invocation: invocation(script: script, cwd: dir),
-                   timeout: .milliseconds(200))
+                   timeout: .milliseconds(200),
+                   onCompleted: { completed += 1 })
 
         let finished = await waitUntil { runner.banner == "ok.sh finished" }
         expect(finished, "success banner appears")
@@ -52,10 +52,10 @@ func scriptRunnerTests() async {
                                      body: "echo bad things >&2\nexit 2\n")
         let runner = ScriptRunner()
         var completed = 0
-        runner.onCompleted = { completed += 1 }
 
         runner.run(invocation: invocation(script: script, cwd: dir),
-                   timeout: .milliseconds(200))
+                   timeout: .milliseconds(200),
+                   onCompleted: { completed += 1 })
 
         let alerted = await waitUntil { runner.pendingAlert != nil }
         expect(alerted, "failure alert appears")
@@ -64,6 +64,24 @@ func scriptRunnerTests() async {
         expect(runner.pendingAlert?.message.contains("bad things") == true,
                "alert message includes stderr")
         expectEqual(completed, 1, "completion callback fires on failure")
+    }
+
+    await test("ScriptRunner truncates long stderr with marker") {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let script = try writeScript(
+            dir,
+            name: "loud.sh",
+            body: "python3 - <<'PY' >&2\nprint('a' * 5000)\nPY\nexit 2\n")
+        let runner = ScriptRunner()
+
+        runner.run(invocation: invocation(script: script, cwd: dir),
+                   timeout: .milliseconds(200))
+
+        let alerted = await waitUntil { runner.pendingAlert != nil }
+        expect(alerted, "long stderr failure alert appears")
+        expect(runner.pendingAlert?.message.hasPrefix("…") == true,
+               "long stderr message keeps truncation marker")
     }
 
     await test("ScriptRunner reports timeout then eventual success") {

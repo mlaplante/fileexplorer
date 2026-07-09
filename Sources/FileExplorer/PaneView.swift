@@ -13,6 +13,7 @@ struct PaneView: View {
     var conflictResolution: ConflictResolutionModel?
     var operationQueue: OperationQueueModel?
     @Bindable var scriptRunner: ScriptRunner
+    var scriptsModel: ScriptsModel
     /// Compare-mode context: this pane's side and the shared result, valid
     /// only while the pane is still at the compared root.
     var compareSide: FolderComparator.Side? = nil
@@ -38,6 +39,7 @@ struct PaneView: View {
                                              trashRegistry: trashRegistry,
                                              conflictResolution: conflictResolution,
                                              scriptRunner: scriptRunner,
+                                             scriptsModel: scriptsModel,
                                              share: share)) { open($0) }
                 } else if pane.viewMode == .columns {
                     ColumnBrowserView(
@@ -50,6 +52,7 @@ struct PaneView: View {
                                              trashRegistry: trashRegistry,
                                              conflictResolution: conflictResolution,
                                              scriptRunner: scriptRunner,
+                                             scriptsModel: scriptsModel,
                                              share: share)) { open($0) }
                 } else {
                     table
@@ -217,7 +220,8 @@ struct PaneView: View {
             pane.shareAnchor = view
         }.frame(width: 0, height: 0))
         .overlay(alignment: .bottom) {
-            if let banner = scriptRunner.banner {
+            if let banner = scriptRunner.banner,
+               scriptRunner.bannerPaneID == pane.id {
                 Text(banner)
                     .font(.caption)
                     .lineLimit(1)
@@ -379,6 +383,7 @@ struct PaneView: View {
                         trashRegistry: trashRegistry,
                         conflictResolution: conflictResolution,
                         scriptRunner: scriptRunner,
+                        scriptsModel: scriptsModel,
                         share: share).menu(for: urls)
         } primaryAction: { urls in
             open(urls)
