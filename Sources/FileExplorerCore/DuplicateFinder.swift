@@ -62,6 +62,9 @@ private struct DuplicateScanSnapshot: Sendable {
 }
 
 private enum DuplicateScanRunner {
+    private static let prefilterThreshold: Int64 = 128 * 1024
+    private static let prefixBytes = 65_536
+
     static func stream(root: URL, cap: Int) -> AsyncStream<DuplicateScanSnapshot> {
         AsyncStream { continuation in
             let task = Task.detached(priority: .userInitiated) {
@@ -134,8 +137,6 @@ private enum DuplicateScanRunner {
             }
         }
 
-        let prefilterThreshold: Int64 = 128 * 1024
-        let prefixBytes = 65_536
         var groups: [DuplicateGroup] = []
         for size in bySize.keys.sorted() {
             if Task.isCancelled { break }
@@ -146,14 +147,20 @@ private enum DuplicateScanRunner {
             // them without reading whole files.
             var candidateBuckets: [[URL]]
             if size > prefilterThreshold {
+                if Task.isCancelled { break }
                 var byPrefix: [String: [URL]] = [:]
-                for url in urls {
-                    if Task.isCancelled { break }
-                    guard case .success(let prefix) = FileHasher.sha256(
-                        of: url, firstBytes: prefixBytes) else { continue }
+                for (url, prefix) in await parallelHashes(
+                    of: urls, firstBytes: prefixBytes) {
                     byPrefix[prefix, default: []].append(url)
                 }
-                candidateBuckets = byPrefix.values.filter { $0.count >= 2 }
+                // Dictionary (and task-completion) order is nondeterministic;
+                // sort buckets by their lexicographically-smallest member so
+                // downstream processing order doesn't depend on scheduling.
+                candidateBuckets = byPrefix.values
+                    .filter { $0.count >= 2 }
+                    .sorted { lhs, rhs in
+                        (lhs.map(\.path).min() ?? "") < (rhs.map(\.path).min() ?? "")
+                    }
             } else {
                 candidateBuckets = [urls]
             }
@@ -161,7 +168,7 @@ private enum DuplicateScanRunner {
             var byHash: [String: [DuplicateMember]] = [:]
             for bucket in candidateBuckets {
                 if Task.isCancelled { break }
-                for (url, hash) in await parallelFullHashes(
+                for (url, hash) in await parallelHashes(
                     of: bucket.sorted(by: { $0.path < $1.path })) {
                     let modified = (try? url.resourceValues(
                         forKeys: [.contentModificationDateKey]
@@ -190,10 +197,14 @@ private enum DuplicateScanRunner {
                                     isFinished: true))
     }
 
-    /// Full hashes of `urls`, bounded to the core count so a duplicate scan
-    /// can't starve the machine. Results keep no particular order; callers
-    /// sort members before building groups.
-    private static func parallelFullHashes(of urls: [URL]) async -> [(URL, String)] {
+    /// Hashes of `urls`, bounded to the core count so a duplicate scan can't
+    /// starve the machine. Blocking hash IO intentionally occupies up to
+    /// `width` cooperative-pool threads — acceptable for a bounded, transient,
+    /// user-initiated scan; revisit with a dedicated executor if this pattern
+    /// spreads. Results keep no particular order; callers sort as needed.
+    private static func parallelHashes(of urls: [URL],
+                                       firstBytes limit: Int = .max)
+        async -> [(URL, String)] {
         let width = min(ProcessInfo.processInfo.activeProcessorCount, 8)
         var results: [(URL, String)] = []
         var iterator = urls.makeIterator()
@@ -202,7 +213,8 @@ private enum DuplicateScanRunner {
                 guard let url = iterator.next() else { break }
                 group.addTask {
                     guard !Task.isCancelled,
-                          case .success(let hash) = FileHasher.sha256(of: url)
+                          case .success(let hash) = FileHasher.sha256(
+                              of: url, firstBytes: limit)
                     else { return nil }
                     return (url, hash)
                 }
@@ -212,7 +224,8 @@ private enum DuplicateScanRunner {
                 if let url = iterator.next() {
                     group.addTask {
                         guard !Task.isCancelled,
-                              case .success(let hash) = FileHasher.sha256(of: url)
+                              case .success(let hash) = FileHasher.sha256(
+                                  of: url, firstBytes: limit)
                         else { return nil }
                         return (url, hash)
                     }
