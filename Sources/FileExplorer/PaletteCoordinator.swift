@@ -87,15 +87,18 @@ enum PaletteCoordinator {
     }
 
     static func openCommands(_ palette: PaletteModel, session: SessionState,
-                             settings: SettingsModel) {
+                             settings: SettingsModel,
+                             scriptRunner: ScriptRunner) {
         palette.present(mode: .commands)
-        palette.setItems(commands(for: session, settings: settings).map {
+        palette.setItems(commands(for: session, settings: settings,
+                                  scriptRunner: scriptRunner).map {
             PaletteItem(id: $0.id, title: $0.name, subtitle: $0.shortcut)
         })
     }
 
     static func confirm(_ item: PaletteItem, palette: PaletteModel,
-                        session: SessionState, settings: SettingsModel) {
+                        session: SessionState, settings: SettingsModel,
+                        scriptRunner: ScriptRunner) {
         // Capture the mode and the palette's opening-time pane before
         // dismiss() clears targetPane — folder/file confirms must land on
         // the pane the palette was opened for, not whatever pane is active
@@ -127,7 +130,8 @@ enum PaletteCoordinator {
         case .commands:
             // Commands intentionally target whatever pane is active at
             // confirm time (e.g. "Toggle Dual Pane" acts on the current tab).
-            commands(for: session, settings: settings).first { $0.id == item.id }?.action()
+            commands(for: session, settings: settings,
+                     scriptRunner: scriptRunner).first { $0.id == item.id }?.action()
         }
     }
 
@@ -139,7 +143,8 @@ enum PaletteCoordinator {
     }
 
     static func commands(for session: SessionState,
-                         settings: SettingsModel) -> [AppCommand] {
+                         settings: SettingsModel,
+                         scriptRunner: ScriptRunner) -> [AppCommand] {
         ([
             AppCommand(id: "back", name: "Back", shortcut: "⌘[") {
                 Task { await session.activePane.goBack() }
@@ -179,7 +184,57 @@ enum PaletteCoordinator {
                 NSWorkspace.shared.activateFileViewerSelecting(
                     [session.activePane.currentURL])
             },
+            AppCommand(id: "open-terminal", name: "Open in Terminal",
+                       shortcut: settings.chord(for: .openInTerminal).display) {
+                guard let path = settings.settings.terminalAppPath else { return }
+                let pane = session.activePane
+                let target = ScriptInvocationPlanner.terminalTarget(
+                    selection: selectedEntries(in: pane),
+                    paneFolder: pane.currentURL)
+                Task {
+                    let result = await AppLauncher.open(urls: [target],
+                                                        withAppAt: path)
+                    handleAppLaunch(result, kind: "Terminal",
+                                    scriptRunner: scriptRunner)
+                }
+            },
+            AppCommand(id: "open-editor", name: "Open in Editor",
+                       shortcut: settings.chord(for: .openInEditor).display) {
+                guard let path = settings.settings.editorAppPath else { return }
+                let pane = session.activePane
+                let targets = ScriptInvocationPlanner.editorTargets(
+                    selection: selectedEntries(in: pane),
+                    paneFolder: pane.currentURL)
+                Task {
+                    let result = await AppLauncher.open(urls: targets,
+                                                        withAppAt: path)
+                    handleAppLaunch(result, kind: "Editor",
+                                    scriptRunner: scriptRunner)
+                }
+            },
+            AppCommand(id: "open-scripts-folder", name: "Open Scripts Folder",
+                       shortcut: "") {
+                do {
+                    try ScriptLister.ensureFolderExists(ScriptLister.defaultFolder)
+                    Task { await session.activePane.navigate(to: ScriptLister.defaultFolder) }
+                } catch {
+                    scriptRunner.pendingAlert = ScriptResultFormatter.AlertContent(
+                        title: "Scripts folder could not be opened",
+                        message: String(describing: error))
+                }
+            },
         ])
+        + ScriptLister.scripts(in: ScriptLister.defaultFolder).map { script in
+            AppCommand(id: "script:\(script.path)",
+                       name: "Run Script: \(script.lastPathComponent)",
+                       shortcut: "") {
+                let pane = session.activePane
+                scriptRunner.run(invocation: ScriptInvocationPlanner.scriptInvocation(
+                    script: script,
+                    selection: selectedEntries(in: pane),
+                    paneFolder: pane.currentURL))
+            }
+        }
         + settings.settings.filterPresets.map { preset in
             AppCommand(id: "preset:\(preset.name)",
                        name: "Apply Preset: \(preset.name)", shortcut: "") {
@@ -204,5 +259,25 @@ enum PaletteCoordinator {
 
     private nonisolated static func abbreviate(_ url: URL) -> String {
         (url.path as NSString).abbreviatingWithTildeInPath
+    }
+
+    private static func selectedEntries(in pane: PaneState) -> [FileEntry] {
+        pane.visibleEntries.filter { pane.selection.contains($0.url) }
+    }
+
+    private static func handleAppLaunch(_ result: Result<Void, AppLaunchError>,
+                                        kind: String,
+                                        scriptRunner: ScriptRunner) {
+        guard case .failure(let error) = result else { return }
+        switch error {
+        case .appMissing(let path):
+            scriptRunner.pendingAlert = ScriptResultFormatter.AlertContent(
+                title: "\(kind) app missing",
+                message: "\(path) no longer exists. Open Settings > Integrations to choose another app.")
+        case .openFailed(let message):
+            scriptRunner.pendingAlert = ScriptResultFormatter.AlertContent(
+                title: "\(kind) could not open",
+                message: message)
+        }
     }
 }

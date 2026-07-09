@@ -60,6 +60,7 @@ struct TabContentView: View {
     var trashRegistry: TrashRegistryModel?
     var conflictResolution: ConflictResolutionModel
     var operationQueue: OperationQueueModel
+    var scriptRunner: ScriptRunner
 
     var body: some View {
         VStack(spacing: 0) {
@@ -71,7 +72,8 @@ struct TabContentView: View {
                          syncPreview: syncPreview, settings: settings,
                          trashRegistry: trashRegistry,
                          conflictResolution: conflictResolution,
-                         operationQueue: operationQueue)
+                         operationQueue: operationQueue,
+                         scriptRunner: scriptRunner)
         }
         .onChange(of: session.activeTabIndex) { _, _ in
             if QuickLookController.shared.isVisible {
@@ -92,6 +94,7 @@ struct PaneAreaView: View {
     var trashRegistry: TrashRegistryModel?
     var conflictResolution: ConflictResolutionModel
     var operationQueue: OperationQueueModel
+    var scriptRunner: ScriptRunner
 
     var body: some View {
         HSplitView {
@@ -152,6 +155,7 @@ struct PaneAreaView: View {
                      trashRegistry: trashRegistry,
                      conflictResolution: conflictResolution,
                      operationQueue: operationQueue,
+                     scriptRunner: scriptRunner,
                      compareSide: compareActive ? (index == 0 ? .left : .right) : nil,
                      compareResult: compareActive ? tab.compareResult : nil)
         }

@@ -1,6 +1,7 @@
 import AppKit
 import Observation
 import SwiftUI
+import UniformTypeIdentifiers
 import FileExplorerCore
 
 extension KeyChord {
@@ -91,6 +92,8 @@ struct SettingsRootView: View {
         TabView {
             GeneralSettingsView(settings: settings, updateModel: updateModel)
                 .tabItem { Label("General", systemImage: "gearshape") }
+            IntegrationsSettingsView(settings: settings)
+                .tabItem { Label("Integrations", systemImage: "app.connected.to.app.below.fill") }
             ShortcutSettingsView(settings: settings, recorder: recorder)
                 .tabItem { Label("Shortcuts", systemImage: "keyboard") }
         }
@@ -129,6 +132,57 @@ private struct GeneralSettingsView: View {
     private var lastUpdateCheckText: String {
         guard let date = settings.settings.lastUpdateCheckAt else { return "Never" }
         return date.formatted(date: .abbreviated, time: .shortened)
+    }
+}
+
+private struct IntegrationsSettingsView: View {
+    var settings: SettingsModel
+
+    var body: some View {
+        Form {
+            appRow(title: "Terminal app",
+                   path: settings.settings.terminalAppPath,
+                   choose: { chooseApp { settings.setTerminalAppPath($0) } },
+                   clear: { settings.setTerminalAppPath(nil) })
+            appRow(title: "Editor app",
+                   path: settings.settings.editorAppPath,
+                   choose: { chooseApp { settings.setEditorAppPath($0) } },
+                   clear: { settings.setEditorAppPath(nil) })
+        }
+        .frame(width: 520)
+    }
+
+    @ViewBuilder
+    private func appRow(title: String, path: String?,
+                        choose: @escaping () -> Void,
+                        clear: @escaping () -> Void) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text(displayName(for: path))
+                .foregroundStyle(path == nil ? .secondary : .primary)
+            Button("Choose…", action: choose)
+            Button("Clear", action: clear)
+                .disabled(path == nil)
+        }
+    }
+
+    private func displayName(for path: String?) -> String {
+        guard let path else { return "Not set" }
+        let name = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+        return name.isEmpty ? path : name
+    }
+
+    private func chooseApp(_ apply: (String) -> Void) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.applicationBundle]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+        if panel.runModal() == .OK, let url = panel.url {
+            apply(url.path)
+        }
     }
 }
 
