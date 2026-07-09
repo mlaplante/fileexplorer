@@ -203,8 +203,11 @@ enum FixtureBuilder {
     static func build(profile: BenchProfile) throws -> Fixtures {
         let cachesDir = FileManager.default.urls(
             for: .cachesDirectory, in: .userDomainMask)[0]
+        // Cache key embeds the profile's counts so editing BenchProfile
+        // invalidates stale fixtures instead of silently reusing them.
         let root = cachesDir.appendingPathComponent(
-            "FileExplorerBench/\(profile.name)-v1", isDirectory: true)
+            "FileExplorerBench/\(profile.name)-v1-\(profile.flatFileCount)-\(profile.deepEntryCount)-\(profile.dupeFileCount)",
+            isDirectory: true)
         let stamp = root.appendingPathComponent("COMPLETE")
         let fm = FileManager.default
 
@@ -240,8 +243,10 @@ enum FixtureBuilder {
         }
     }
 
-    /// Deep: directories fan out 6 wide to depth ~12; every directory gets
-    /// text files, one in ~50 containing the content-scan needle.
+    /// Deep: budget-limited BFS, 6 dirs wide with 8 files each — lands
+    /// shallow-and-wide (depth ~4-6), which matches how enumeration cost
+    /// scales (entry count, not depth). One file in ~50 contains the
+    /// content-scan needle.
     private static func buildDeep(in dir: URL, count: Int) throws {
         let fm = FileManager.default
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -279,8 +284,8 @@ enum FixtureBuilder {
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
         // (size, share of files) — mostly small, a few large.
         let tiers: [(bytes: Int, share: Double)] = [
-            (4 * 1024, 0.60), (256 * 1024, 0.30),
-            (8 * 1024 * 1024, 0.09), (48 * 1024 * 1024, 0.01),
+            (4 * 1024, 0.60), (256 * 1024, 0.36),
+            (8 * 1024 * 1024, 0.03), (48 * 1024 * 1024, 0.003),
         ]
         var rng = SeededBytes(seed: 3)
         var index = 0
@@ -295,8 +300,8 @@ enum FixtureBuilder {
                     try original.write(to: url)          // exact duplicate
                 } else if i % 10 == 3, let original = originals.last,
                           tier.bytes > 128 * 1024 {
-                    var tail = original                   // same 64 KB prefix,
-                    tail[tail.count - 1] ^= 0xFF          // different tail
+                    var tail = original                   // identical except the
+                    tail[tail.count - 1] ^= 0xFF          // final byte
                     try tail.write(to: url)
                 } else {
                     let data = rng.data(count: tier.bytes)
@@ -530,7 +535,7 @@ git commit -m "feat: bench scenarios, CLI flags, smoke caps"
 - [ ] **Step 1: Run the full profile and save the baseline**
 
 Run: `swift run -c release FileExplorerBench --json .build/bench-baseline.json`
-Expected: six bench lines. First run generates ~1 GB of fixtures under `~/Library/Caches/FileExplorerBench/full-v1` and may take several minutes; subsequent runs reuse them.
+Expected: six bench lines. First run generates ~1 GB of fixtures (dupes ≈ 940 MB dominated by the 8/48 MB tiers) under `~/Library/Caches/FileExplorerBench/full-v1` and may take several minutes; subsequent runs reuse them.
 
 - [ ] **Step 2: Paste results into the baseline doc**
 
@@ -1135,5 +1140,5 @@ Use the superpowers:finishing-a-development-branch skill to decide merge/PR for 
 ## Self-review notes
 
 - Spec coverage: bench target+fixtures (T2), scenarios+flags (T3), baseline (T4), DirectoryLoader (T5), prefilter+parallel+sort-at-yield (T6–7), CI smoke (T8), deprecations (T9), strict concurrency (T10), parser drift (T11), subprocess/runtime traps (T12), README (T13), verification (T14). ContentScanner/UsageScanner and PaneState consolidation are conditional in the spec ("only if baseline shows") — covered by T8 Step 1's regression check; no unconditional task on purpose.
-- The 48 MB dupes tier honors the spec's "sizes up to ~50 MB".
+- The 48 MB dupes tier honors the spec's "sizes up to ~50 MB". Tier shares were retuned after Task 2 review (0.36/0.03/0.003) to keep the full corpus near 1 GB instead of 2.5 GB, and the fixture cache key embeds profile counts so constant edits can't silently reuse stale fixtures.
 - `sha256(of:firstBytes:)` naming is consistent across T6 and T7.
