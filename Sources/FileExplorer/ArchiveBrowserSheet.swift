@@ -31,20 +31,24 @@ struct ArchiveBrowserSheet: View {
         }
         .frame(width: 720, height: 500)
         .onKeyPress(.space) {
+            guard !sheet.isWorking else { return .handled }
             previewSelection()
             return .handled
         }
         .onKeyPress(.return) {
+            guard !sheet.isWorking else { return .handled }
             openSelection()
             return .handled
         }
         .onKeyPress(.upArrow, phases: .down) { press in
+            guard !sheet.isWorking else { return .handled }
             guard press.modifiers.contains(.command) else { return .ignored }
             browser.navigateUp()
             sheet.selection = []
             return .handled
         }
         .onKeyPress("o", phases: .down) { press in
+            guard !sheet.isWorking else { return .handled }
             guard press.modifiers.contains(.command) else { return .ignored }
             openSelection()
             return .handled
@@ -117,7 +121,9 @@ struct ArchiveBrowserSheet: View {
                                     browser.navigate(into: entry.path)
                                     sheet.selection = []
                                 } else {
-                                    open(entry)
+                                    extractThenAct(entry) { url in
+                                        NSWorkspace.shared.open(url)
+                                    }
                                 }
                             }
                     }
@@ -166,6 +172,7 @@ struct ArchiveBrowserSheet: View {
                 browser.close()
                 sheet.reset()
             }
+            .disabled(sheet.isWorking)
             .keyboardShortcut(.cancelAction)
         }
         .padding(12)
@@ -180,7 +187,9 @@ struct ArchiveBrowserSheet: View {
         guard selectedEntries().count == 1,
               let entry = selectedEntries().first,
               !entry.isDirectory else { return }
-        preview(entry)
+        extractThenAct(entry) { url in
+            QuickLookController.shared.preview(url: url)
+        }
     }
 
     private func openSelection() {
@@ -190,15 +199,19 @@ struct ArchiveBrowserSheet: View {
                 browser.navigate(into: entry.path)
                 sheet.selection = []
             } else {
-                open(entry)
+                extractThenAct(entry) { url in
+                    NSWorkspace.shared.open(url)
+                }
             }
         }
     }
 
-    private func preview(_ entry: ArchiveEntry) {
+    private func extractThenAct(_ entry: ArchiveEntry,
+                                action: @escaping @MainActor (URL) -> Void) {
         guard let archive = browser.archiveURL else { return }
         sheet.isWorking = true
         let tempRoot = browser.previewTempRoot()
+        let token = browser.presentationToken
         Task {
             let result = await Task.detached(priority: .userInitiated) {
                 ArchiveExtractor.extractForPreview(entry: entry, from: archive,
@@ -207,27 +220,13 @@ struct ArchiveBrowserSheet: View {
             sheet.isWorking = false
             switch result {
             case .success(let url):
-                QuickLookController.shared.preview(url: url)
+                guard browser.isCurrentPreviewContext(archive: archive, token: token) else {
+                    browser.discardPreviewExtraction(at: url)
+                    return
+                }
+                action(url)
             case .failure(let error):
-                sheet.errorMessage = error.message
-            }
-        }
-    }
-
-    private func open(_ entry: ArchiveEntry) {
-        guard let archive = browser.archiveURL else { return }
-        sheet.isWorking = true
-        let tempRoot = browser.previewTempRoot()
-        Task {
-            let result = await Task.detached(priority: .userInitiated) {
-                ArchiveExtractor.extractForPreview(entry: entry, from: archive,
-                                                   tempRoot: tempRoot)
-            }.value
-            sheet.isWorking = false
-            switch result {
-            case .success(let url):
-                NSWorkspace.shared.open(url)
-            case .failure(let error):
+                guard browser.isCurrentPreviewContext(archive: archive, token: token) else { return }
                 sheet.errorMessage = error.message
             }
         }

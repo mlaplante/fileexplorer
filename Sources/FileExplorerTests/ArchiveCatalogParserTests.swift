@@ -62,12 +62,34 @@ func archiveCatalogParserTests() async {
         -rw-r--r--  0 user group       3 Jul  9 10:30 /etc/passwd
         -rw-r--r--  0 user group       3 Jul  9 10:30 a/../../x
         lrwxr-xr-x  0 user group       7 Jul  9 10:30 link -> target
+        hrw-r--r--  0 u    g          0 Jul  9 10:36 ./hardlink.txt link to ./original.txt
         -rw-r--r--  0 user group       4 Jul  9 10:30 safe.txt
         """
         let parsed = ArchiveCatalogParser.parse(listing: listing,
                                                 referenceDate: referenceDate)
         expectEqual(parsed.entries.map(\.path), ["safe.txt"], "only safe file remains")
         expectEqual(parsed.hadSuspiciousPaths, true, "unsafe paths set the suspicious flag")
+    }
+
+    await test("ArchiveCatalogParser treats archive root entries as benign skips") {
+        let listing = """
+        drwxr-xr-x  0 user group       0 Jul  9 10:30 ./
+        -rw-r--r--  0 user group       4 Jul  9 10:30 safe.txt
+        """
+        let parsed = ArchiveCatalogParser.parse(listing: listing,
+                                                referenceDate: referenceDate)
+        expectEqual(parsed.entries.map(\.path), ["safe.txt"], "root directory entry is skipped")
+        expectEqual(parsed.hadSuspiciousPaths, false, "root directory entry is not suspicious")
+    }
+
+    await test("ArchiveCatalogParser skips hard links without suspicious flag") {
+        let listing = """
+        hrw-r--r--  0 u g  0 Jul  9 10:36 ./hardlink.txt link to ./original.txt
+        """
+        let parsed = ArchiveCatalogParser.parse(listing: listing,
+                                                referenceDate: referenceDate)
+        expectEqual(parsed.entries, [], "hard link entry is not shown")
+        expectEqual(parsed.hadSuspiciousPaths, false, "hard link skip is benign")
     }
 
     await test("ArchiveCatalogParser caps entries and handles empty listings") {

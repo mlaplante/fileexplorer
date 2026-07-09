@@ -213,7 +213,7 @@ enum PaletteCoordinator {
                                         pane: session.activePane)
             },
         ]
-        if let archive = singleSelectedArchive(in: session.activePane) {
+        if let archive = WorkflowActions.singleSelectedArchive(in: session.activePane) {
             base.append(
                 AppCommand(id: "browse-archive", name: "Browse Archive", shortcut: "") {
                     archiveBrowser.open(archive: archive)
@@ -262,12 +262,6 @@ enum PaletteCoordinator {
                     .joined(separator: ", ")
             }
         }
-    }
-
-    private static func singleSelectedArchive(in pane: PaneState) -> URL? {
-        guard pane.selection.count == 1, let url = pane.selection.first,
-              ArchiveKind.detect(url.lastPathComponent) != nil else { return nil }
-        return url
     }
 
     private nonisolated static func dedupe(_ urls: [URL]) -> [URL] {

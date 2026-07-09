@@ -18,6 +18,7 @@ public final class ArchiveBrowserModel {
     @ObservationIgnored private var pending: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var tempRootURL: URL?
+    @ObservationIgnored public var willRemoveTempRoot: (@MainActor (URL) -> Void)?
 
     public init(runner: @escaping ListingRunner = ArchiveBrowserModel.defaultRunner) {
         self.runner = runner
@@ -32,7 +33,7 @@ public final class ArchiveBrowserModel {
         catalog = nil
         currentPath = ""
         errorMessage = nil
-        isPresented = false
+        isPresented = true
         isLoading = true
 
         pending = Task { [runner, archive] in
@@ -102,8 +103,30 @@ public final class ArchiveBrowserModel {
         return root
     }
 
+    public var presentationToken: Int {
+        generation
+    }
+
+    public func isCurrentPreviewContext(archive: URL, token: Int) -> Bool {
+        isPresented && archiveURL == archive && generation == token
+    }
+
+    public func discardPreviewExtraction(at url: URL) {
+        let session = previewSessionDirectory(for: url)
+        let root = session.deletingLastPathComponent()
+        try? FileManager.default.removeItem(at: session)
+        if ((try? FileManager.default.contentsOfDirectory(atPath: root.path)) ?? []).isEmpty {
+            try? FileManager.default.removeItem(at: root)
+        }
+    }
+
+    public func previewSessionDirectory(for url: URL) -> URL {
+        url.deletingLastPathComponent().deletingLastPathComponent()
+    }
+
     private func cleanupTempRoot() {
         if let tempRootURL {
+            willRemoveTempRoot?(tempRootURL)
             try? FileManager.default.removeItem(at: tempRootURL)
         }
         tempRootURL = nil
@@ -113,6 +136,7 @@ public final class ArchiveBrowserModel {
         await Task.detached(priority: .utility) {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
+            process.environment = ArchiveExtractor.tarEnvironment
             process.arguments = ["-tvf", archive.path]
             let stdout = Pipe()
             let stderr = Pipe()

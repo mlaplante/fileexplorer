@@ -135,4 +135,65 @@ func archiveExtractorTests() async {
         }
         expect(error.message.contains("Extraction failed"), "failure carries stderr excerpt")
     }
+
+    await test("ArchiveExtractor treats include paths as literals") {
+        let root = try makeScratch("fx-archive-glob")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let payload = root.appendingPathComponent("payload")
+        try FileManager.default.createDirectory(at: payload, withIntermediateDirectories: true)
+        try "STAR".write(to: payload.appendingPathComponent("report*.txt"),
+                         atomically: true, encoding: .utf8)
+        try "FINAL".write(to: payload.appendingPathComponent("report_final.txt"),
+                          atomically: true, encoding: .utf8)
+        try "BRACKET".write(to: payload.appendingPathComponent("file[1].txt"),
+                            atomically: true, encoding: .utf8)
+        let archive = root.appendingPathComponent("fixture.tar.gz")
+        try run("/usr/bin/tar", ["-czf", archive.path, "."], cwd: payload)
+
+        let destination = root.appendingPathComponent("out")
+        guard case .success = ArchiveExtractor.extract(
+            entries: ["report*.txt", "file[1].txt"], from: archive, into: destination) else {
+            return expect(false, "literal metachar extraction succeeds")
+        }
+        expectEqual(try String(contentsOf: destination.appendingPathComponent("report*.txt"),
+                               encoding: .utf8),
+                    "STAR", "star filename extracts itself")
+        expectEqual(try String(contentsOf: destination.appendingPathComponent("file[1].txt"),
+                               encoding: .utf8),
+                    "BRACKET", "bracket filename extracts itself")
+        expect(!FileManager.default.fileExists(
+            atPath: destination.appendingPathComponent("report_final.txt").path),
+               "glob-looking include does not extract matching sibling")
+    }
+
+    await test("ArchiveExtractor enforces preview cap after extraction") {
+        let root = try makeScratch("fx-archive-postcap")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let payload = root.appendingPathComponent("payload")
+        try FileManager.default.createDirectory(at: payload, withIntermediateDirectories: true)
+        let bytes = Data(repeating: 0x5A, count: 2048)
+        try bytes.write(to: payload.appendingPathComponent("big.bin"))
+        let archive = root.appendingPathComponent("fixture.tar.gz")
+        try run("/usr/bin/tar", ["-czf", archive.path, "."], cwd: payload)
+        let tempRoot = root.appendingPathComponent("preview")
+        let entry = ArchiveEntry(path: "big.bin", name: "big.bin",
+                                 isDirectory: false, size: 1, modified: nil)
+        let result = ArchiveExtractor.extractForPreview(entry: entry, from: archive,
+                                                        tempRoot: tempRoot,
+                                                        previewByteCap: 1024)
+        guard case .failure(let error) = result else {
+            return expect(false, "post-extraction cap fails")
+        }
+        expect(error.message.contains("preview limit"), "post-cap failure mentions preview limit")
+        let remaining = (try? FileManager.default.contentsOfDirectory(
+            at: tempRoot, includingPropertiesForKeys: nil)) ?? []
+        expectEqual(remaining, [], "oversized extracted session is deleted")
+    }
+
+    await test("ArchiveExtractor pins tar subprocess locale") {
+        expectEqual(ArchiveExtractor.tarEnvironment["LC_ALL"], "C", "LC_ALL pinned")
+        expectEqual(ArchiveExtractor.tarEnvironment["LANG"], "C", "LANG pinned")
+        expectEqual(ArchiveExtractor.includePattern(for: #"a\b*[1]?.txt"#),
+                    #"a\\b\*\[1]\?.txt"#, "include pattern escapes fnmatch metacharacters")
+    }
 }

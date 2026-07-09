@@ -8,6 +8,16 @@ enum WorkflowActions {
                                   in: pane.visibleEntries)
     }
 
+    static func singleSelectedArchive(in pane: PaneState) -> URL? {
+        singleArchive(in: Array(pane.selection))
+    }
+
+    static func singleArchive(in targets: [URL]) -> URL? {
+        guard targets.count == 1, let url = targets.first,
+              ArchiveKind.detect(url.lastPathComponent) != nil else { return nil }
+        return url
+    }
+
     static func openInTerminal(pane: PaneState,
                                settings: SettingsModel,
                                scriptRunner: ScriptRunner,

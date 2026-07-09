@@ -55,6 +55,7 @@ func archiveBrowserModelTests() async {
         let model = ArchiveBrowserModel()
         model.open(archive: fixture.archive)
         expectEqual(model.isLoading, true, "open sets loading immediately")
+        expectEqual(model.isPresented, true, "open presents loading sheet immediately")
         expect(await waitUntil { !model.isLoading }, "loading eventually finishes")
         expectEqual(model.isPresented, true, "successful open presents sheet")
         expectEqual(model.catalog?.children(of: "").map(\.path),
@@ -79,10 +80,24 @@ func archiveBrowserModelTests() async {
         try "garbage".write(to: corrupt, atomically: true, encoding: .utf8)
         let model = ArchiveBrowserModel()
         model.open(archive: corrupt)
+        expectEqual(model.isPresented, true, "corrupt archive starts in loading sheet")
         expect(await waitUntil { !model.isLoading }, "corrupt load finishes")
         expect(model.errorMessage?.isEmpty == false, "corrupt archive sets error")
         expectEqual(model.isPresented, false, "corrupt archive does not present")
         expectEqual(model.catalog == nil, true, "corrupt archive has no catalog")
+    }
+
+    await test("ArchiveBrowserModel exposes loading sheet during slow listing") {
+        let model = ArchiveBrowserModel { _ in
+            try? await Task.sleep(for: .milliseconds(250))
+            return .success("-rw-r--r--  0 user group  1 Jul  9 10:30 one.txt")
+        }
+        model.open(archive: URL(fileURLWithPath: "/tmp/slow.zip"))
+        expectEqual(model.isPresented, true, "slow listing presents immediately")
+        expectEqual(model.isLoading, true, "slow listing remains loading")
+        expect(await waitUntil { !model.isLoading }, "slow listing eventually finishes")
+        expectEqual(model.catalog?.entry(at: "one.txt")?.name, "one.txt",
+                    "slow listing loads catalog")
     }
 
     await test("ArchiveBrowserModel removes temp root on close and reopens fresh") {
@@ -102,5 +117,32 @@ func archiveBrowserModelTests() async {
         expect(await waitUntil { !model.isLoading }, "second load finishes")
         let second = model.previewTempRoot()
         expect(second.path != temp.path, "reopen creates a fresh temp root")
+    }
+
+    await test("ArchiveBrowserModel stale preview extraction cleans up after close") {
+        let fixture = try makeZipFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let model = ArchiveBrowserModel()
+        model.open(archive: fixture.archive)
+        expect(await waitUntil { !model.isLoading }, "load finishes")
+        let archive = fixture.archive
+        let token = model.presentationToken
+        let tempRoot = model.previewTempRoot()
+        let entry = ArchiveEntry(path: "a/one.txt", name: "one.txt",
+                                 isDirectory: false, size: 3, modified: nil)
+        let task = Task {
+            try? await Task.sleep(for: .milliseconds(150))
+            return ArchiveExtractor.extractForPreview(entry: entry, from: archive,
+                                                      tempRoot: tempRoot)
+        }
+        model.close()
+        let result = await task.value
+        if case .success(let url) = result,
+           !model.isCurrentPreviewContext(archive: archive, token: token) {
+            model.discardPreviewExtraction(at: url)
+        }
+        expect(await waitUntil {
+            !FileManager.default.fileExists(atPath: tempRoot.path)
+        }, "stale preview temp root remains deleted")
     }
 }

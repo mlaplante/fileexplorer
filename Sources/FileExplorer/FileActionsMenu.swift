@@ -328,11 +328,11 @@ struct FileActions {
             ArchiveKind.detect($0.lastPathComponent) != nil
         })
         Button("Browse Archive…") {
-            if let archive = singleArchive(in: targets) {
+            if let archive = WorkflowActions.singleArchive(in: targets) {
                 archiveBrowser.open(archive: archive)
             }
         }
-        .disabled(singleArchive(in: targets) == nil)
+        .disabled(WorkflowActions.singleArchive(in: targets) == nil)
     }
 
     @ViewBuilder
@@ -441,12 +441,6 @@ struct FileActions {
         return FileManager.default.fileExists(atPath: url.path,
                                               isDirectory: &isDirectory)
             && isDirectory.boolValue
-    }
-
-    private func singleArchive(in targets: [URL]) -> URL? {
-        guard targets.count == 1, let url = targets.first,
-              ArchiveKind.detect(url.lastPathComponent) != nil else { return nil }
-        return url
     }
 
     private func openWith(_ urls: [URL], app: URL) {

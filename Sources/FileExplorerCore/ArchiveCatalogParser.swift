@@ -48,27 +48,30 @@ public enum ArchiveCatalogParser {
             guard let parsed = parseLine(String(line), referenceDate: referenceDate) else {
                 continue
             }
-            if parsed.isSymlink {
+            if parsed.shouldSkipEntry {
                 continue
             }
-            guard let normalized = normalize(parsed.path) else {
+            switch normalize(parsed.path) {
+            case .path(let normalized):
+                if !paths.contains(normalized) {
+                    entries.append(ArchiveEntry(
+                        path: normalized,
+                        name: lastComponent(normalized),
+                        isDirectory: parsed.isDirectory,
+                        size: parsed.isDirectory ? 0 : parsed.size,
+                        modified: parsed.modified))
+                    paths.insert(normalized)
+                }
+                addImplicitParents(for: normalized, entries: &entries,
+                                   paths: &paths, cap: cap, isPartial: &isPartial)
+                if isPartial {
+                    break
+                }
+            case .skip:
+                continue
+            case .suspicious:
                 hadSuspiciousPaths = true
                 continue
-            }
-
-            if !paths.contains(normalized) {
-                entries.append(ArchiveEntry(
-                    path: normalized,
-                    name: lastComponent(normalized),
-                    isDirectory: parsed.isDirectory,
-                    size: parsed.isDirectory ? 0 : parsed.size,
-                    modified: parsed.modified))
-                paths.insert(normalized)
-            }
-            addImplicitParents(for: normalized, entries: &entries,
-                               paths: &paths, cap: cap, isPartial: &isPartial)
-            if isPartial {
-                break
             }
         }
 
@@ -80,7 +83,7 @@ public enum ArchiveCatalogParser {
     private struct ParsedLine {
         var path: String
         var isDirectory: Bool
-        var isSymlink: Bool
+        var shouldSkipEntry: Bool
         var size: Int64
         var modified: Date?
     }
@@ -100,9 +103,10 @@ public enum ArchiveCatalogParser {
         let mode = group(1)
         let rawPath = group(6)
         let directory = mode.first == "d" || rawPath.hasSuffix("/")
+        let skipEntry = mode.first == "l" || mode.first == "h"
         return ParsedLine(path: rawPath,
                           isDirectory: directory,
-                          isSymlink: mode.first == "l",
+                          shouldSkipEntry: skipEntry,
                           size: Int64(group(2)) ?? 0,
                           modified: parseDate(month: group(3), day: group(4),
                                               timeOrYear: group(5),
@@ -140,7 +144,13 @@ public enum ArchiveCatalogParser {
         return calendar.date(from: components)
     }
 
-    private static func normalize(_ rawPath: String) -> String? {
+    private enum NormalizedPath {
+        case path(String)
+        case skip
+        case suspicious
+    }
+
+    private static func normalize(_ rawPath: String) -> NormalizedPath {
         var path = rawPath
         while path.hasPrefix("./") {
             path.removeFirst(2)
@@ -148,12 +158,15 @@ public enum ArchiveCatalogParser {
         while path.hasSuffix("/") {
             path.removeLast()
         }
-        guard !path.isEmpty, !path.hasPrefix("/") else { return nil }
+        if path.isEmpty || path == "." {
+            return .skip
+        }
+        guard !path.hasPrefix("/") else { return .suspicious }
         let parts = path.split(separator: "/", omittingEmptySubsequences: false)
         guard parts.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." }) else {
-            return nil
+            return .suspicious
         }
-        return path
+        return .path(path)
     }
 
     private static func addImplicitParents(for path: String,

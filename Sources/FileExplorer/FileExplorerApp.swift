@@ -48,6 +48,9 @@ struct FileExplorerApp: App {
         let autosaver = SessionAutosaver(session: session, persister: persister)
         autosaver.start()
         self.autosaver = autosaver
+        archiveBrowser.willRemoveTempRoot = { root in
+            QuickLookController.shared.dismissIfShowing(under: root)
+        }
 
         // When launched from `swift run` (no bundle), become a regular
         // foreground app so the window appears and takes focus.
@@ -298,11 +301,11 @@ struct FileExplorerApp: App {
                 }
                 Divider()
                 Button("Browse Archive…") {
-                    if let archive = Self.singleSelectedArchive(in: session.activePane) {
+                    if let archive = WorkflowActions.singleSelectedArchive(in: session.activePane) {
                         archiveBrowser.open(archive: archive)
                     }
                 }
-                .disabled(Self.singleSelectedArchive(in: session.activePane) == nil)
+                .disabled(WorkflowActions.singleSelectedArchive(in: session.activePane) == nil)
             }
             CommandGroup(replacing: .pasteboard) {
                 Button("Cut") {
@@ -566,12 +569,6 @@ struct FileExplorerApp: App {
             SettingsRootView(settings: settings, updateModel: updateModel,
                              recorder: shortcutRecorder)
         }
-    }
-
-    private static func singleSelectedArchive(in pane: PaneState) -> URL? {
-        guard pane.selection.count == 1, let url = pane.selection.first,
-              ArchiveKind.detect(url.lastPathComponent) != nil else { return nil }
-        return url
     }
 
 }

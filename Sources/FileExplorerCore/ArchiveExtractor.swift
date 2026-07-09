@@ -2,6 +2,8 @@ import Foundation
 
 public enum ArchiveExtractor {
     public static let previewByteCap: Int64 = 512 * 1024 * 1024
+    public static let includeBatchSize = 500
+    public static let tarEnvironment = ["LC_ALL": "C", "LANG": "C"]
 
     public static func extract(entries: [String], from archive: URL, into destination: URL)
         -> Result<Void, FileOperationService.FileOpError> {
@@ -15,9 +17,11 @@ public enum ArchiveExtractor {
             try fm.createDirectory(at: staging, withIntermediateDirectories: true)
             defer { try? fm.removeItem(at: staging) }
 
-            let result = runTarExtract(entries: entries, archive: archive, destination: staging)
-            if case .failure(let error) = result {
-                return .failure(error)
+            for batch in entries.chunked(maxSize: includeBatchSize) {
+                let result = runTarExtract(entries: batch, archive: archive, destination: staging)
+                if case .failure(let error) = result {
+                    return .failure(error)
+                }
             }
             let missing = entries.first {
                 !fm.fileExists(atPath: staging.appendingPathComponent($0).path)
@@ -33,14 +37,14 @@ public enum ArchiveExtractor {
     }
 
     public static func extractForPreview(entry: ArchiveEntry, from archive: URL,
-                                         tempRoot: URL)
+                                         tempRoot: URL,
+                                         previewByteCap: Int64 = ArchiveExtractor.previewByteCap)
         -> Result<URL, FileOperationService.FileOpError> {
         guard !entry.isDirectory else {
             return .failure(.init("Folders can't be previewed from an archive."))
         }
         guard entry.size <= previewByteCap else {
-            return .failure(.init(
-                "“\(entry.name)” is over the 512 MB preview limit. Use Extract Selected instead."))
+            return .failure(previewCapError(name: entry.name, cap: previewByteCap))
         }
         let fm = FileManager.default
         let session = tempRoot.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -59,6 +63,11 @@ public enum ArchiveExtractor {
             try? fm.removeItem(at: session)
             return .failure(.init("Extraction failed: missing “\(entry.path)” in archive."))
         }
+        if let size = (try? fm.attributesOfItem(atPath: extracted.path)[.size]) as? NSNumber,
+           size.int64Value > previewByteCap {
+            try? fm.removeItem(at: session)
+            return .failure(previewCapError(name: entry.name, cap: previewByteCap))
+        }
         return .success(extracted)
     }
 
@@ -66,8 +75,9 @@ public enum ArchiveExtractor {
         -> Result<Void, FileOperationService.FileOpError> {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
+        process.environment = tarEnvironment
         process.arguments = ["-xf", archive.path, "-C", destination.path]
-            + entries.flatMap { ["--include", $0] }
+            + entries.flatMap { ["--include", includePattern(for: $0)] }
         let errorPipe = Pipe()
         process.standardError = errorPipe
         do {
@@ -82,6 +92,26 @@ public enum ArchiveExtractor {
             return .failure(.init("Extraction failed: \(stderr.prefix(200))"))
         }
         return .success(())
+    }
+
+    public static func includePattern(for path: String) -> String {
+        var escaped = ""
+        for character in path {
+            if character == "*" || character == "?" || character == "["
+                || character == "\\" {
+                escaped.append("\\")
+            }
+            escaped.append(character)
+        }
+        return escaped
+    }
+
+    private static func previewCapError(name: String, cap: Int64)
+        -> FileOperationService.FileOpError {
+        let capText = cap == previewByteCap
+            ? "512 MB"
+            : ByteCountFormatter.string(fromByteCount: cap, countStyle: .file)
+        return .init("“\(name)” is over the \(capText) preview limit. Use Extract Selected instead.")
     }
 
     private static func moveStagedTopLevelItems(for entries: [String], from staging: URL,
@@ -104,5 +134,19 @@ public enum ArchiveExtractor {
             try fm.moveItem(at: source, to: target)
             existing.insert(targetName)
         }
+    }
+}
+
+private extension Array {
+    func chunked(maxSize: Int) -> [[Element]] {
+        guard maxSize > 0, !isEmpty else { return [] }
+        var result: [[Element]] = []
+        var index = startIndex
+        while index < endIndex {
+            let end = Swift.min(index + maxSize, endIndex)
+            result.append(Array(self[index..<end]))
+            index = end
+        }
+        return result
     }
 }
