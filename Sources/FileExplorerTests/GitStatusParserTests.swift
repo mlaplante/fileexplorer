@@ -94,4 +94,26 @@ func gitStatusParserTests() async {
         expectEqual(status.states["Café Notes.md"], .modified, "UTF-8 ordinary path survives")
         expectEqual(status.states["nested/space path/文件.txt"], .untracked, "UTF-8 untracked path survives")
     }
+
+    await test("GitStatusParser ignores unknown record types and headers (forward compat)") {
+        // Porcelain v2, NUL-separated. Record type '3' and header
+        // '# stash' don't exist today — simulate a future git.
+        let data = porcelainData([
+            "# branch.head main",
+            "# stash 5",
+            "3 futuristic-record with fields we cannot know",
+            "1 .M N... 100644 100644 100644 abc def src/known.swift",
+            "? untracked.txt",
+            "unparseable garbage line",
+        ])
+        let status = GitStatusParser.parse(data)
+
+        expectEqual(status.branch, "main", "known headers still parse")
+        expectEqual(status.states["src/known.swift"], .modified,
+                    "known records still parse")
+        expectEqual(status.states["untracked.txt"], .untracked,
+                    "untracked records still parse")
+        expectEqual(status.states.count, 2,
+                    "unknown records add no phantom entries")
+    }
 }

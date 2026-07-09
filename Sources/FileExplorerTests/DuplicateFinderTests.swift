@@ -159,6 +159,28 @@ func duplicateFinderTests() async {
         expect(finder.isPartial, "cap marks duplicate scan partial")
         expectEqual(finder.scannedFileCount, 10, "scan stops at file cap")
     }
+
+    await test("same-size files with identical prefix but different tail are not duplicates") {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dupes-prefix-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        var content = Data(repeating: 0xCD, count: 256 * 1024)
+        try content.write(to: dir.appendingPathComponent("one.bin"))
+        content[content.count - 1] ^= 0xFF
+        try content.write(to: dir.appendingPathComponent("two.bin"))
+        try content.write(to: dir.appendingPathComponent("three.bin"))
+
+        let finder = DuplicateFinder()
+        finder.scan(root: dir)
+        while finder.isScanning { try await Task.sleep(for: .milliseconds(5)) }
+
+        expectEqual(finder.groups.count, 1, "only the true pair groups")
+        expectEqual(finder.groups.first?.members.count, 2,
+                    "two/three group; one is excluded despite matching prefix")
+    }
 }
 
 private func writeDuplicateSet(root: URL, stem: String, count: Int,

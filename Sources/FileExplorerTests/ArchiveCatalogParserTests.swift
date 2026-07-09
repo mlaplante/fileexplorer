@@ -107,4 +107,21 @@ func archiveCatalogParserTests() async {
         expectEqual(empty.hadSuspiciousPaths, false, "empty listing has no suspicious paths")
         expectEqual(empty.isPartial, false, "empty listing is not partial")
     }
+
+    await test("ArchiveCatalogParser ignores warnings and unknown line shapes (forward compat)") {
+        let listing = """
+        bsdtar: Warning: something changed in macOS 27
+        -rw-r--r--  0 user group    1024 Jul  9 10:30 real.txt extra future column
+        total 48
+        -rw-r--r--+ 0 user group     512 Jul  9 10:30 acl-flagged.txt
+        """
+        let parsed = ArchiveCatalogParser.parse(listing: listing,
+                                                referenceDate: referenceDate)
+        expect(parsed.entries.contains { $0.name == "acl-flagged.txt" },
+               "mode strings with ACL suffix still parse")
+        expect(!parsed.entries.contains { $0.path.hasPrefix("bsdtar") },
+               "warning lines don't become entries")
+        expect(!parsed.entries.contains { $0.path == "total 48" },
+               "summary lines don't become entries")
+    }
 }

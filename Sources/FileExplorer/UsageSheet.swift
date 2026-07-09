@@ -141,7 +141,7 @@ struct UsageSheet: View {
                         model.jump(to: url)
                     }
                     .buttonStyle(.plain)
-                    .foregroundColor(index == breadcrumbs.count - 1
+                    .foregroundStyle(index == breadcrumbs.count - 1
                                      ? Color.primary : Color.accentColor)
                 }
             }
