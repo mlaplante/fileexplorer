@@ -68,5 +68,6 @@ await springLoadTests()
 await gitStatusParserTests()
 await gitStatusIndexTests()
 await gitRepoLocatorTests()
+await gitStatusModelTests()
 
 finish()
