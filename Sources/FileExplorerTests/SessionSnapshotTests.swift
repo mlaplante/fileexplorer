@@ -257,6 +257,7 @@ func sessionSnapshotTests() async {
     await test("FilterState with custom ranges round-trips; old JSON still decodes") {
         var filter = FilterState()
         filter.customSizeRange = Int64(1)...Int64(2)
+        filter.hideGitIgnored = true
         let data = try JSONEncoder().encode(filter)
         let decoded = try JSONDecoder().decode(FilterState.self, from: data)
         expectEqual(decoded, filter, "custom ranges survive encode/decode")
@@ -265,6 +266,9 @@ func sessionSnapshotTests() async {
         let old = try JSONDecoder().decode(FilterState.self, from: Data(legacy.utf8))
         expect(old.customDateRange == nil && old.customSizeRange == nil,
                "old session.json filters decode with nil custom ranges")
+        expectEqual(old.hideGitIgnored, nil,
+                    "old session.json filters decode with nil hideGitIgnored")
+        expect(filter.isActive, "hideGitIgnored true makes the filter active")
     }
 
     await test("Pane snapshot round-trips expandedFolders and tolerates absence") {

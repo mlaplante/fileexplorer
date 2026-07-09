@@ -1,6 +1,23 @@
 import Foundation
 import FileExplorerCore
 
+private func runPaneFilterGit(_ arguments: [String], in directory: URL) throws {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+    process.arguments = arguments
+    process.currentDirectoryURL = directory
+    process.environment = [
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_SYSTEM": "/dev/null",
+        "HOME": directory.path,
+    ]
+    try process.run()
+    process.waitUntilExit()
+    if process.terminationStatus != 0 {
+        throw NSError(domain: "PaneFilterGit", code: Int(process.terminationStatus))
+    }
+}
+
 @MainActor
 func paneFilterTests() async {
     await test("PaneState filter narrows visibleEntries live") {
@@ -57,5 +74,43 @@ func paneFilterTests() async {
         await pane.reload()
         expectEqual(pane.visibleEntries.map(\.name), ["a.png"],
                     "filter still applied after reload")
+    }
+
+    await test("PaneState hideGitIgnored removes ignored entries only in repos") {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try runPaneFilterGit(["init", "-q", "-b", "main"], in: dir)
+        try Data("ignored.txt\n".utf8).write(to: dir.appendingPathComponent(".gitignore"))
+        try Data("clean".utf8).write(to: dir.appendingPathComponent("clean.txt"))
+        try Data("ignored".utf8).write(to: dir.appendingPathComponent("ignored.txt"))
+
+        let pane = PaneState(url: dir)
+        await pane.reload()
+        await pane.gitStatus.refreshNow(for: dir)
+
+        expectEqual(pane.visibleEntries.map(\.name).contains("ignored.txt"), true,
+                    "ignored file is visible before toggle")
+        pane.filter.hideGitIgnored = true
+        expectEqual(pane.visibleEntries.map(\.name).contains("ignored.txt"), false,
+                    "ignored file is hidden by toggle")
+        expectEqual(pane.visibleEntries.map(\.name).contains("clean.txt"), true,
+                    "non-ignored file remains visible")
+
+        pane.filter.hideGitIgnored = nil
+        expectEqual(pane.visibleEntries.map(\.name).contains("ignored.txt"), true,
+                    "clearing toggle restores ignored file")
+    }
+
+    await test("PaneState hideGitIgnored is a no-op outside repos") {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try Data("file".utf8).write(to: dir.appendingPathComponent("ignored.txt"))
+
+        let pane = PaneState(url: dir)
+        await pane.reload()
+        pane.filter.hideGitIgnored = true
+
+        expectEqual(pane.visibleEntries.map(\.name), ["ignored.txt"],
+                    "non-repo panes do not hide entries")
     }
 }

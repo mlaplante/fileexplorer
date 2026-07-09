@@ -16,13 +16,16 @@ public struct FilterState: Equatable, Sendable, Codable {
     /// synthesized Codable decodes a missing key as nil, so session.json
     /// files written before M10 keep loading.
     public var tags: Set<String>?
+    /// Optional for forward-compatible session decoding. Nil means the toggle
+    /// is off and keeps `isActive` honest.
+    public var hideGitIgnored: Bool?
 
     public init() {}
 
     public var isActive: Bool {
         preset != nil || !extensions.isEmpty || datePreset != nil
             || sizePreset != nil || customDateRange != nil || customSizeRange != nil
-            || tags != nil
+            || tags != nil || hideGitIgnored == true
     }
 }
 
