@@ -77,5 +77,6 @@ await gitStatusParserTests()
 await gitStatusIndexTests()
 await gitRepoLocatorTests()
 await gitStatusModelTests()
+await benchStatsTests()
 
 finish()
