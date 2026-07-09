@@ -479,6 +479,11 @@ func runBench() async throws {
         }
     }
 
+    if let only, results.isEmpty {
+        print("ERROR: no scenario named \(only)")
+        exit(2)
+    }
+
     if let jsonPath {
         let data = try JSONSerialization.data(
             withJSONObject: results, options: [.sortedKeys, .prettyPrinted])
