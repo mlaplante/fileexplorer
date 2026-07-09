@@ -11,6 +11,8 @@ struct FileExplorerApp: App {
     private let usageModel = UsageSheetModel()
     private let duplicatesModel = DuplicatesSheetModel()
     private let syncPreviewModel = SyncPreviewModel()
+    private let archiveBrowser = ArchiveBrowserModel()
+    private let archiveSheetModel = ArchiveBrowserSheetModel()
     private let conflictResolutionModel = ConflictResolutionModel()
     private let operationQueue = OperationQueueModel()
     private let workspaceProfileModel = WorkspaceProfileModel()
@@ -86,7 +88,8 @@ struct FileExplorerApp: App {
                                    conflictResolution: conflictResolutionModel,
                                    operationQueue: operationQueue,
                                    scriptRunner: scriptRunner,
-                                   scriptsModel: scriptsModel)
+                                   scriptsModel: scriptsModel,
+                                   archiveBrowser: archiveBrowser)
                         .navigationTitle(session.activePane.currentURL.lastPathComponent)
                         .toolbar {
                             ToolbarItemGroup(placement: .navigation) {
@@ -122,7 +125,8 @@ struct FileExplorerApp: App {
                                                    usageModel: usageModel,
                                                    duplicatesModel: duplicatesModel,
                                                    scriptRunner: scriptRunner,
-                                                   scriptsModel: scriptsModel)
+                                                   scriptsModel: scriptsModel,
+                                                   archiveBrowser: archiveBrowser)
                     }
                     .padding(.top, 60)
                 }
@@ -172,6 +176,17 @@ struct FileExplorerApp: App {
                 SyncPreviewSheet(model: syncPreviewModel)
             }
             .sheet(isPresented: Binding(
+                get: { archiveBrowser.isPresented },
+                set: { if !$0 {
+                    archiveBrowser.close()
+                    archiveSheetModel.reset()
+                } })) {
+                ArchiveBrowserSheet(browser: archiveBrowser,
+                                    sheet: archiveSheetModel) { archive in
+                    Task { await session.activePane.extractSelected([archive]) }
+                }
+            }
+            .sheet(isPresented: Binding(
                 get: { usageModel.isPresented },
                 set: { if !$0 { usageModel.dismiss() } })) {
                 UsageSheet(model: usageModel)
@@ -206,6 +221,13 @@ struct FileExplorerApp: App {
                 set: { if $0 == nil { scriptRunner.pendingAlert = nil } })) { alert in
                 Alert(title: Text(alert.title), message: Text(alert.message),
                       dismissButton: .default(Text("OK")))
+            }
+            .alert("Archive Error", isPresented: Binding(
+                get: { archiveBrowser.errorMessage != nil && !archiveBrowser.isPresented },
+                set: { if !$0 { archiveBrowser.clearError() } })) {
+                Button("OK") { archiveBrowser.clearError() }
+            } message: {
+                Text(archiveBrowser.errorMessage ?? "")
             }
         }
         .commands {
@@ -274,6 +296,13 @@ struct FileExplorerApp: App {
                     duplicatesModel.present(root: session.activePane.currentURL,
                                             pane: session.activePane)
                 }
+                Divider()
+                Button("Browse Archive…") {
+                    if let archive = Self.singleSelectedArchive(in: session.activePane) {
+                        archiveBrowser.open(archive: archive)
+                    }
+                }
+                .disabled(Self.singleSelectedArchive(in: session.activePane) == nil)
             }
             CommandGroup(replacing: .pasteboard) {
                 Button("Cut") {
@@ -514,7 +543,8 @@ struct FileExplorerApp: App {
                                                     usageModel: usageModel,
                                                     duplicatesModel: duplicatesModel,
                                                     scriptRunner: scriptRunner,
-                                                    scriptsModel: scriptsModel)
+                                                    scriptsModel: scriptsModel,
+                                                    archiveBrowser: archiveBrowser)
                 }
                 .keyboardShortcut(settings.chord(for: .commandPalette).keyboardShortcut)
             }
@@ -536,6 +566,12 @@ struct FileExplorerApp: App {
             SettingsRootView(settings: settings, updateModel: updateModel,
                              recorder: shortcutRecorder)
         }
+    }
+
+    private static func singleSelectedArchive(in pane: PaneState) -> URL? {
+        guard pane.selection.count == 1, let url = pane.selection.first,
+              ArchiveKind.detect(url.lastPathComponent) != nil else { return nil }
+        return url
     }
 
 }

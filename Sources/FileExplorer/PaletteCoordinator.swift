@@ -92,13 +92,15 @@ enum PaletteCoordinator {
                              usageModel: UsageSheetModel,
                              duplicatesModel: DuplicatesSheetModel,
                              scriptRunner: ScriptRunner,
-                             scriptsModel: ScriptsModel) {
+                             scriptsModel: ScriptsModel,
+                             archiveBrowser: ArchiveBrowserModel) {
         palette.present(mode: .commands)
         let commands = commands(for: session, settings: settings,
                                 usageModel: usageModel,
                                 duplicatesModel: duplicatesModel,
                                 scriptRunner: scriptRunner,
-                                scriptsModel: scriptsModel)
+                                scriptsModel: scriptsModel,
+                                archiveBrowser: archiveBrowser)
         commandActions = Dictionary(uniqueKeysWithValues: commands.map {
             ($0.id, $0.action)
         })
@@ -112,7 +114,8 @@ enum PaletteCoordinator {
                         usageModel: UsageSheetModel,
                         duplicatesModel: DuplicatesSheetModel,
                         scriptRunner: ScriptRunner,
-                        scriptsModel: ScriptsModel) {
+                        scriptsModel: ScriptsModel,
+                        archiveBrowser: ArchiveBrowserModel) {
         // Capture the mode and the palette's opening-time pane before
         // dismiss() clears targetPane — folder/file confirms must land on
         // the pane the palette was opened for, not whatever pane is active
@@ -160,7 +163,8 @@ enum PaletteCoordinator {
                          usageModel: UsageSheetModel,
                          duplicatesModel: DuplicatesSheetModel,
                          scriptRunner: ScriptRunner,
-                         scriptsModel: ScriptsModel) -> [AppCommand] {
+                         scriptsModel: ScriptsModel,
+                         archiveBrowser: ArchiveBrowserModel) -> [AppCommand] {
         var base = [
             AppCommand(id: "back", name: "Back", shortcut: "⌘[") {
                 Task { await session.activePane.goBack() }
@@ -209,6 +213,12 @@ enum PaletteCoordinator {
                                         pane: session.activePane)
             },
         ]
+        if let archive = singleSelectedArchive(in: session.activePane) {
+            base.append(
+                AppCommand(id: "browse-archive", name: "Browse Archive", shortcut: "") {
+                    archiveBrowser.open(archive: archive)
+                })
+        }
         if settings.settings.terminalAppPath != nil {
             base.append(
             AppCommand(id: "open-terminal", name: "Open in Terminal",
@@ -252,6 +262,12 @@ enum PaletteCoordinator {
                     .joined(separator: ", ")
             }
         }
+    }
+
+    private static func singleSelectedArchive(in pane: PaneState) -> URL? {
+        guard pane.selection.count == 1, let url = pane.selection.first,
+              ArchiveKind.detect(url.lastPathComponent) != nil else { return nil }
+        return url
     }
 
     private nonisolated static func dedupe(_ urls: [URL]) -> [URL] {

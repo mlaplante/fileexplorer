@@ -58,6 +58,10 @@ public final class ArchiveBrowserModel {
     }
 
     public func navigate(into path: String) {
+        if path.isEmpty {
+            currentPath = ""
+            return
+        }
         guard catalog?.entry(at: path)?.isDirectory == true else { return }
         currentPath = path
     }
@@ -82,6 +86,10 @@ public final class ArchiveBrowserModel {
         isLoading = false
         errorMessage = nil
         isPresented = false
+    }
+
+    public func clearError() {
+        errorMessage = nil
     }
 
     public func previewTempRoot() -> URL {

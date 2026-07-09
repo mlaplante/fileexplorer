@@ -38,6 +38,16 @@ final class QuickLookController: NSObject, QLPreviewPanelDataSource,
         }
     }
 
+    func preview(url: URL) {
+        guard let panel = QLPreviewPanel.shared() else { return }
+        urls = [url]
+        panel.dataSource = self
+        panel.delegate = self
+        panel.reloadData()
+        panel.currentPreviewItemIndex = 0
+        panel.makeKeyAndOrderFront(nil)
+    }
+
     var isVisible: Bool {
         QLPreviewPanel.sharedPreviewPanelExists()
             && QLPreviewPanel.shared().isVisible

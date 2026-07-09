@@ -18,6 +18,7 @@ struct FileActions {
     let conflictResolution: ConflictResolutionModel?
     let scriptRunner: ScriptRunner
     let scriptsModel: ScriptsModel
+    let archiveBrowser: ArchiveBrowserModel
     let share: (@MainActor ([URL]) -> Void)?
 
     @ViewBuilder
@@ -326,6 +327,12 @@ struct FileActions {
         .disabled(!targets.contains {
             ArchiveKind.detect($0.lastPathComponent) != nil
         })
+        Button("Browse Archive…") {
+            if let archive = singleArchive(in: targets) {
+                archiveBrowser.open(archive: archive)
+            }
+        }
+        .disabled(singleArchive(in: targets) == nil)
     }
 
     @ViewBuilder
@@ -434,6 +441,12 @@ struct FileActions {
         return FileManager.default.fileExists(atPath: url.path,
                                               isDirectory: &isDirectory)
             && isDirectory.boolValue
+    }
+
+    private func singleArchive(in targets: [URL]) -> URL? {
+        guard targets.count == 1, let url = targets.first,
+              ArchiveKind.detect(url.lastPathComponent) != nil else { return nil }
+        return url
     }
 
     private func openWith(_ urls: [URL], app: URL) {
