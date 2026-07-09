@@ -137,6 +137,14 @@ private enum UsageScanRunner {
         var isPartial = false
         let rootPath = root.standardizedFileURL.path
         let rootPrefix = rootPath == "/" ? "/" : rootPath + "/"
+        // Reused across every entry: constructing this from `rootPrefix` per
+        // entry (250k+ times on a full scan) dominated the hot path.
+        let childBaseURL = URL(fileURLWithPath: rootPrefix)
+        // Keyed by top-level path component name; the deep/wide fixture has
+        // orders of magnitude more entries than distinct top-level children,
+        // so caching the standardized ancestor URL turns O(entries) URL
+        // construction into O(distinct top-level children).
+        var childURLCache: [String: URL] = [:]
         let keys: [URLResourceKey] = [
             .isDirectoryKey,
             .isRegularFileKey,
@@ -174,18 +182,21 @@ private enum UsageScanRunner {
                     enumerator.skipDescendants()
                     continue
                 }
-                if let child = immediateChild(for: url, rootPrefix: rootPrefix) {
+                if let (child, _) = immediateChild(for: url, rootPrefix: rootPrefix,
+                                                    childBaseURL: childBaseURL,
+                                                    cache: &childURLCache) {
                     totals[child, default: ChildTotal(bytes: 0, items: 0,
                                                       isDirectory: true)].isDirectory = true
                 }
                 continue
             }
             guard values.isRegularFile == true,
-                  let child = immediateChild(for: url, rootPrefix: rootPrefix)
+                  let (child, isDirectChild) = immediateChild(for: url, rootPrefix: rootPrefix,
+                                                               childBaseURL: childBaseURL,
+                                                               cache: &childURLCache)
             else { continue }
 
             let bytes = Int64(values.fileSize ?? 0)
-            let isDirectChild = child.standardizedFileURL.path == url.standardizedFileURL.path
             var total = totals[child] ?? ChildTotal(bytes: 0, items: 0,
                                                     isDirectory: !isDirectChild)
             total.bytes += bytes
@@ -205,15 +216,27 @@ private enum UsageScanRunner {
                                     visited: visited))
     }
 
-    private static func immediateChild(for url: URL, rootPrefix: String) -> URL? {
-        let path = url.standardizedFileURL.path
+    /// Resolves `url`'s ancestor directly under `root` and whether `url` *is*
+    /// that ancestor. `standardizedFileURL` is computed once here (the
+    /// caller must not recompute it), and ancestor URLs are cached by name
+    /// since a scan revisits the same handful of top-level children for
+    /// every descendant entry.
+    private static func immediateChild(
+        for url: URL, rootPrefix: String, childBaseURL: URL,
+        cache: inout [String: URL]
+    ) -> (child: URL, isDirectChild: Bool)? {
+        let standardized = url.standardizedFileURL
+        let path = standardized.path
         guard path.hasPrefix(rootPrefix) else { return nil }
-        let relative = String(path.dropFirst(rootPrefix.count))
-        guard let first = relative.split(separator: "/", maxSplits: 1).first else {
-            return nil
+        let relative = path.dropFirst(rootPrefix.count)
+        guard let slash = relative.firstIndex(of: "/") else {
+            return relative.isEmpty ? nil : (standardized, true)
         }
-        return URL(fileURLWithPath: rootPrefix).appendingPathComponent(String(first))
-            .standardizedFileURL
+        let name = String(relative[..<slash])
+        if let cached = cache[name] { return (cached, false) }
+        let child = childBaseURL.appendingPathComponent(name).standardizedFileURL
+        cache[name] = child
+        return (child, false)
     }
 
     private static func isUnreadableDirectory(_ url: URL) -> Bool {
