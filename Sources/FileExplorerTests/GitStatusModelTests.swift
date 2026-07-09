@@ -94,6 +94,48 @@ func gitStatusModelTests() async {
         expectEqual(model.index?.changedCount, 4, "changed count includes .gitignore plus three changed files")
     }
 
+    await test("GitStatusModel resolves real collapsed untracked directories") {
+        let repo = try makeGitModelTempDirectory(prefix: "fx-model-untracked-dir")
+        defer { try? FileManager.default.removeItem(at: repo) }
+        try runIsolatedGit(["init", "-q", "-b", "main"], in: repo)
+
+        let sub = repo.appendingPathComponent("sub", isDirectory: true)
+        let file = sub.appendingPathComponent("a.txt")
+        let nested = repo.appendingPathComponent("outer/nested", isDirectory: true)
+        let nestedFile = nested.appendingPathComponent("b.txt")
+        try writeFile(file, "new\n")
+        try writeFile(nestedFile, "nested\n")
+
+        let model = GitStatusModel()
+        await model.refreshNow(for: repo)
+
+        expectEqual(model.index?.state(for: sub), .untracked,
+                    "real collapsed untracked directory is untracked")
+        expectEqual(model.index?.state(for: file), .untracked,
+                    "file inside real collapsed untracked directory is untracked")
+        expectEqual(model.index?.state(for: nested), .untracked,
+                    "real nested collapsed untracked directory is untracked")
+        expectEqual(model.index?.state(for: nestedFile), .untracked,
+                    "file inside real nested collapsed untracked directory is untracked")
+    }
+
+    await test("GitStatusModel notices repo creation and removal across refreshes") {
+        let folder = try makeGitModelTempDirectory(prefix: "fx-model-cache")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let model = GitStatusModel()
+
+        await model.refreshNow(for: folder)
+        expectEqual(model.index == nil, true, "initial non-repo refresh is nil")
+
+        try runIsolatedGit(["init", "-q", "-b", "main"], in: folder)
+        await model.refreshNow(for: folder)
+        expectEqual(model.index != nil, true, "git init after first refresh is noticed")
+
+        try FileManager.default.removeItem(at: folder.appendingPathComponent(".git", isDirectory: true))
+        await model.refreshNow(for: folder)
+        expectEqual(model.index == nil, true, "git removal after cached repo is noticed")
+    }
+
     await test("GitStatusModel debounces rapid refresh calls") {
         let repo = try makeGitModelTempDirectory(prefix: "fx-model-debounce")
         defer { try? FileManager.default.removeItem(at: repo) }

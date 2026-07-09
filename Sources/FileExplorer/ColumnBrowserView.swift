@@ -84,7 +84,7 @@ struct ColumnBrowserView: View {
         FileEntryLabel(
             entry: entry,
             showsTags: false,
-            gitState: pane.gitStatus.index?.state(for: entry.url) ?? .clean,
-            gitIgnored: pane.gitStatus.index?.isIgnored(entry.url) ?? false)
+            gitState: pane.gitState(for: entry),
+            gitIgnored: pane.isGitIgnored(entry))
     }
 }

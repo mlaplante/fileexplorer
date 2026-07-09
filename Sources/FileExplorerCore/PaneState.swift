@@ -300,6 +300,14 @@ public final class PaneState {
 
     public func depth(of url: URL) -> Int { rowDepths[url] ?? 0 }
 
+    public func gitState(for entry: FileEntry) -> GitFileState {
+        gitStatus.index?.state(for: entry.url) ?? .clean
+    }
+
+    public func isGitIgnored(_ entry: FileEntry) -> Bool {
+        gitStatus.index?.isIgnored(entry.url) ?? false
+    }
+
     public func toggleExpansion(of url: URL, recursively: Bool = false) async {
         if isExpanded(url) {
             collapse(url)

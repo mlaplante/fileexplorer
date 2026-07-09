@@ -11,7 +11,11 @@ private func makeTempDirectory(prefix: String) throws -> URL {
 private func runGit(_ arguments: [String], in directory: URL) throws {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-    process.arguments = arguments
+    process.arguments = [
+        "-c", "user.name=t",
+        "-c", "user.email=t@t",
+        "-c", "commit.gpgsign=false",
+    ] + arguments
     process.currentDirectoryURL = directory
     process.environment = [
         "GIT_CONFIG_GLOBAL": "/dev/null",

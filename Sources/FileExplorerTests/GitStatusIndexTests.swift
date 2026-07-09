@@ -64,6 +64,28 @@ func gitStatusIndexTests() async {
                     "ignored directory contributes no aggregate state")
     }
 
+    await test("GitStatusIndex resolves collapsed untracked directories and descendants") {
+        let status = GitRepoStatus(
+            branch: "main",
+            states: [
+                "sub/": .untracked,
+                "outer/nested/": .untracked,
+            ]
+        )
+        let index = GitStatusIndex(status: status, repoRoot: repoRoot)
+
+        expectEqual(index.state(for: repoRoot.appendingPathComponent("sub", isDirectory: true)), .untracked,
+                    "collapsed untracked directory row is untracked")
+        expectEqual(index.state(for: repoRoot.appendingPathComponent("sub/a.txt")), .untracked,
+                    "file inside collapsed untracked directory is untracked")
+        expectEqual(index.state(for: repoRoot.appendingPathComponent("outer", isDirectory: true)), .untracked,
+                    "ancestor of nested collapsed untracked directory aggregates")
+        expectEqual(index.state(for: repoRoot.appendingPathComponent("outer/nested", isDirectory: true)), .untracked,
+                    "nested collapsed untracked directory row is untracked")
+        expectEqual(index.state(for: repoRoot.appendingPathComponent("outer/nested/a.txt")), .untracked,
+                    "descendant of nested collapsed untracked directory is untracked")
+    }
+
     await test("GitStatusIndex formats branch labels and changed count") {
         expectEqual(index.branchLabel, "main", "attached branch label is branch name")
         expectEqual(index.changedCount, 4, "changedCount mirrors status")

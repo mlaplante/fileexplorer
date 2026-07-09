@@ -307,8 +307,8 @@ struct PaneView: View {
                     }
                     FileEntryLabel(
                         entry: entry,
-                        gitState: gitState(for: entry),
-                        gitIgnored: gitIgnored(entry))
+                        gitState: pane.gitState(for: entry),
+                        gitIgnored: pane.isGitIgnored(entry))
                     if let compareResult, let compareSide,
                        let badge = FolderComparator.badge(
                            for: entry.url.standardizedFileURL.path.replacingOccurrences(
@@ -510,11 +510,4 @@ struct PaneView: View {
         }
     }
 
-    private func gitState(for entry: FileEntry) -> GitFileState {
-        pane.gitStatus.index?.state(for: entry.url) ?? .clean
-    }
-
-    private func gitIgnored(_ entry: FileEntry) -> Bool {
-        pane.gitStatus.index?.isIgnored(entry.url) ?? false
-    }
 }

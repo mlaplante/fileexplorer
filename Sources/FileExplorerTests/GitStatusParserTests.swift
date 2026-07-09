@@ -70,6 +70,19 @@ func gitStatusParserTests() async {
         expectEqual(status.changedCount, 0, "truncated incomplete record is not counted")
     }
 
+    await test("GitStatusParser trims exactly capped input at last complete record") {
+        let branch = "# branch.head main\0"
+        let partial = "1 .M N... 100644 100644 100644 aaa bbb garbled"
+        let paddingCount = GitStatusParser.outputCap - branch.utf8.count - partial.utf8.count
+        let capped = branch + partial + String(repeating: "x", count: paddingCount)
+        let status = GitStatusParser.parse(capped.data(using: .utf8)!)
+
+        expectEqual(capped.utf8.count, GitStatusParser.outputCap, "fixture is exactly capped")
+        expectEqual(status.branch, "main", "branch before exact cap survives")
+        expectEqual(status.states, [:], "partial exact-cap record is ignored")
+        expectEqual(status.changedCount, 0, "partial exact-cap record is not counted")
+    }
+
     await test("GitStatusParser preserves spaces and UTF-8 paths") {
         let data = porcelainData([
             "1 .M N... 100644 100644 100644 aaa bbb Café Notes.md",

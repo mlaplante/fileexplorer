@@ -85,7 +85,7 @@ public enum GitStatusParser {
     }
 
     private static func completeRecordData(from data: Data) -> Data {
-        guard data.count > outputCap else { return data }
+        guard data.count >= outputCap else { return data }
         let prefix = data.prefix(outputCap)
         guard let lastNul = prefix.lastIndex(of: 0) else { return Data() }
         return Data(prefix.prefix(through: lastNul))

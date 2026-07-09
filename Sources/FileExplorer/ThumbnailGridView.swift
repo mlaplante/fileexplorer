@@ -243,8 +243,8 @@ struct ThumbnailGridView: View {
     private func cell(for entry: FileEntry) -> some View {
         ThumbnailCell(entry: entry,
                       isSelected: pane.selection.contains(entry.url),
-                      gitState: pane.gitStatus.index?.state(for: entry.url) ?? .clean,
-                      gitIgnored: pane.gitStatus.index?.isIgnored(entry.url) ?? false)
+                      gitState: pane.gitState(for: entry),
+                      gitIgnored: pane.isGitIgnored(entry))
             .id(entry.url)
             .onGeometryChange(for: CGRect.self) { proxy in
                 proxy.frame(in: .named("fxGrid"))

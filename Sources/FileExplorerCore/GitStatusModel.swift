@@ -13,8 +13,6 @@ public final class GitStatusModel {
     @ObservationIgnored private let runner: Runner
     @ObservationIgnored private var pending: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
-    @ObservationIgnored private var repoRootCache: [String: URL] = [:]
-    @ObservationIgnored private var nonRepoFolders = Set<String>()
 
     public init(runner: @escaping Runner = GitStatusModel.defaultRunner) {
         self.runner = runner
@@ -62,19 +60,7 @@ public final class GitStatusModel {
     }
 
     private func repoRoot(containing folder: URL) -> URL? {
-        let key = folder.standardizedFileURL.path
-        if let cached = repoRootCache[key] {
-            return cached
-        }
-        if nonRepoFolders.contains(key) {
-            return nil
-        }
-        if let located = GitRepoLocator.repoRoot(containing: folder) {
-            repoRootCache[key] = located
-            return located
-        }
-        nonRepoFolders.insert(key)
-        return nil
+        GitRepoLocator.repoRoot(containing: folder)
     }
 
     public static let defaultRunner: Runner = { repoRoot in
@@ -95,7 +81,7 @@ public final class GitStatusModel {
             ]
             let stdout = Pipe()
             process.standardOutput = stdout
-            process.standardError = Pipe()
+            process.standardError = FileHandle.nullDevice
 
             do {
                 try process.run()
