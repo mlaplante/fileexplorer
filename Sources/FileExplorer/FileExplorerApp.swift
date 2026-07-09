@@ -19,6 +19,8 @@ struct FileExplorerApp: App {
     private let infoModel = GetInfoModel()
     private let updateModel = UpdateModel()
     private let shortcutRecorder = ShortcutRecorderModel()
+    private let scriptRunner = ScriptRunner()
+    private let scriptsModel = ScriptsModel()
 
     init() {
         let persister = SessionPersister(
@@ -78,7 +80,9 @@ struct FileExplorerApp: App {
                                    syncPreview: syncPreviewModel, settings: settings,
                                    trashRegistry: trashRegistry,
                                    conflictResolution: conflictResolutionModel,
-                                   operationQueue: operationQueue)
+                                   operationQueue: operationQueue,
+                                   scriptRunner: scriptRunner,
+                                   scriptsModel: scriptsModel)
                         .navigationTitle(session.activePane.currentURL.lastPathComponent)
                         .toolbar {
                             ToolbarItemGroup(placement: .navigation) {
@@ -110,7 +114,9 @@ struct FileExplorerApp: App {
                     PaletteOverlayView(palette: palette) { item in
                         PaletteCoordinator.confirm(item, palette: palette,
                                                    session: session,
-                                                   settings: settings)
+                                                   settings: settings,
+                                                   scriptRunner: scriptRunner,
+                                                   scriptsModel: scriptsModel)
                     }
                     .padding(.top, 60)
                 }
@@ -178,6 +184,12 @@ struct FileExplorerApp: App {
                 ConnectServerSheet(model: connectServerModel) { url in
                     NSWorkspace.shared.open(url)
                 }
+            }
+            .alert(item: Binding(
+                get: { scriptRunner.pendingAlert },
+                set: { if $0 == nil { scriptRunner.pendingAlert = nil } })) { alert in
+                Alert(title: Text(alert.title), message: Text(alert.message),
+                      dismissButton: .default(Text("OK")))
             }
         }
         .commands {
@@ -305,6 +317,41 @@ struct FileExplorerApp: App {
                 }
                 .keyboardShortcut("o", modifiers: .command)
                 .disabled(session.activePane.selection.isEmpty)
+                Button("Open in Terminal") {
+                    WorkflowActions.openInTerminal(pane: session.activePane,
+                                                   settings: settings,
+                                                   scriptRunner: scriptRunner)
+                }
+                .keyboardShortcut(settings.chord(for: .openInTerminal).keyboardShortcut)
+                .disabled(settings.settings.terminalAppPath == nil)
+                Button("Open in Editor") {
+                    WorkflowActions.openInEditor(pane: session.activePane,
+                                                 settings: settings,
+                                                 scriptRunner: scriptRunner)
+                }
+                .keyboardShortcut(settings.chord(for: .openInEditor).keyboardShortcut)
+                .disabled(settings.settings.editorAppPath == nil)
+                Menu("Scripts") {
+                    if scriptsModel.scripts.isEmpty {
+                        Text("No scripts installed")
+                    } else {
+                        ForEach(scriptsModel.scripts, id: \.self) { script in
+                            Button(script.lastPathComponent) {
+                                WorkflowActions.runScript(script,
+                                                          pane: session.activePane,
+                                                          scriptRunner: scriptRunner)
+                            }
+                        }
+                    }
+                    Divider()
+                    Button("Open Scripts Folder") {
+                        WorkflowActions.openScriptsFolder(
+                            in: session.activePane,
+                            scriptsModel: scriptsModel,
+                            scriptRunner: scriptRunner)
+                    }
+                }
+                Divider()
                 Button("New Folder") {
                     Task { await session.activePane.createNewFolder() }
                 }
@@ -437,7 +484,9 @@ struct FileExplorerApp: App {
             CommandGroup(after: .windowArrangement) {
                 Button("Command Palette…") {
                     PaletteCoordinator.openCommands(palette, session: session,
-                                                    settings: settings)
+                                                    settings: settings,
+                                                    scriptRunner: scriptRunner,
+                                                    scriptsModel: scriptsModel)
                 }
                 .keyboardShortcut(settings.chord(for: .commandPalette).keyboardShortcut)
             }
@@ -460,6 +509,7 @@ struct FileExplorerApp: App {
                              recorder: shortcutRecorder)
         }
     }
+
 }
 
 /// ⌘I lives in its own Commands type because @Environment(\.openWindow)

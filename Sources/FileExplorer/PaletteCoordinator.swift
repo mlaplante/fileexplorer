@@ -11,6 +11,7 @@ enum PaletteCoordinator {
     private static let spotlight = SpotlightSearcher()
     private static var debounce: Task<Void, Never>?
     private static let deepScanID = "__deep_scan__"
+    private static var commandActions: [String: @MainActor () -> Void] = [:]
 
     static func openFolders(_ palette: PaletteModel, session: SessionState) {
         palette.present(mode: .folders)
@@ -87,15 +88,25 @@ enum PaletteCoordinator {
     }
 
     static func openCommands(_ palette: PaletteModel, session: SessionState,
-                             settings: SettingsModel) {
+                             settings: SettingsModel,
+                             scriptRunner: ScriptRunner,
+                             scriptsModel: ScriptsModel) {
         palette.present(mode: .commands)
-        palette.setItems(commands(for: session, settings: settings).map {
+        let commands = commands(for: session, settings: settings,
+                                scriptRunner: scriptRunner,
+                                scriptsModel: scriptsModel)
+        commandActions = Dictionary(uniqueKeysWithValues: commands.map {
+            ($0.id, $0.action)
+        })
+        palette.setItems(commands.map {
             PaletteItem(id: $0.id, title: $0.name, subtitle: $0.shortcut)
         })
     }
 
     static func confirm(_ item: PaletteItem, palette: PaletteModel,
-                        session: SessionState, settings: SettingsModel) {
+                        session: SessionState, settings: SettingsModel,
+                        scriptRunner: ScriptRunner,
+                        scriptsModel: ScriptsModel) {
         // Capture the mode and the palette's opening-time pane before
         // dismiss() clears targetPane — folder/file confirms must land on
         // the pane the palette was opened for, not whatever pane is active
@@ -127,7 +138,7 @@ enum PaletteCoordinator {
         case .commands:
             // Commands intentionally target whatever pane is active at
             // confirm time (e.g. "Toggle Dual Pane" acts on the current tab).
-            commands(for: session, settings: settings).first { $0.id == item.id }?.action()
+            commandActions[item.id]?()
         }
     }
 
@@ -139,8 +150,10 @@ enum PaletteCoordinator {
     }
 
     static func commands(for session: SessionState,
-                         settings: SettingsModel) -> [AppCommand] {
-        ([
+                         settings: SettingsModel,
+                         scriptRunner: ScriptRunner,
+                         scriptsModel: ScriptsModel) -> [AppCommand] {
+        var base = [
             AppCommand(id: "back", name: "Back", shortcut: "⌘[") {
                 Task { await session.activePane.goBack() }
             },
@@ -179,7 +192,41 @@ enum PaletteCoordinator {
                 NSWorkspace.shared.activateFileViewerSelecting(
                     [session.activePane.currentURL])
             },
-        ])
+        ]
+        if settings.settings.terminalAppPath != nil {
+            base.append(
+            AppCommand(id: "open-terminal", name: "Open in Terminal",
+                       shortcut: settings.chord(for: .openInTerminal).display) {
+                WorkflowActions.openInTerminal(pane: session.activePane,
+                                               settings: settings,
+                                               scriptRunner: scriptRunner)
+            })
+        }
+        if settings.settings.editorAppPath != nil {
+            base.append(
+            AppCommand(id: "open-editor", name: "Open in Editor",
+                       shortcut: settings.chord(for: .openInEditor).display) {
+                WorkflowActions.openInEditor(pane: session.activePane,
+                                             settings: settings,
+                                             scriptRunner: scriptRunner)
+            })
+        }
+        base.append(
+            AppCommand(id: "open-scripts-folder", name: "Open Scripts Folder",
+                       shortcut: "") {
+                WorkflowActions.openScriptsFolder(in: session.activePane,
+                                                  scriptsModel: scriptsModel,
+                                                  scriptRunner: scriptRunner)
+            })
+        return base
+        + scriptsModel.scripts.map { script in
+            AppCommand(id: "script:\(script.path)",
+                       name: "Run Script: \(script.lastPathComponent)",
+                       shortcut: "") {
+                WorkflowActions.runScript(script, pane: session.activePane,
+                                          scriptRunner: scriptRunner)
+            }
+        }
         + settings.settings.filterPresets.map { preset in
             AppCommand(id: "preset:\(preset.name)",
                        name: "Apply Preset: \(preset.name)", shortcut: "") {
@@ -205,4 +252,5 @@ enum PaletteCoordinator {
     private nonisolated static func abbreviate(_ url: URL) -> String {
         (url.path as NSString).abbreviatingWithTildeInPath
     }
+
 }

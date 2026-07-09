@@ -14,12 +14,15 @@ struct FileActions {
     let settings: SettingsModel
     let trashRegistry: TrashRegistryModel?
     let conflictResolution: ConflictResolutionModel?
+    let scriptRunner: ScriptRunner
+    let scriptsModel: ScriptsModel
     let share: (@MainActor ([URL]) -> Void)?
 
     @ViewBuilder
     func menu(for urls: Set<URL>) -> some View {
         let targets = Array(urls)
         openSection(targets: targets)
+        workflowSection(targets: targets)
         favoriteSection(targets: targets)
         clipboardSection(targets: targets)
         tagsSection(targets: targets)
@@ -35,6 +38,44 @@ struct FileActions {
         advancedSystemSection(targets: targets)
         Divider()
         trashSection(targets: targets)
+    }
+
+    @ViewBuilder
+    private func workflowSection(targets: [URL]) -> some View {
+        let entries = SelectionResolver.entries(matching: targets,
+                                                in: pane.visibleEntries)
+        Button("Open in Terminal") {
+            WorkflowActions.openInTerminal(pane: pane, settings: settings,
+                                           scriptRunner: scriptRunner,
+                                           selection: entries)
+        }
+        .disabled(settings.settings.terminalAppPath == nil)
+        Button("Open in Editor") {
+            WorkflowActions.openInEditor(pane: pane, settings: settings,
+                                         scriptRunner: scriptRunner,
+                                         selection: entries)
+        }
+        .disabled(settings.settings.editorAppPath == nil)
+        Menu("Scripts") {
+            if scriptsModel.scripts.isEmpty {
+                Text("No scripts installed")
+            } else {
+                ForEach(scriptsModel.scripts, id: \.self) { script in
+                    Button(script.lastPathComponent) {
+                        WorkflowActions.runScript(script, pane: pane,
+                                                  scriptRunner: scriptRunner,
+                                                  selection: entries)
+                    }
+                }
+            }
+            Divider()
+            Button("Open Scripts Folder") {
+                WorkflowActions.openScriptsFolder(in: pane,
+                                                  scriptsModel: scriptsModel,
+                                                  scriptRunner: scriptRunner)
+            }
+        }
+        Divider()
     }
 
     @ViewBuilder

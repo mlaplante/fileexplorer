@@ -38,6 +38,16 @@ public final class SettingsModel {
         persister.saveSettings(settings)
     }
 
+    public func setTerminalAppPath(_ path: String?) {
+        settings.terminalAppPath = path
+        persister.saveSettings(settings)
+    }
+
+    public func setEditorAppPath(_ path: String?) {
+        settings.editorAppPath = path
+        persister.saveSettings(settings)
+    }
+
     public func markUpdateCheck(at date: Date = Date()) {
         settings.lastUpdateCheckAt = date
         persister.saveSettings(settings)

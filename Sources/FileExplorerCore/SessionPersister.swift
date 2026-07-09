@@ -12,6 +12,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var folderViewSettings: [String: FolderViewSettings]
     public var workspaceProfiles: [WorkspaceProfile]
     public var smartFolders: [SmartFolder]
+    public var terminalAppPath: String?
+    public var editorAppPath: String?
 
     public init(jpegQuality: Double = 0.85, filterPresets: [FilterPreset] = [],
                 updateCheckEnabled: Bool = true, lastUpdateCheckAt: Date? = nil,
@@ -19,7 +21,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
                 knownTags: [String] = [],
                 folderViewSettings: [String: FolderViewSettings] = [:],
                 workspaceProfiles: [WorkspaceProfile] = [],
-                smartFolders: [SmartFolder] = []) {
+                smartFolders: [SmartFolder] = [],
+                terminalAppPath: String? = nil,
+                editorAppPath: String? = nil) {
         self.jpegQuality = min(max(jpegQuality, 0.1), 1.0)
         self.filterPresets = filterPresets
         self.updateCheckEnabled = updateCheckEnabled
@@ -29,12 +33,14 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.folderViewSettings = folderViewSettings
         self.workspaceProfiles = Self.normalizedProfiles(workspaceProfiles)
         self.smartFolders = Self.normalizedSmartFolders(smartFolders)
+        self.terminalAppPath = terminalAppPath
+        self.editorAppPath = editorAppPath
     }
 
     enum CodingKeys: String, CodingKey {
         case jpegQuality, filterPresets, updateCheckEnabled, lastUpdateCheckAt,
              shortcutOverrides, knownTags, folderViewSettings
-        case workspaceProfiles, smartFolders
+        case workspaceProfiles, smartFolders, terminalAppPath, editorAppPath
     }
 
     public init(from decoder: Decoder) throws {
@@ -58,6 +64,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
             [WorkspaceProfile].self, forKey: .workspaceProfiles) ?? [])
         smartFolders = Self.normalizedSmartFolders(try container.decodeIfPresent(
             [SmartFolder].self, forKey: .smartFolders) ?? [])
+        terminalAppPath = try container.decodeIfPresent(
+            String.self, forKey: .terminalAppPath)
+        editorAppPath = try container.decodeIfPresent(
+            String.self, forKey: .editorAppPath)
     }
 
     public static func normalizedTags(_ tags: [String]) -> [String] {

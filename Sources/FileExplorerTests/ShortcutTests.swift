@@ -36,6 +36,20 @@ func shortcutTests() async {
                     KeyChord(key: "p", command: true, shift: false,
                              option: true, control: false),
                     "⌥⌘P default")
+        expectEqual(ShortcutRegistry.defaultChord(for: .openInTerminal),
+                    KeyChord(key: "t", command: true, shift: false,
+                             option: false, control: true),
+                    "⌃⌘T default")
+        expectEqual(ShortcutRegistry.defaultChord(for: .openInEditor),
+                    KeyChord(key: "e", command: true, shift: false,
+                             option: false, control: true),
+                    "⌃⌘E default")
+        expectEqual(ShortcutRegistry.Command.openInTerminal.displayName,
+                    "Open in Terminal",
+                    "terminal command display name")
+        expectEqual(ShortcutRegistry.Command.openInEditor.displayName,
+                    "Open in Editor",
+                    "editor command display name")
     }
 
     await test("conflict detection flags duplicate effective chords") {

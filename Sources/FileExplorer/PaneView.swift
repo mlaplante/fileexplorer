@@ -12,6 +12,8 @@ struct PaneView: View {
     var trashRegistry: TrashRegistryModel?
     var conflictResolution: ConflictResolutionModel?
     var operationQueue: OperationQueueModel?
+    @Bindable var scriptRunner: ScriptRunner
+    var scriptsModel: ScriptsModel
     /// Compare-mode context: this pane's side and the shared result, valid
     /// only while the pane is still at the compared root.
     var compareSide: FolderComparator.Side? = nil
@@ -36,6 +38,8 @@ struct PaneView: View {
                                              settings: settings,
                                              trashRegistry: trashRegistry,
                                              conflictResolution: conflictResolution,
+                                             scriptRunner: scriptRunner,
+                                             scriptsModel: scriptsModel,
                                              share: share)) { open($0) }
                 } else if pane.viewMode == .columns {
                     ColumnBrowserView(
@@ -47,6 +51,8 @@ struct PaneView: View {
                                              settings: settings,
                                              trashRegistry: trashRegistry,
                                              conflictResolution: conflictResolution,
+                                             scriptRunner: scriptRunner,
+                                             scriptsModel: scriptsModel,
                                              share: share)) { open($0) }
                 } else {
                     table
@@ -213,6 +219,19 @@ struct PaneView: View {
         .background(ShareAnchor { view in
             pane.shareAnchor = view
         }.frame(width: 0, height: 0))
+        .overlay(alignment: .bottom) {
+            if let banner = scriptRunner.banner,
+               scriptRunner.bannerPaneID == pane.id {
+                Text(banner)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(.quaternary.opacity(0.5),
+                                in: Capsule())
+                    .padding(.bottom, 28)
+            }
+        }
     }
 
     private func share(_ targets: [URL]) {
@@ -363,6 +382,8 @@ struct PaneView: View {
                         settings: settings,
                         trashRegistry: trashRegistry,
                         conflictResolution: conflictResolution,
+                        scriptRunner: scriptRunner,
+                        scriptsModel: scriptsModel,
                         share: share).menu(for: urls)
         } primaryAction: { urls in
             open(urls)

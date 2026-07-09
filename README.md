@@ -14,6 +14,7 @@ and SwiftUI on top of Swift Package Manager.
 - Sort By and Group By menus for list and icon views.
 - Finder-style inline folder expansion in list view, with per-level sort and filter.
 - Share from the file context menu, including AirDrop through macOS sharing services.
+- Open the active pane in a configured terminal or editor, and run user scripts against the selection.
 - Put Back for items moved to Trash by FileExplorer.
 - Tags and Recents in the sidebar, with tag clicks filtering the active pane.
 - Finder comments in Get Info.
@@ -77,6 +78,8 @@ All assertions should report PASS.
 | ⌥⌘P | Preview Pane |
 | ⌘Y / Space | Quick Look |
 | ⌘O / ⌘↓ | Open |
+| ⌃⌘T | Open in Terminal |
+| ⌃⌘E | Open in Editor |
 | → / ⌥→ | Expand selected folder inline / expand entire subtree (list view) |
 | ← | Collapse selected folder, or jump to parent row (list view) |
 | ⇧⌘N | New folder |
@@ -84,7 +87,7 @@ All assertions should report PASS.
 | ⌘C / ⌘V | Copy / paste files (⌥⌘V moves) |
 | ⌘D | Duplicate |
 | Context menu | Make Alias |
-| Context menu | Share…, Put Back, Tags, and Finder comments via Get Info |
+| Context menu | Share…, Open in Terminal/Editor, Scripts, Put Back, Tags, and Finder comments via Get Info |
 | ⌘I | Get Info |
 | ⌘⌫ | Move to Trash |
 | Return | Rename selected item |
@@ -115,3 +118,17 @@ app's *first* launch (i.e. when no instance of FileExplorer is already
 running). If FileExplorer is already open, `fx` will just bring the existing
 window(s) forward without changing their location — quit the app first if you
 need to force it to open at a specific path.
+
+## Terminal, editor, and user scripts
+
+Choose terminal and editor apps in Settings → Integrations. Open in Terminal
+uses the single selected folder, or the pane folder otherwise. Open in Editor
+uses the selection, or the pane folder when nothing is selected.
+
+User scripts live in
+`~/Library/Application Support/FileExplorer/Scripts`. Executable files in that
+folder appear in File → Scripts, the file context menu, and the command palette.
+Scripts run directly, with the pane folder as cwd. Selected paths are passed as
+argv in selection order; when nothing is selected, the pane folder is passed as
+the sole argument. Successful scripts show a transient banner, failures show an
+alert with stderr, and the active pane reloads when the process exits.

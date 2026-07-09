@@ -92,4 +92,19 @@ func selectionResolverTests() async {
         pane.clickSelect(u[2], commandDown: false, shiftDown: true)
         expectEqual(pane.selection, Set(u[0...2]), "second shift-click ranges")
     }
+
+    await test("selected entries match standardized URL selections") {
+        let entryURL = URL(fileURLWithPath: "/private/tmp/fx-selection/file.txt")
+        let selectedURL = URL(fileURLWithPath: "/tmp/fx-selection/file.txt")
+            .standardizedFileURL
+        let entry = FileEntry(url: entryURL, name: "file.txt",
+                              isDirectory: false, isHidden: false,
+                              isSymlink: false, size: 0, created: nil,
+                              modified: .distantPast, contentType: nil)
+
+        let matches = SelectionResolver.entries(matching: [selectedURL],
+                                                in: [entry])
+        expectEqual(matches.map(\.url), [entryURL],
+                    "standardized selection resolves matching visible entry")
+    }
 }

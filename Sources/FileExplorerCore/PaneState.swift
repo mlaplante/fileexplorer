@@ -5,6 +5,7 @@ import AppKit
 @MainActor
 @Observable
 public final class PaneState {
+    public let id = UUID()
     /// Hover-preview state; owned here because view structs are re-inited on
     /// every parent render on this toolchain (M5 deferred hoisting).
     public let hoverPreview = HoverPreviewModel()
