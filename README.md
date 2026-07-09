@@ -23,6 +23,11 @@ and SwiftUI on top of Swift Package Manager.
   recursively, groups byte-identical files by size + SHA-256, supports newest,
   oldest, or custom keep choices, and caps scans at 100k files with a
   partial-results note.
+- Browse archives read-only from the context menu, Tools menu, or command
+  palette: zip and tarball-family archives open in a sheet for navigation,
+  Quick Look/Open of individual entries, Extract Selected, and Extract All.
+  Encrypted zips may list but report the extraction failure when previewing or
+  extracting.
 - Disk usage and duplicate cleanup move files through FileExplorer's undo-able
   Trash path, so Undo and Put Back records apply.
 - Put Back for items moved to Trash by FileExplorer.
@@ -148,3 +153,11 @@ alert with stderr, and the active pane reloads when the process exits.
 For release checks, open a busy git repo and verify status dots match `git status`,
 ignored entries are dimmed and hidden by Hide ignored, the status bar branch works
 in normal repos and worktrees, and large repos stay responsive while status loads.
+
+## Archive browsing walkthrough
+
+For release checks, browse a large zip and a tar.gz from Browse Archive, verify
+folder navigation remains responsive, preview an image or PDF via Quick Look,
+extract selected nested files into a folder that already has a top-level name
+collision, and verify corrupt or encrypted archives surface an error instead of
+opening an empty browser.
