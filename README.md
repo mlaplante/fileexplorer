@@ -57,6 +57,15 @@ swift build
 swift run FileExplorer
 ```
 
+## macOS compatibility
+
+Built for macOS 15+. Validated against the macOS 26 SDK (pinned `macos-26`
+CI runners); parsers for `git`/`bsdtar` output are drift-tolerant and
+benchmark smoke runs gate gross performance regressions. Re-validate on the
+first macOS 27 beta: run `swift run FileExplorerTests` and
+`swift run -c release FileExplorerBench --smoke` on the beta, then launch the
+app and spot-check archive browsing and git badges.
+
 ## Testing
 
 The test suite is a plain SPM executable (no XCTest bundle needed):
