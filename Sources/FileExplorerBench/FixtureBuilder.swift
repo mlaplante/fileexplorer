@@ -44,8 +44,11 @@ enum FixtureBuilder {
     static func build(profile: BenchProfile) throws -> Fixtures {
         let cachesDir = FileManager.default.urls(
             for: .cachesDirectory, in: .userDomainMask)[0]
+        // Cache key embeds the profile's counts so editing BenchProfile
+        // invalidates stale fixtures instead of silently reusing them.
         let root = cachesDir.appendingPathComponent(
-            "FileExplorerBench/\(profile.name)-v1", isDirectory: true)
+            "FileExplorerBench/\(profile.name)-v1-\(profile.flatFileCount)-\(profile.deepEntryCount)-\(profile.dupeFileCount)",
+            isDirectory: true)
         let stamp = root.appendingPathComponent("COMPLETE")
         let fm = FileManager.default
 
@@ -81,8 +84,10 @@ enum FixtureBuilder {
         }
     }
 
-    /// Deep: directories fan out 6 wide to depth ~12; every directory gets
-    /// text files, one in ~50 containing the content-scan needle.
+    /// Deep: budget-limited BFS, 6 dirs wide with 8 files each — lands
+    /// shallow-and-wide (depth ~4-6), which matches how enumeration cost
+    /// scales (entry count, not depth). One file in ~50 contains the
+    /// content-scan needle.
     private static func buildDeep(in dir: URL, count: Int) throws {
         let fm = FileManager.default
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -120,8 +125,8 @@ enum FixtureBuilder {
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
         // (size, share of files) — mostly small, a few large.
         let tiers: [(bytes: Int, share: Double)] = [
-            (4 * 1024, 0.60), (256 * 1024, 0.30),
-            (8 * 1024 * 1024, 0.09), (48 * 1024 * 1024, 0.01),
+            (4 * 1024, 0.60), (256 * 1024, 0.36),
+            (8 * 1024 * 1024, 0.03), (48 * 1024 * 1024, 0.003),
         ]
         var rng = SeededBytes(seed: 3)
         var index = 0
@@ -136,8 +141,8 @@ enum FixtureBuilder {
                     try original.write(to: url)          // exact duplicate
                 } else if i % 10 == 3, let original = originals.last,
                           tier.bytes > 128 * 1024 {
-                    var tail = original                   // same 64 KB prefix,
-                    tail[tail.count - 1] ^= 0xFF          // different tail
+                    var tail = original                   // identical except the
+                    tail[tail.count - 1] ^= 0xFF          // final byte
                     try tail.write(to: url)
                 } else {
                     let data = rng.data(count: tier.bytes)
