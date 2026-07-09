@@ -9,5 +9,6 @@ let package = Package(
         .executableTarget(name: "FileExplorer", dependencies: ["FileExplorerCore"]),
         .executableTarget(name: "FileExplorerTests", dependencies: ["FileExplorerCore"]),
         .executableTarget(name: "IconGen"),
+        .executableTarget(name: "FileExplorerBench", dependencies: ["FileExplorerCore"]),
     ]
 )
