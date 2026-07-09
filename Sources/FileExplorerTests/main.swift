@@ -65,5 +65,6 @@ await columnsModelTests()
 await rubberBandTests()
 await gridNavigatorTests()
 await springLoadTests()
+await gitStatusParserTests()
 
 finish()
