@@ -16,9 +16,8 @@ workdir: "/Users/mlaplante/Sites/fileexplorer"                  # Absolute path 
 
 # ── Board tracking (optional) ─────────────────────────────────────────────────
 tracking:
-  # GitHub: set your Project (v2) board number to enable two-way status syncing
-  # (Hermes Kanban ↔ GitHub Project).
-  # github_project_number: 1
+  # GitHub Project v2 used by Daedalus as the authoritative issue queue.
+  github_project_number: 2
   #
   # GitLab: status syncing is label-driven (Issue Board lists keyed to the
   # status_map labels below). Opt in with:
@@ -83,11 +82,14 @@ vcs:
   # work_item_type: "Issue"             # Work-item type polled as "issues"
   # closed_state: "Done"                # State applied when an issue is closed
 
-  # Canonical pipeline status → your board's column/label/state names:
+  # New GitHub issues are placed in this board with its default Todo status;
+  # Daedalus treats Todo as the ready queue and moves cards through the remaining
+  # native Project statuses itself.
   status_map:
-    ready: "Ready"
-    in_progress: "In progress"
-    in_review: "In review"
+    ready: "Todo"
+    in_progress: "In Progress"
+    # The stock Project board has no review column; review work stays in progress.
+    in_review: "In Progress"
     done: "Done"
 
 # ── Sources ──────────────────────────────────────────────────────────────────
