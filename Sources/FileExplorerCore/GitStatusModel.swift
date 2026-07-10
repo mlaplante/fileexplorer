@@ -11,11 +11,17 @@ public final class GitStatusModel {
     public var onChange: (@MainActor () -> Void)?
 
     @ObservationIgnored private let runner: Runner
+    @ObservationIgnored private let sleeper: @MainActor (Duration) async -> Void
     @ObservationIgnored private var pending: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
 
-    public init(runner: @escaping Runner = GitStatusModel.defaultRunner) {
+    /// `sleeper` exists so tests can control the debounce timer
+    /// deterministically instead of racing the wall clock.
+    public init(runner: @escaping Runner = GitStatusModel.defaultRunner,
+                sleeper: @escaping @MainActor (Duration) async -> Void
+                    = { try? await Task.sleep(for: $0) }) {
         self.runner = runner
+        self.sleeper = sleeper
     }
 
     public func refresh(for folder: URL, debounce: Duration = .milliseconds(250)) {
@@ -24,7 +30,7 @@ public final class GitStatusModel {
         let standardized = folder.standardizedFileURL
         pending?.cancel()
         pending = Task { [debounce, standardized] in
-            try? await Task.sleep(for: debounce)
+            await sleeper(debounce)
             guard !Task.isCancelled else { return }
             await self.runRefresh(for: standardized, generation: myGeneration)
         }

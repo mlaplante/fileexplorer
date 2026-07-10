@@ -21,41 +21,51 @@ func springLoadTests() async {
     }
 
     await test("SpringLoadModel fires after injected delay") {
+        let timer = ManualTimer()
         let folder = URL(fileURLWithPath: "/tmp/a")
         var sprung: URL?
-        let model = SpringLoadModel(delay: .milliseconds(50)) { url in
-            sprung = url
-        }
+        let model = SpringLoadModel(delay: .milliseconds(50),
+                                    onSpring: { url in sprung = url },
+                                    sleeper: { await timer.sleep($0) })
         model.beginHover(folder: folder)
-        try await Task.sleep(for: .milliseconds(80))
+        await settle { timer.pendingCount == 1 }
+        timer.fireAll()
+        await settle { sprung != nil }
         expectEqual(sprung, folder, "callback fired with folder")
     }
 
     await test("SpringLoadModel cancel prevents spring") {
+        let timer = ManualTimer()
         let folder = URL(fileURLWithPath: "/tmp/a")
         var sprung: URL?
-        let model = SpringLoadModel(delay: .milliseconds(50)) { url in
-            sprung = url
-        }
+        let model = SpringLoadModel(delay: .milliseconds(50),
+                                    onSpring: { url in sprung = url },
+                                    sleeper: { await timer.sleep($0) })
         model.beginHover(folder: folder)
+        await settle { timer.pendingCount == 1 }
         model.endHover()
-        try await Task.sleep(for: .milliseconds(80))
+        timer.fireAll()
+        await drainMainQueue()
         expect(sprung == nil, "cancelled hover did not fire")
     }
 
     await test("SpringLoadModel retarget resets clock") {
+        let timer = ManualTimer()
         let first = URL(fileURLWithPath: "/tmp/a")
         let second = URL(fileURLWithPath: "/tmp/b")
         var fired: [URL] = []
-        let model = SpringLoadModel(delay: .milliseconds(50)) { url in
-            fired.append(url)
-        }
+        let model = SpringLoadModel(delay: .milliseconds(50),
+                                    onSpring: { url in fired.append(url) },
+                                    sleeper: { await timer.sleep($0) })
         model.beginHover(folder: first)
-        try await Task.sleep(for: .milliseconds(30))
+        await settle { timer.pendingCount == 1 }
         model.beginHover(folder: second)
-        try await Task.sleep(for: .milliseconds(30))
+        await settle { timer.pendingCount == 2 }
+        timer.fireFirst()   // release the superseded first timer
+        await drainMainQueue()
         expect(fired.isEmpty, "first timer was reset")
-        try await Task.sleep(for: .milliseconds(35))
+        timer.fireAll()
+        await settle { !fired.isEmpty }
         expectEqual(fired, [second], "only retargeted folder fires")
     }
 }

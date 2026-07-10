@@ -142,15 +142,18 @@ func gitStatusModelTests() async {
         try FileManager.default.createDirectory(at: repo.appendingPathComponent(".git", isDirectory: true),
                                                 withIntermediateDirectories: true)
         let counter = RunCounter()
-        let model = GitStatusModel { _ in
+        let timer = ManualTimer()
+        let model = GitStatusModel(runner: { _ in
             await counter.increment()
             return porcelainStatus(["# branch.head main"])
-        }
+        }, sleeper: { await timer.sleep($0) })
 
         model.refresh(for: repo, debounce: .milliseconds(50))
-        try? await Task.sleep(for: .milliseconds(10))
+        await settle { timer.pendingCount == 1 }
         model.refresh(for: repo, debounce: .milliseconds(50))
-        try? await Task.sleep(for: .milliseconds(150))
+        await settle { timer.pendingCount == 2 }
+        timer.fireAll()   // superseded first timer is cancelled; second runs
+        await settle { model.index != nil }
 
         expectEqual(await counter.count, 1, "rapid refreshes coalesce into one runner call")
         expectEqual(model.index?.branchLabel, "main", "debounced refresh publishes status")
@@ -167,17 +170,19 @@ func gitStatusModelTests() async {
                                                 withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: repoB.appendingPathComponent(".git", isDirectory: true),
                                                 withIntermediateDirectories: true)
+        let gateA = ManualTimer()
         let model = GitStatusModel { root in
             if root.standardizedFileURL.path == repoA.standardizedFileURL.path {
-                try? await Task.sleep(for: .milliseconds(150))
+                await gateA.wait()
                 return porcelainStatus(["# branch.head main", "? late-a.txt"])
             }
             return porcelainStatus(["# branch.head main", "? current-b.txt"])
         }
 
         let first = Task { await model.refreshNow(for: repoA) }
-        try? await Task.sleep(for: .milliseconds(20))
+        await settle { gateA.pendingCount == 1 }   // repo A is inside its runner
         await model.refreshNow(for: repoB)
+        gateA.fireAll()                            // now the stale A result lands late
         await first.value
 
         expectEqual(model.index?.state(for: repoB.appendingPathComponent("current-b.txt")), .untracked,

@@ -24,12 +24,18 @@ public final class HoverPreviewModel {
 
     private let delay: Duration
     private let renderer: Renderer
+    private let sleeper: @MainActor (Duration) async -> Void
     private var pending: Task<Void, Never>?
 
+    /// `sleeper` exists so tests can control the timer deterministically
+    /// instead of racing the wall clock.
     public init(delay: Duration = .milliseconds(500),
-                renderer: @escaping Renderer = HoverPreviewModel.defaultRenderer) {
+                renderer: @escaping Renderer = HoverPreviewModel.defaultRenderer,
+                sleeper: @escaping @MainActor (Duration) async -> Void
+                    = { try? await Task.sleep(for: $0) }) {
         self.delay = delay
         self.renderer = renderer
+        self.sleeper = sleeper
     }
 
     /// Production renderer: PreviewRenderer off the main actor.
@@ -62,7 +68,7 @@ public final class HoverPreviewModel {
             return
         }
         pending = Task { [delay] in
-            try? await Task.sleep(for: delay)
+            await sleeper(delay)
             guard !Task.isCancelled else { return }
             presented = entry
             presentedImage = nil

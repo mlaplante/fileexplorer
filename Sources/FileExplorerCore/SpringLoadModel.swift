@@ -5,13 +5,19 @@ public final class SpringLoadModel {
     public var onSpring: (@MainActor (URL) -> Void)?
 
     private let delay: Duration
+    private let sleeper: @MainActor (Duration) async -> Void
     private var pending: Task<Void, Never>?
     private var currentFolder: URL?
 
+    /// `sleeper` exists so tests can control the timer deterministically
+    /// instead of racing the wall clock.
     public init(delay: Duration = .milliseconds(700),
-                onSpring: (@MainActor (URL) -> Void)? = nil) {
+                onSpring: (@MainActor (URL) -> Void)? = nil,
+                sleeper: @escaping @MainActor (Duration) async -> Void
+                    = { try? await Task.sleep(for: $0) }) {
         self.delay = delay
         self.onSpring = onSpring
+        self.sleeper = sleeper
     }
 
     deinit {
@@ -24,7 +30,7 @@ public final class SpringLoadModel {
         pending?.cancel()
         currentFolder = standardized
         pending = Task { [delay] in
-            try? await Task.sleep(for: delay)
+            await sleeper(delay)
             guard !Task.isCancelled, currentFolder == standardized else { return }
             onSpring?(standardized)
             endHover()

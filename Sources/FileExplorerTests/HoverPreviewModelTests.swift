@@ -18,7 +18,7 @@ func hoverPreviewModelTests() async {
 
         model.hoverBegan(image)
         expect(model.presented == nil, "not presented before delay")
-        try await Task.sleep(for: .milliseconds(150))
+        await settle { model.presented != nil }
         expectEqual(model.presented?.url, image.url, "presented after delay")
 
         model.hoverEnded()
@@ -30,14 +30,15 @@ func hoverPreviewModelTests() async {
         let archive = entry("archive.zip", type: UTType(filenameExtension: "zip"))
         expect(!HoverPreviewModel.isPreviewable(archive), "zip not previewable")
         model.hoverBegan(archive)
-        try await Task.sleep(for: .milliseconds(150))
+        await drainMainQueue()
         expect(model.presented == nil, "non-previewable never presents")
 
         let pdf = entry("doc.pdf", type: UTType(filenameExtension: "pdf"))
         expect(HoverPreviewModel.isPreviewable(pdf), "pdf is previewable")
         model.hoverBegan(pdf)
-        model.hoverEnded()   // leave before the delay elapses
-        try await Task.sleep(for: .milliseconds(150))
+        model.hoverEnded()   // leave before the delay elapses; cancel lands
+                             // before the pending task ever runs
+        await drainMainQueue()
         expect(model.presented == nil, "early exit cancels the pending preview")
     }
 
@@ -47,7 +48,7 @@ func hoverPreviewModelTests() async {
         let second = entry("b.png", type: UTType(filenameExtension: "png"))
         model.hoverBegan(first)
         model.hoverBegan(second)   // moved to another row before delay
-        try await Task.sleep(for: .milliseconds(150))
+        await settle { model.presented != nil }
         expectEqual(model.presented?.url, second.url, "latest hover wins")
     }
 
@@ -64,7 +65,7 @@ func hoverPreviewModelTests() async {
 
         let model = HoverPreviewModel(delay: .milliseconds(20))
         model.hoverBegan(real)
-        try await Task.sleep(for: .milliseconds(400))
+        await settle { model.presentedImage != nil }
         expect(model.presented != nil, "presented")
         expect(model.presentedImage != nil, "rendered image published")
         model.hoverEnded()
@@ -84,7 +85,7 @@ func hoverPreviewModelTests() async {
 
         let model = HoverPreviewModel(delay: .milliseconds(20))
         model.hoverBegan(real)
-        try await Task.sleep(for: .milliseconds(400))
+        await settle { model.presentedText != nil }
         expect(model.presented != nil, "presented")
         expect(model.presentedText?.contains("let preview = true") == true,
                "rendered text published")
@@ -93,8 +94,9 @@ func hoverPreviewModelTests() async {
     }
 
     await test("retarget clears the previous rendered image immediately") {
-        // Slow injected renderer: returns a real 1x1 image after 300 ms, so we
-        // can observe the window between retarget and the new render landing.
+        // Gated renderer: each render suspends until the test releases it, so
+        // the window between retarget and the new render landing is observed
+        // deterministically instead of racing wall-clock sleeps.
         let pixel: CGImage = {
             let ctx = CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8,
                                 bytesPerRow: 0,
@@ -102,10 +104,14 @@ func hoverPreviewModelTests() async {
                                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
             return ctx.makeImage()!
         }()
-        let model = HoverPreviewModel(delay: .milliseconds(20)) { _, _ in
-            try? await Task.sleep(for: .milliseconds(300))
-            return .image(pixel)
-        }
+        let timer = ManualTimer()
+        let renderGate = ManualTimer()
+        let model = HoverPreviewModel(delay: .milliseconds(20),
+                                      renderer: { _, _ in
+                                          await renderGate.wait()
+                                          return .image(pixel)
+                                      },
+                                      sleeper: { await timer.sleep($0) })
         func entry(_ name: String) -> FileEntry {
             FileEntry(url: URL(fileURLWithPath: "/t/\(name)"), name: name,
                       isDirectory: false, isHidden: false, isSymlink: false,
@@ -114,14 +120,21 @@ func hoverPreviewModelTests() async {
         }
 
         model.hoverBegan(entry("a.png"))
-        try await Task.sleep(for: .milliseconds(600))
+        await settle { timer.pendingCount == 1 }
+        timer.fireAll()
+        await settle { renderGate.pendingCount == 1 }
+        renderGate.fireAll()
+        await settle { model.presentedImage != nil }
         expect(model.presentedImage != nil, "first image rendered")
 
         model.hoverBegan(entry("b.png"))
-        try await Task.sleep(for: .milliseconds(120)) // past 20 ms delay, well before 300 ms render
+        await settle { timer.pendingCount == 1 }
+        timer.fireAll()
+        await settle { renderGate.pendingCount == 1 } // second render pending
         expectEqual(model.presented?.name, "b.png", "retargeted")
         expect(model.presentedImage == nil,
                "stale first image cleared while second render is pending")
+        renderGate.fireAll()
         model.hoverEnded()
     }
 }
