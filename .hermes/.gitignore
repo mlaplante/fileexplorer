@@ -1,0 +1,3 @@
+# Runtime state is local to this Daedalus installation.
+daedalus_dispatch_state.json
+history.jsonl
