@@ -160,6 +160,11 @@ notify:
 
 # ── Execution tunables ────────────────────────────────────────────────────────
 execution:
+  # Autonomous merge remains gated: QA, independent reviewer, security review,
+  # and required CI checks must all pass. Use GitHub squash merges.
+  auto_merge: true
+  merge_method: "squash"
+
   # How many issues the dispatcher spawns per tick (default: 5). Caps how many
   # coding agents can be launched at once — keep it low (e.g. 2-4) on memory-
   # constrained hosts to avoid OOM-killing parallel coding agents (issue #141).
